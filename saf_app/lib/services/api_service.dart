@@ -49,13 +49,18 @@ class ApiService {
 
     final data = _parseResponse(response);
 
-    if (response.statusCode == 200 && data['token'] != null) {
+    if (response.statusCode == 200 && data['resultado'] == 1) {
       _token = data['token'];
-      _user = data['user'];
+      _user = data['usuario'];
       await _saveSession();
     }
 
-    return data;
+    return {
+      'success': data['resultado'] == 1,
+      'token': data['token'],
+      'user': data['usuario'],
+      'message': data['mensaje'] ?? 'Error desconocido',
+    };
   }
 
   Future<void> logout() async {
