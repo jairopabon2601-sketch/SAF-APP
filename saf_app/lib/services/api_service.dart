@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static const String _baseUrlKey = 'api_base_url';
-  static const String _defaultBaseUrl = 'http://192.168.1.100/saf/api';
+  static const String _defaultBaseUrl = 'https://safenlinea.com';
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
 
@@ -42,7 +42,7 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await post('/auth/login', {
+    final response = await post('/api/usuarios/login.php', {
       'email': email,
       'password': password,
     });
