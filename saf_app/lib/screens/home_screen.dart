@@ -65,9 +65,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Text(
-                    user?['email'] ?? '',
-                    style: const TextStyle(
+                    Text(
+                      user?['email'] ?? '',
+                      style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 13,
                     ),
