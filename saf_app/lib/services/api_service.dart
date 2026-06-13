@@ -24,10 +24,17 @@ class ApiService {
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString(_tokenKey);
-    _baseUrl = prefs.getString(_baseUrlKey) ?? _defaultBaseUrl;
+    _baseUrl = _defaultBaseUrl;
     final userData = prefs.getString(_userKey);
     if (userData != null) {
-      _user = jsonDecode(userData);
+      try {
+        final decoded = jsonDecode(userData);
+        if (decoded is Map) {
+          _user = Map<String, dynamic>.from(decoded);
+        }
+      } catch (e) {
+        print('Error parsing saved session: $e');
+      }
     }
   }
 
@@ -42,25 +49,36 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> login(String email, String password) async {
-    final response = await post('/api/usuarios/login.php', {
-      'email': email,
-      'password': password,
-    });
+    try {
+      final response = await post('/api/usuarios/login.php', {
+        'email': email,
+        'password': password,
+      });
 
-    final data = _parseResponse(response);
+      final data = _parseResponse(response);
 
-    if (response.statusCode == 200 && data['resultado'] == 1) {
-      _token = data['token'];
-      _user = data['usuario'];
-      await _saveSession();
+      if (response.statusCode == 200 && data['resultado'] == 1) {
+        _token = data['token']?.toString();
+        final usuarioData = data['usuario'];
+        if (usuarioData is Map) {
+          _user = Map<String, dynamic>.from(usuarioData);
+        } else {
+          _user = null;
+        }
+        await _saveSession();
+      }
+
+      return {
+        'success': data['resultado'] == 1,
+        'token': data['token'],
+        'user': data['usuario'],
+        'message': data['mensaje'] ?? 'Error desconocido',
+      };
+    } catch (e, stackTrace) {
+      print('ApiService.login error: $e');
+      print(stackTrace);
+      rethrow;
     }
-
-    return {
-      'success': data['resultado'] == 1,
-      'token': data['token'],
-      'user': data['usuario'],
-      'message': data['mensaje'] ?? 'Error desconocido',
-    };
   }
 
   Future<void> logout() async {

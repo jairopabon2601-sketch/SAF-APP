@@ -48,10 +48,12 @@ class _LoginScreenState extends State<LoginScreen> {
           _errorMessage = result['message'] ?? 'Credenciales incorrectas';
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('Error de login: $e');
+      debugPrint('Stacktrace: $stackTrace');
       if (!mounted) return;
       setState(() {
-        _errorMessage = 'Error de conexión. Verifica tu red.';
+        _errorMessage = 'Error de conexión: $e. Verifica tu red.';
       });
     } finally {
       if (mounted) {
