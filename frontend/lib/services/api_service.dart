@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -33,7 +34,7 @@ class ApiService {
           _user = Map<String, dynamic>.from(decoded);
         }
       } catch (e) {
-        print('Error parsing saved session: $e');
+        debugPrint('Error parsing saved session: $e');
       }
     }
   }
@@ -75,8 +76,8 @@ class ApiService {
         'message': data['mensaje'] ?? 'Error desconocido',
       };
     } catch (e, stackTrace) {
-      print('ApiService.login error: $e');
-      print(stackTrace);
+      debugPrint('ApiService.login error: $e');
+      debugPrint(stackTrace.toString());
       rethrow;
     }
   }
