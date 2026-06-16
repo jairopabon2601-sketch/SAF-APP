@@ -9,32 +9,55 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shimmer;
   // ── Services & controllers ──────────────────────────────────────
   final _api = ApiService();
 
   // ── UI state ────────────────────────────────────────────────────
   bool _balanceVisible = true;
   int _selectedIndex = 0;
+  int _movSubTab = 0;     // 0=Cuentas 1=Movimientos
+  int _creditoSubTab = 0; // 0=Aprobados 1=Pendientes 2=Simular 3=Estadística
+
+  // Filtros movimientos
+  String _filterCuenta  = '';
+  String _filterTipo    = '';
+  DateTime? _filterDesde;
+  DateTime? _filterHasta;
+
+  // Filtros créditos
+  String _creditoFiltroEstado = '';
+
+  // Simulador crédito
+  double _simMeses = 6;
+  double _simMonto = 1000000;
+  double _simTasa  = 2.0;
 
   // ── Data state ──────────────────────────────────────────────────
   bool _loadingData = true;
   List<Map<String, dynamic>> _cuentas = [];
   List<Map<String, dynamic>> _movimientos = [];
   List<Map<String, dynamic>> _ahorradores = [];
-  List<Map<String, dynamic>> _creditos = [];
+  List<Map<String, dynamic>> _creditos = [];       // Estadística por fuente
+  List<Map<String, dynamic>> _creditosLista = []; // Aprobados/Pendientes
 
   // ── Computed ────────────────────────────────────────────────────
   double get _totalSaldo => _cuentas.fold(0.0,
       (s, c) => s + _num(c['saldo_actual'] ?? c['saldo'] ?? c['balance'] ?? 0));
 
+  // tipo_movimiento: "2"=Gasto "3"=Ingreso/Transferencia
   double get _totalIngresos => _movimientos
-      .where((m) => _tipoOf(m) == 'ingreso')
-      .fold(0.0, (s, m) => s + _num(m['valor'] ?? m['amount'] ?? m['monto'] ?? 0));
+      .where((m) {
+        final t = (m['tipo_movimiento'] ?? '').toString();
+        return t == '3' || t == '1';
+      })
+      .fold(0.0, (s, m) => s + _num(m['valor'] ?? 0));
 
   double get _totalEgresos => _movimientos
-      .where((m) => _tipoOf(m) == 'gasto')
-      .fold(0.0, (s, m) => s + _num(m['valor'] ?? m['amount'] ?? m['monto'] ?? 0));
+      .where((m) => (m['tipo_movimiento'] ?? '').toString() == '2')
+      .fold(0.0, (s, m) => s + _num(m['valor'] ?? 0));
 
   // ── Theme ───────────────────────────────────────────────────────
   static const _navy = Color(0xFF0D1B4B);
@@ -55,7 +78,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _shimmer = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    super.dispose();
   }
 
 
@@ -66,9 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final codigoUsuario = u?['codigo_usuario']?.toString() ?? '';
     final anio = DateTime.now().year.toString();
 
+    await _fetchCuentas(codigoUsuario);
     await Future.wait([
-      _fetchCuentas(codigoUsuario),
-      _fetchMovimientos(codigoUsuario),
+      _fetchMovimientosTodasCuentas(codigoUsuario),
       _fetchAhorradores(anio),
       _fetchCreditos(codigoUsuario),
     ]);
@@ -79,27 +112,53 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _fetchCuentas(String filtro) async {
     try {
       final r = await _api.post('/ajax/listar_cuentas_gasto.php', {'filtro': filtro});
+      debugPrint('[SAF] cuentas status: ${r.statusCode}');
+      debugPrint('[SAF] cuentas body: ${r.body.substring(0, r.body.length.clamp(0, 400))}');
       if (r.statusCode == 200) {
         final d = jsonDecode(r.body);
+        List<dynamic>? list;
         if (d is List) {
-          _cuentas = d.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+          list = d;
+        } else if (d is Map) {
+          // try common wrapper keys
+          for (final k in ['cuentas', 'datos', 'data', 'resultado_datos']) {
+            if (d[k] is List) { list = d[k] as List; break; }
+          }
+        }
+        if (list != null) {
+          _cuentas = list.whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e)).toList();
         }
       }
     } catch (e) { debugPrint('[SAF] cuentas: $e'); }
   }
 
-  Future<void> _fetchMovimientos(String usuario) async {
-    try {
-      final r = await _api.post('/ajax/listar_movimientos_cuenta.php',
-          {'usuario': usuario, 'pagina': '1'});
-      if (r.statusCode == 200) {
-        final d = _json(r.body);
-        final list = d['movimientos'];
-        if (list is List) {
-          _movimientos = list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+  Future<void> _fetchMovimientosTodasCuentas(String usuario) async {
+    final all = <Map<String, dynamic>>[];
+    await Future.wait(_cuentas.map((cuenta) async {
+      final codigo = cuenta['codigo']?.toString() ?? '';
+      if (codigo.isEmpty) return;
+      try {
+        final r = await _api.post('/ajax/listar_movimientos_cuenta.php',
+            {'codigo_cuenta': codigo, 'pagina': '1', 'usuario': usuario});
+        if (r.statusCode == 200) {
+          final d = _json(r.body);
+          final list = d['movimientos'];
+          if (list is List) {
+            for (final m in list) {
+              if (m is Map) {
+                final mov = Map<String, dynamic>.from(m);
+                mov['cuenta_nombre'] = cuenta['nombre'];
+                mov['cuenta_color']  = cuenta['color'];
+                all.add(mov);
+              }
+            }
+          }
         }
-      }
-    } catch (e) { debugPrint('[SAF] movimientos: $e'); }
+      } catch (e) { debugPrint('[SAF] mov cuenta $codigo: $e'); }
+    }));
+    all.sort((a, b) => (b['fecha'] ?? '').toString().compareTo((a['fecha'] ?? '').toString()));
+    _movimientos = all;
   }
 
   Future<void> _fetchAhorradores(String anio) async {
@@ -118,18 +177,35 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchCreditos(String filtro) async {
+    // Estadística por fuente (totales agrupados)
     try {
       final r = await _api.post('/ajax/listado_json_campos.php',
           {'codigo_consulta': 'json_total_creditos_valores', 'filtro': filtro});
       if (r.statusCode == 200) {
         final d = _json(r.body);
-        debugPrint('[SAF] creditos body: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+        debugPrint('[SAF] creditos-stat FULL: ${r.body}');
         final list = d['datos'];
         if (list is List) {
-          _creditos = list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+          _creditos = list.whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e)).toList();
         }
       }
-    } catch (e) { debugPrint('[SAF] creditos: $e'); }
+    } catch (e) { debugPrint('[SAF] creditos stat: $e'); }
+
+    // Lista individual de créditos aprobados
+    try {
+      final r = await _api.post('/ajax/listado_json_campos.php',
+          {'codigo_consulta': 'json_creditos_aprobados', 'filtro': filtro});
+      if (r.statusCode == 200) {
+        final d = _json(r.body);
+        debugPrint('[SAF] creditos-lista: ${r.body.substring(0, r.body.length.clamp(0, 300))}');
+        final list = d['datos'];
+        if (list is List) {
+          _creditosLista = list.whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e)).toList();
+        }
+      }
+    } catch (e) { debugPrint('[SAF] creditos lista: $e'); }
   }
 
   // ── User helpers ────────────────────────────────────────────────
@@ -328,6 +404,8 @@ class _HomeScreenState extends State<HomeScreen> {
   //  DASHBOARD TAB
   // ══════════════════════════════════════════════════════════════
   Widget _dashboardTab(String greeting, String firstName) {
+    if (_loadingData) return _dashboardSkeleton();
+
     final ingresos = _totalIngresos;
     final egresos = _totalEgresos;
     final balance = ingresos - egresos;
@@ -493,7 +571,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: recent
                         .asMap()
                         .entries
-                        .map((e) => _movimientoItem(e.value,
+                        .map((e) => _movimientoItemReal(e.value,
                             divider: e.key < recent.length - 1))
                         .toList(),
                   ),
@@ -509,20 +587,534 @@ class _HomeScreenState extends State<HomeScreen> {
   // ══════════════════════════════════════════════════════════════
   //  CRÉDITOS TAB
   // ══════════════════════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════
+  //  CRÉDITOS TAB — Gestión de Créditos
+  // ══════════════════════════════════════════════════════════════
   Widget _creditosTab() {
     if (_loadingData) return _loadingView();
+
+    // Totales calculados desde lista de créditos individuales
+    final totalPagado    = _creditosLista.fold(0.0,
+        (s, c) => s + _num(c['total_pagado'] ?? c['pagado'] ?? 0));
+    final totalPendiente = _creditosLista.fold(0.0,
+        (s, c) => s + _num(c['saldo_pendiente'] ?? c['pendiente'] ?? c['saldo'] ?? 0));
+
+    final creditosFiltrados = _creditoFiltroEstado.isEmpty
+        ? _creditosLista
+        : _creditosLista.where((c) {
+            final est = (c['estado'] ?? '').toString().toLowerCase();
+            return est.contains(_creditoFiltroEstado.toLowerCase());
+          }).toList();
+
+    final tasaM = _simTasa / 100;
+    final cuotaReal = (_simMeses > 0 && tasaM > 0)
+        ? _simMonto * tasaM / (1 - (1 / _pow(1 + tasaM, _simMeses.round())))
+        : (_simMeses > 0 ? _simMonto / _simMeses : 0.0);
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // ── Header ──────────────────────────────────────────────
+      Container(
+        margin: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+              colors: [Color(0xFF3B3B8A), Color(0xFF5252B4)]),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(children: [
+          Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.credit_card_rounded,
+                      color: Colors.white70, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('Gestión de Créditos',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800)),
+                ]),
+                const SizedBox(height: 6),
+                const Text(
+                    'Administra solicitudes, créditos aprobados y simulaciones',
+                    style: TextStyle(color: Colors.white60, fontSize: 11)),
+              ])),
+          const Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text('Sistema de Créditos',
+                style: TextStyle(color: Colors.white60, fontSize: 10)),
+            SizedBox(height: 2),
+            Text('SAF',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800)),
+          ]),
+        ]),
+      ),
+
+      // ── Sub-tabs scrollables ────────────────────────────────
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+        child: Row(children: [
+          _creditoTabBtn(0, 'Aprobados'),
+          const SizedBox(width: 8),
+          _creditoTabBtn(1, 'Pendientes'),
+          const SizedBox(width: 8),
+          _creditoTabBtn(2, 'Simular Crédito'),
+          const SizedBox(width: 8),
+          _creditoTabBtn(3, 'Estadística por Fuente'),
+        ]),
+      ),
+
+      // ── Contenido por sub-tab ───────────────────────────────
+      if (_creditoSubTab == 0 || _creditoSubTab == 1) ...[
+        // Botones acción
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Row(children: [
+            Expanded(child: _actionBtn(
+                label: 'AGREGAR DEUDOR',
+                color: _navy,
+                icon: Icons.person_add_rounded,
+                onTap: () => _snack('Agregar deudor próximamente'))),
+            const SizedBox(width: 8),
+            Expanded(child: _actionBtn(
+                label: 'AGREGAR CRÉDITO',
+                color: _navy,
+                icon: Icons.add_card_rounded,
+                onTap: () => _snack('Agregar crédito próximamente'))),
+          ]),
+        ),
+        // Stats Total Pagado / Total Pendiente
+        Container(
+          margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+                colors: [Color(0xFF3B3B8A), Color(0xFF5252B4)]),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(children: [
+            Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('TOTAL PAGADO',
+                      style: TextStyle(
+                          color: Colors.white60,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(_cop(totalPagado),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800)),
+                ])),
+            Container(width: 1, height: 40, color: Colors.white24),
+            Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text('TOTAL PENDIENTE',
+                      style: TextStyle(
+                          color: Colors.white60,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(_cop(totalPendiente),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800)),
+                ])),
+          ]),
+        ),
+        // Filtro Estado — fila compacta alineada
+        Container(
+          margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 8, offset: const Offset(0, 3))],
+          ),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+            const Text('Estado',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF8899BB))),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                    color: const Color(0xFFF0F2FA),
+                    borderRadius: BorderRadius.circular(8)),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _creditoFiltroEstado.isEmpty
+                        ? null
+                        : _creditoFiltroEstado,
+                    isExpanded: true,
+                    dropdownColor: Colors.white,
+                    hint: const Text('Seleccione',
+                        style: TextStyle(fontSize: 12,
+                            color: Color(0xFF8899BB))),
+                    items: const [
+                      DropdownMenuItem(value: null, child: Text('Todos')),
+                      DropdownMenuItem(value: 'activ', child: Text('Activo')),
+                      DropdownMenuItem(value: 'inactiv', child: Text('Inactivo')),
+                      DropdownMenuItem(value: 'pendiente', child: Text('Pendiente')),
+                    ],
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF0D1B4B)),
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                        size: 18, color: Color(0xFF8899BB)),
+                    onChanged: (v) =>
+                        setState(() => _creditoFiltroEstado = v ?? ''),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: () => setState(() {}),
+              child: Container(
+                height: 38,
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                decoration: BoxDecoration(
+                    color: _navy, borderRadius: BorderRadius.circular(8)),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.search_rounded, color: Colors.white, size: 14),
+                    SizedBox(width: 4),
+                    Text('Consultar',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            ),
+          ]),
+        ),
+        // Lista de créditos
+        if (creditosFiltrados.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _emptyActivity(),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+            child: Column(
+              children: creditosFiltrados
+                  .map((c) => _creditoCard(c))
+                  .toList(),
+            ),
+          ),
+
+      ] else if (_creditoSubTab == 2) ...[
+        // ── SIMULAR CRÉDITO ──────────────────────────────────
+        Container(
+          margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10, offset: const Offset(0, 3))],
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _simLabel('Tiempo en Meses: ${_simMeses.round()}'),
+            Slider(
+              value: _simMeses,
+              min: 1, max: 60,
+              divisions: 59,
+              activeColor: const Color(0xFF3B3B8A),
+              onChanged: (v) => setState(() => _simMeses = v),
+            ),
+            const SizedBox(height: 8),
+            _simLabel('Monto solicitado: ${_cop(_simMonto)}'),
+            Slider(
+              value: _simMonto,
+              min: 100000, max: 50000000,
+              divisions: 100,
+              activeColor: const Color(0xFF3B3B8A),
+              onChanged: (v) => setState(() => _simMonto = v),
+            ),
+            const SizedBox(height: 8),
+            _simLabel('Tasa interés mensual: ${_simTasa.toStringAsFixed(1)}%'),
+            Slider(
+              value: _simTasa,
+              min: 0.5, max: 10,
+              divisions: 19,
+              activeColor: const Color(0xFF3B3B8A),
+              onChanged: (v) => setState(() => _simTasa = v),
+            ),
+            const SizedBox(height: 20),
+            // Resultado
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [Color(0xFF3B3B8A), Color(0xFF5252B4)]),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(children: [
+                const Icon(Icons.calculate_rounded,
+                    color: Colors.white70, size: 24),
+                const SizedBox(width: 14),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Cuota mensual estimada',
+                      style: TextStyle(color: Colors.white60, fontSize: 12)),
+                  const SizedBox(height: 4),
+                  Text(_cop(cuotaReal),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900)),
+                ]),
+              ]),
+            ),
+          ]),
+        ),
+
+      ] else ...[
+        // ── ESTADÍSTICA POR FUENTE ───────────────────────────
+        _estadisticaCreditosWidget(),
+      ],
+    ]);
+  }
+
+  static double _pow(double base, int exp) {
+    double r = 1;
+    for (int i = 0; i < exp; i++) { r *= base; }
+    return r;
+  }
+
+  // ── Estadística por Fuente — barras horizontales ─────────────
+  Widget _estadisticaCreditosWidget() {
     if (_creditos.isEmpty) {
-      return _emptyTab(Icons.credit_card_rounded, 'Créditos',
-          'No hay créditos activos', const Color(0xFF34D399));
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: _emptyActivity(),
+      );
     }
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      itemCount: _creditos.length,
-      itemBuilder: (_, i) => _creditoCard(_creditos[i]),
+
+    // Auto-detectar nombres de campo desde el primer registro
+    final first = _creditos.first;
+    final allKeys = first.keys.toList();
+    debugPrint('[SAF] stat keys: $allKeys');
+    debugPrint('[SAF] stat first: $first');
+
+    const fuenteKeys  = ['fuente','nombre_fuente','cuenta','nombre',
+        'nombre_cuenta','cuenta_fuente','nombre_origen','origen'];
+    const salidasKeys = ['total_salidas','salidas','creditos_otorgados',
+        'total_creditos','prestado','total_prestado','valor_credito'];
+    const entradasKeys = ['total_entradas','entradas','cuotas_pagadas',
+        'total_cuotas','cobrado','total_cobrado','total_pagado','valor_cobrado'];
+
+    var fk = fuenteKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
+    if (fk.isEmpty) {
+      fk = allKeys.firstWhere(
+          (k) => first[k] is String && (first[k] as String).isNotEmpty,
+          orElse: () => allKeys.first);
+    }
+    var sk = salidasKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
+    var ek = entradasKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
+
+    // Fallback: usar campos numéricos por posición
+    final numKeys = allKeys.where((k) => _num(first[k]) > 0).toList();
+    if (sk.isEmpty && numKeys.isNotEmpty) sk = numKeys[0];
+    if (ek.isEmpty && numKeys.length >= 2) ek = numKeys[1];
+
+    debugPrint('[SAF] detect → fuente=$fk  salidas=$sk  entradas=$ek');
+
+    String labelOf(Map<String, dynamic> d) => (d[fk] ?? '?').toString();
+    double salidasOf(Map<String, dynamic> d) => _num(d[sk]);
+    double entradasOf(Map<String, dynamic> d) => _num(d[ek]);
+
+    final totalSalidas  = _creditos.fold(0.0, (s, d) => s + salidasOf(d));
+    final totalEntradas = _creditos.fold(0.0, (s, d) => s + entradasOf(d));
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Balance de valores por fuente',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
+                color: _navy)),
+        const SizedBox(height: 16),
+        _barChartSection(
+          title: 'Salidas por fuente (Créditos otorgados)',
+          barColor: const Color(0xFF3B3B8A),
+          data: _creditos,
+          labelFn: labelOf,
+          valueFn: salidasOf,
+          total: totalSalidas,
+          totalLabel: 'Total salidas',
+        ),
+        const SizedBox(height: 20),
+        _barChartSection(
+          title: 'Entradas por fuente (Cuotas pagadas)',
+          barColor: const Color(0xFF16A34A),
+          data: _creditos,
+          labelFn: labelOf,
+          valueFn: entradasOf,
+          total: totalEntradas,
+          totalLabel: 'Total entradas',
+        ),
+      ]),
     );
   }
+
+  Widget _barChartSection({
+    required String title,
+    required Color barColor,
+    required List<Map<String, dynamic>> data,
+    required String Function(Map<String, dynamic>) labelFn,
+    required double Function(Map<String, dynamic>) valueFn,
+    required double total,
+    required String totalLabel,
+  }) {
+    final sorted = [...data]
+      ..sort((a, b) => valueFn(b).compareTo(valueFn(a)));
+    final maxVal = sorted.isEmpty ? 1.0 : (valueFn(sorted.first) == 0 ? 1.0 : valueFn(sorted.first));
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10, offset: const Offset(0, 3))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Leyenda
+        Row(children: [
+          Container(width: 14, height: 14,
+              decoration: BoxDecoration(color: barColor,
+                  borderRadius: BorderRadius.circular(3))),
+          const SizedBox(width: 6),
+          Expanded(child: Text(title,
+              style: const TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w700,
+                  color: _navy))),
+        ]),
+        const SizedBox(height: 12),
+        // Barras horizontales
+        ...sorted.map((d) {
+          final val  = valueFn(d);
+          final pct  = val / maxVal;
+          final name = labelFn(d);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(children: [
+              SizedBox(
+                width: 76,
+                child: Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF8899BB))),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Stack(children: [
+                    Container(height: 18,
+                        color: const Color(0xFFF0F2FA)),
+                    FractionallySizedBox(
+                      widthFactor: pct.clamp(0.0, 1.0),
+                      child: Container(
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: barColor,
+                            borderRadius: BorderRadius.circular(4),
+                          )),
+                    ),
+                  ]),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 80,
+                child: Text(_cop(val),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: _navy)),
+              ),
+            ]),
+          );
+        }),
+        const Divider(height: 16),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text('$totalLabel:',
+              style: const TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w700,
+                  color: _navy)),
+          Text(_cop(total),
+              style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  color: barColor)),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _creditoTabBtn(int index, String label) {
+    final active = _creditoSubTab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _creditoSubTab = index),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? Colors.white : Colors.transparent,
+          border: Border(
+            bottom: BorderSide(
+              color: active ? const Color(0xFF3B3B8A) : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: active
+              ? [BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2))]
+              : null,
+        ),
+        child: Text(label,
+            style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: active
+                    ? const Color(0xFF3B3B8A)
+                    : const Color(0xFF8899BB))),
+      ),
+    );
+  }
+
+  Widget _simLabel(String text) => Padding(
+        padding: const EdgeInsets.only(bottom: 4),
+        child: Text(text,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF0D1B4B))),
+      );
 
   // ══════════════════════════════════════════════════════════════
   //  AHORRADORES TAB
@@ -617,100 +1209,616 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // ══════════════════════════════════════════════════════════════
-  //  MOVIMIENTOS TAB (Gestión de Gastos)
+  //  MOVIMIENTOS TAB — Gestión de Gastos (2 sub-tabs)
   // ══════════════════════════════════════════════════════════════
+
+  List<Map<String, dynamic>> get _movimientosFiltrados {
+    return _movimientos.where((m) {
+      if (_filterCuenta.isNotEmpty &&
+          (m['cuenta_nombre'] ?? '') != _filterCuenta) { return false; }
+      if (_filterTipo.isNotEmpty &&
+          (m['tipo_movimiento'] ?? '').toString() != _filterTipo) { return false; }
+      final rawFecha = (m['fecha'] ?? '').toString();
+      if (rawFecha.length >= 10) {
+        final fecha = DateTime.tryParse(rawFecha.substring(0, 10));
+        if (fecha != null) {
+          if (_filterDesde != null &&
+              fecha.isBefore(_filterDesde!)) { return false; }
+          if (_filterHasta != null &&
+              fecha.isAfter(_filterHasta!)) { return false; }
+        }
+      }
+      return true;
+    }).toList();
+  }
+
   Widget _movimientosTab() {
     if (_loadingData) return _loadingView();
 
-    final ingresos = _totalIngresos;
-    final gastos = _totalEgresos;
-    final balance = ingresos - gastos;
+    final totalSaldo = _cuentas.fold(0.0,
+        (s, c) => s + _num(c['saldo_actual'] ?? 0));
+    final filtrados = _movimientosFiltrados;
+    final gastos   = filtrados
+        .where((m) => (m['tipo_movimiento'] ?? '').toString() == '2')
+        .fold(0.0, (s, m) => s + _num(m['valor'] ?? 0));
+    final ingresos = filtrados
+        .where((m) {
+          final t = (m['tipo_movimiento'] ?? '').toString();
+          return t == '3' || t == '1';
+        })
+        .fold(0.0, (s, m) => s + _num(m['valor'] ?? 0));
+    final balance  = ingresos - gastos;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Stats row
+        // ── Sub-tab switcher ─────────────────────────────────
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+          child: Container(
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8EAF6),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(children: [
+              _subTab(0, 'Cuentas'),
+              _subTab(1, 'Movimientos'),
+            ]),
+          ),
+        ),
+
+        if (_movSubTab == 0) ...[
+          // ── CUENTAS: botones de acción ────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            child: Column(children: [
+              _actionBtn(
+                label: '+ Nueva Cuenta/Fuente',
+                color: const Color(0xFF10B981),
+                onTap: () => _snack('Nueva Cuenta/Fuente próximamente'),
+              ),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(child: _actionBtn(
+                  label: '⇄ Movimientos',
+                  color: _navy,
+                  onTap: () => setState(() => _movSubTab = 1),
+                )),
+                const SizedBox(width: 8),
+                Expanded(child: _actionBtn(
+                  label: '⇄ Transferir',
+                  color: const Color(0xFFF59E0B),
+                  onTap: () => _snack('Transferir entre cuentas próximamente'),
+                )),
+              ]),
+            ]),
+          ),
+          // Total saldo card
+          Container(
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                  colors: [Color(0xFF0D1B4B), Color(0xFF1A3A9F)]),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(children: [
+              const Icon(Icons.account_balance_wallet_rounded,
+                  color: Colors.white70, size: 28),
+              const SizedBox(width: 14),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Total de Saldos',
+                    style: TextStyle(color: Colors.white60, fontSize: 12)),
+                const SizedBox(height: 4),
+                Text(_cop(totalSaldo),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900)),
+              ]),
+            ]),
+          ),
+          // Lista de cuentas
+          if (_cuentas.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _emptyActivity(),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              itemCount: _cuentas.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, i) => _cuentaRowReal(_cuentas[i]),
+            ),
+
+        ] else ...[
+          // ── MOVIMIENTOS: botones de acción ────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            child: Row(children: [
+              Expanded(child: _actionBtn(
+                label: '+ Nuevo Movimiento',
+                color: _navy,
+                onTap: () => _snack('Nuevo movimiento próximamente'),
+              )),
+              const SizedBox(width: 8),
+              Expanded(child: _actionBtn(
+                label: 'Consultar',
+                color: const Color(0xFF0EA5E9),
+                icon: Icons.search_rounded,
+                onTap: () => _snack('Consulta avanzada próximamente'),
+              )),
+            ]),
+          ),
+          // ── Filtros ──────────────────────────────────────
+          Container(
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 8, offset: const Offset(0, 3))],
+            ),
+            child: Column(children: [
+              // Fila 1: Cuenta | Tipo
+              Row(children: [
+                Expanded(child: _filterDropdown<String>(
+                  label: 'Cuenta',
+                  value: _filterCuenta.isEmpty ? null : _filterCuenta,
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('Todas')),
+                    ..._cuentas.map((c) => DropdownMenuItem(
+                      value: (c['nombre'] ?? '').toString(),
+                      child: Text((c['nombre'] ?? '').toString(),
+                          overflow: TextOverflow.ellipsis),
+                    )),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _filterCuenta = v ?? ''),
+                )),
+                const SizedBox(width: 10),
+                Expanded(child: _filterDropdown<String>(
+                  label: 'Tipo',
+                  value: _filterTipo.isEmpty ? null : _filterTipo,
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Todos')),
+                    DropdownMenuItem(value: '2', child: Text('Gasto')),
+                    DropdownMenuItem(value: '3', child: Text('Ingreso')),
+                  ],
+                  onChanged: (v) =>
+                      setState(() => _filterTipo = v ?? ''),
+                )),
+              ]),
+              const SizedBox(height: 10),
+              // Fila 2: Desde | Hasta
+              Row(children: [
+                Expanded(child: _filterDate(
+                  label: 'Desde',
+                  value: _filterDesde,
+                  onPick: (d) => setState(() => _filterDesde = d),
+                )),
+                const SizedBox(width: 10),
+                Expanded(child: _filterDate(
+                  label: 'Hasta',
+                  value: _filterHasta,
+                  onPick: (d) => setState(() => _filterHasta = d),
+                )),
+              ]),
+              // Limpiar filtros (si hay alguno activo)
+              if (_filterCuenta.isNotEmpty || _filterTipo.isNotEmpty ||
+                  _filterDesde != null || _filterHasta != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => setState(() {
+                      _filterCuenta = '';
+                      _filterTipo   = '';
+                      _filterDesde  = null;
+                      _filterHasta  = null;
+                    }),
+                    child: const Text('Limpiar filtros',
+                        style: TextStyle(fontSize: 12,
+                            color: Color(0xFFDC2626))),
+                  ),
+                ),
+            ]),
+          ),
+          // ── Stats ────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            child: Row(children: [
+              Expanded(child: _statPill(Icons.arrow_upward_rounded,
+                  'Gastos', _cop(gastos),
+                  const Color(0xFFDC2626), const Color(0xFFFEE2E2))),
+              const SizedBox(width: 8),
+              Expanded(child: _statPill(Icons.arrow_downward_rounded,
+                  'Ingresos', _cop(ingresos),
+                  const Color(0xFF16A34A), const Color(0xFFDCFCE7))),
+              const SizedBox(width: 8),
+              Expanded(child: _statPill(Icons.account_balance_rounded,
+                  'Balance', _cop(balance),
+                  balance >= 0 ? _accent1 : const Color(0xFFDC2626),
+                  balance >= 0
+                      ? const Color(0xFFEEF0FF)
+                      : const Color(0xFFFEE2E2))),
+            ]),
+          ),
+          // ── Lista movimientos ────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _sectionTitle('Movimientos'),
+                Text('${filtrados.length} registros',
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF8899BB))),
+              ],
+            ),
+          ),
+          if (filtrados.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _emptyActivity(),
+            )
+          else
+            Container(
+              margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 14, offset: const Offset(0, 4))],
+              ),
+              child: Column(
+                children: filtrados.asMap().entries
+                    .map((e) => _movimientoItemReal(e.value,
+                        divider: e.key < filtrados.length - 1))
+                    .toList(),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+
+  Widget _actionBtn({
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+    IconData? icon,
+  }) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 42,
+          decoration: BoxDecoration(
+              color: color, borderRadius: BorderRadius.circular(10)),
+          alignment: Alignment.center,
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            if (icon != null) ...[
+              Icon(icon, color: Colors.white, size: 15),
+              const SizedBox(width: 6),
+            ],
+            Text(label,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700)),
+          ]),
+        ),
+      );
+
+  Widget _filterDropdown<T>({
+    required String label,
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+  }) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF8899BB))),
+        const SizedBox(height: 4),
+        Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F2FA),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              isExpanded: true,
+              items: items,
+              onChanged: onChanged,
+              dropdownColor: Colors.white,
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF0D1B4B),
+                  fontFamily: 'sans-serif'),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 18, color: Color(0xFF8899BB)),
+            ),
+          ),
+        ),
+      ]);
+
+  Widget _filterDate({
+    required String label,
+    required DateTime? value,
+    required ValueChanged<DateTime?> onPick,
+  }) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF8899BB))),
+        const SizedBox(height: 4),
+        GestureDetector(
+          onTap: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: value ?? DateTime.now(),
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2030),
+              builder: (ctx, child) => Theme(
+                data: Theme.of(ctx).copyWith(
+                  colorScheme: const ColorScheme.light(
+                      primary: Color(0xFF0D1B4B))),
+                child: child!,
+              ),
+            );
+            onPick(picked);
+          },
+          child: Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F2FA),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(children: [
+              const Icon(Icons.calendar_today_rounded,
+                  size: 14, color: Color(0xFF8899BB)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  value != null
+                      ? '${value.day.toString().padLeft(2, '0')}/'
+                        '${value.month.toString().padLeft(2, '0')}/'
+                        '${value.year}'
+                      : 'DD/MM/AAAA',
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: value != null
+                          ? const Color(0xFF0D1B4B)
+                          : const Color(0xFF8899BB)),
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ]);
+
+  void _snack(String msg) => ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
+
+  Widget _subTab(int index, String label) => Expanded(
+    child: GestureDetector(
+      onTap: () => setState(() => _movSubTab = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        margin: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: _movSubTab == index ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(9),
+          boxShadow: _movSubTab == index
+              ? [BoxShadow(color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 6, offset: const Offset(0, 2))]
+              : null,
+        ),
+        alignment: Alignment.center,
+        child: Text(label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: _movSubTab == index ? _navy : const Color(0xFF8899BB),
+          )),
+      ),
+    ),
+  );
+
+  Widget _cuentaRowReal(Map<String, dynamic> c) {
+    final nombre  = (c['nombre'] ?? 'Cuenta').toString();
+    final tipo    = (c['tipo_nombre'] ?? '').toString();
+    final saldo   = _num(c['saldo_actual'] ?? 0);
+    final estado  = c['estado']?.toString() == '1';
+    final hexColor = (c['color'] ?? '#4361EE').toString();
+    final color   = _hexColor(hexColor);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8, offset: const Offset(0, 3))],
+      ),
+      child: Row(children: [
+        Container(
+          width: 18, height: 18,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _statPill(Icons.arrow_downward_rounded,
-                    'Total Gastos', _cop(gastos), const Color(0xFFDC2626),
-                    const Color(0xFFFEE2E2)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _statPill(Icons.arrow_upward_rounded,
-                    'Total Ingresos', _cop(ingresos), const Color(0xFF16A34A),
-                    const Color(0xFFDCFCE7)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _statPill(Icons.account_balance_rounded,
-                    'Balance', _cop(balance),
-                    balance >= 0 ? _accent1 : const Color(0xFFDC2626),
-                    balance >= 0 ? const Color(0xFFEEF0FF) : const Color(0xFFFEE2E2)),
-              ),
+              Text(nombre,
+                  style: const TextStyle(fontWeight: FontWeight.w700,
+                      fontSize: 14, color: _navy)),
+              const SizedBox(height: 2),
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(tipo,
+                      style: TextStyle(color: color, fontSize: 10,
+                          fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 6),
+                Text(estado ? 'Activa' : 'Inactiva',
+                    style: TextStyle(
+                        color: estado
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFF8899BB),
+                        fontSize: 11)),
+              ]),
             ],
           ),
         ),
+        Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(_cop(saldo),
+              style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  color: saldo >= 0 ? _navy : const Color(0xFFDC2626))),
+          const SizedBox(height: 6),
+          Row(children: [
+            _iconActionBtn(
+              icon: Icons.edit_rounded,
+              color: const Color(0xFF0EA5E9),
+              onTap: () => _snack('Editar cuenta próximamente'),
+            ),
+            const SizedBox(width: 6),
+            _iconActionBtn(
+              icon: Icons.balance_rounded,
+              color: const Color(0xFF0EA5E9),
+              onTap: () => _snack('Movimientos de cuenta próximamente'),
+            ),
+          ]),
+        ]),
+      ]),
+    );
+  }
 
-        // Cuentas section
-        if (_cuentas.isNotEmpty) ...[
-          const SizedBox(height: 22),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _sectionTitle('Cuentas y Fuentes'),
-          ),
-          const SizedBox(height: 12),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            itemCount: _cuentas.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) => _cuentaRow(_cuentas[i]),
-          ),
-        ],
-
-        // Movements list
-        const SizedBox(height: 22),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _sectionTitle('Movimientos'),
+  Widget _iconActionBtn({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 28, height: 28,
+          decoration: BoxDecoration(
+              color: color, borderRadius: BorderRadius.circular(7)),
+          child: Icon(icon, color: Colors.white, size: 14),
         ),
-        const SizedBox(height: 12),
-        if (_movimientos.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _emptyActivity(),
-          )
-        else
+      );
+
+  Widget _movimientoItemReal(Map<String, dynamic> m, {bool divider = false}) {
+    final desc      = (m['descripcion'] ?? 'Movimiento').toString();
+    final cuentaNom = (m['cuenta_nombre'] ?? '').toString();
+    final hexColor  = (m['cuenta_color'] ?? '#4361EE').toString();
+    final color     = _hexColor(hexColor);
+    final tipo      = (m['tipo_movimiento'] ?? '2').toString();
+    // 2=Gasto, 3=Ingreso/Transferencia, 1=otro
+    final isIngreso = tipo == '3' || tipo == '1';
+    final valor     = _num(m['valor'] ?? 0);
+    final rawFecha  = (m['fecha'] ?? '').toString();
+    final fecha     = rawFecha.length >= 10 ? rawFecha.substring(0, 10) : rawFecha;
+
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        child: Row(children: [
+          // Color dot de la cuenta
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
+            width: 10, height: 10,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            width: 34, height: 34,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4))
+              color: isIngreso
+                  ? const Color(0xFFDCFCE7)
+                  : const Color(0xFFFEE2E2),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              isIngreso
+                  ? Icons.arrow_downward_rounded
+                  : Icons.arrow_upward_rounded,
+              color: isIngreso
+                  ? const Color(0xFF16A34A)
+                  : const Color(0xFFDC2626),
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(desc,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600,
+                        fontSize: 13, color: _navy)),
+                const SizedBox(height: 2),
+                Text(
+                  cuentaNom.isNotEmpty ? '$cuentaNom · $fecha' : fecha,
+                  style: const TextStyle(fontSize: 11,
+                      color: Color(0xFF8899BB)),
+                ),
               ],
             ),
-            child: Column(
-              children: _movimientos
-                  .asMap()
-                  .entries
-                  .map((e) => _movimientoItem(e.value,
-                      divider: e.key < _movimientos.length - 1))
-                  .toList(),
-            ),
           ),
-        const SizedBox(height: 24),
-      ],
-    );
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                '${isIngreso ? '+' : '-'}${_cop(valor)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  color: isIngreso
+                      ? const Color(0xFF16A34A)
+                      : const Color(0xFFDC2626),
+                ),
+              ),
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: () => _snack('Eliminar movimiento próximamente'),
+                child: const Icon(Icons.cancel_rounded,
+                    size: 20, color: Color(0xFFCBD5E1)),
+              ),
+            ],
+          ),
+        ]),
+      ),
+      if (divider)
+        Divider(height: 1, thickness: 1, indent: 68, endIndent: 16,
+            color: Colors.grey.withValues(alpha: 0.12)),
+    ]);
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -1159,162 +2267,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _cuentaRow(Map<String, dynamic> c) {
-    final nombre = (c['nombre'] ?? c['name'] ?? 'Cuenta').toString();
-    final tipo = (c['tipo'] ?? c['type'] ?? '').toString().toLowerCase();
-    final saldo = _num(c['saldo_actual'] ?? c['saldo'] ?? 0);
-    final estado = (c['estado'] ?? 'Activa').toString();
-    final color = _cuentaColor(tipo);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 3))
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(11)),
-            child: Icon(_cuentaIcon(tipo), color: color, size: 20),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(nombre,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: _navy)),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(tipo.isNotEmpty ? _capitalize(tipo) : 'Cuenta',
-                          style: TextStyle(
-                              color: color,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600)),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(estado,
-                        style: const TextStyle(
-                            color: Color(0xFF8899BB), fontSize: 11)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Text(_cop(saldo),
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 15,
-                color: saldo >= 0 ? _navy : const Color(0xFFDC2626),
-              )),
-        ],
-      ),
-    );
-  }
-
-  Widget _movimientoItem(Map<String, dynamic> m, {bool divider = false}) {
-    final desc =
-        (m['descripcion'] ?? m['description'] ?? m['concepto'] ?? 'Movimiento')
-            .toString();
-    final cuenta = (m['cuenta'] ?? m['account'] ?? '').toString();
-    final tipo = _tipoOf(m);
-    final valor = _num(m['valor'] ?? m['amount'] ?? m['monto'] ?? 0);
-    final fecha = (m['fecha'] ?? m['date'] ?? '').toString();
-    final isIngreso = tipo == 'ingreso';
-
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: isIngreso
-                      ? const Color(0xFFDCFCE7)
-                      : const Color(0xFFFEE2E2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  isIngreso
-                      ? Icons.arrow_downward_rounded
-                      : Icons.arrow_upward_rounded,
-                  color: isIngreso
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFDC2626),
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(desc,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: _navy,
-                        )),
-                    const SizedBox(height: 3),
-                    Text(
-                      cuenta.isNotEmpty ? '$cuenta · $fecha' : fecha,
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF8899BB)),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '${isIngreso ? '+' : '-'}${_cop(valor)}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                  color: isIngreso
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFDC2626),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (divider)
-          Divider(
-              height: 1,
-              thickness: 1,
-              indent: 68,
-              endIndent: 16,
-              color: Colors.grey.withValues(alpha: 0.12)),
-      ],
-    );
-  }
-
   Widget _creditoCard(Map<String, dynamic> c) {
     final nombre = (c['cliente'] ?? c['nombre'] ?? c['name'] ?? 'Cliente').toString();
     final monto = _num(c['monto'] ?? c['valor'] ?? c['amount'] ?? 0);
@@ -1570,6 +2522,92 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
 
+  // ── Skeleton helpers ────────────────────────────────────────────
+  Widget _skel(double w, double h, {double r = 10}) => AnimatedBuilder(
+        animation: _shimmer,
+        builder: (_, __) {
+          final base = Color.lerp(
+              const Color(0xFFDDE3EE), const Color(0xFFEEF1F8), _shimmer.value)!;
+          return Container(
+            width: w == double.infinity ? null : w,
+            height: h,
+            decoration: BoxDecoration(
+              color: base,
+              borderRadius: BorderRadius.circular(r),
+            ),
+          );
+        },
+      );
+
+  Widget _dashboardSkeleton() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Balance card
+          AnimatedBuilder(
+            animation: _shimmer,
+            builder: (_, __) {
+              final c = Color.lerp(
+                  const Color(0xFFCED7EE), const Color(0xFFDDE5F5), _shimmer.value)!;
+              return Container(
+                margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                height: 190,
+                decoration: BoxDecoration(
+                    color: c, borderRadius: BorderRadius.circular(28)),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _skel(100, 13, r: 6),
+                      const SizedBox(height: 6),
+                      _skel(70, 18, r: 6),
+                      const SizedBox(height: 14),
+                      _skel(150, 38, r: 8),
+                      const Spacer(),
+                      Row(children: [
+                        _skel(80, 44, r: 10),
+                        const SizedBox(width: 14),
+                        _skel(80, 44, r: 10),
+                        const SizedBox(width: 14),
+                        _skel(80, 44, r: 10),
+                      ]),
+                    ]),
+              );
+            },
+          ),
+          const SizedBox(height: 26),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Section title
+              _skel(130, 18, r: 6),
+              const SizedBox(height: 16),
+              // 2x2 summary cards
+              Row(children: [
+                Expanded(child: _skel(double.infinity, 108, r: 16)),
+                const SizedBox(width: 12),
+                Expanded(child: _skel(double.infinity, 108, r: 16)),
+              ]),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(child: _skel(double.infinity, 108, r: 16)),
+                const SizedBox(width: 12),
+                Expanded(child: _skel(double.infinity, 108, r: 16)),
+              ]),
+              const SizedBox(height: 26),
+              // Recent activity title
+              _skel(160, 18, r: 6),
+              const SizedBox(height: 14),
+              // 3 activity rows
+              _skel(double.infinity, 68, r: 14),
+              const SizedBox(height: 10),
+              _skel(double.infinity, 68, r: 14),
+              const SizedBox(height: 10),
+              _skel(double.infinity, 68, r: 14),
+            ]),
+          ),
+        ],
+      );
+
   Widget _loadingView() => SizedBox(
         height: 400,
         child: Center(
@@ -1685,6 +2723,12 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
   // ── Utility ──────────────────────────────────────────────────────
+  static Color _hexColor(String hex) {
+    final clean = hex.replaceFirst('#', '');
+    final padded = clean.length == 6 ? 'FF$clean' : clean;
+    return Color(int.tryParse(padded, radix: 16) ?? 0xFF4361EE);
+  }
+
   static double _num(dynamic v) =>
       v == null ? 0.0 : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
 
@@ -1738,6 +2782,4 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  static String _capitalize(String s) =>
-      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 }
