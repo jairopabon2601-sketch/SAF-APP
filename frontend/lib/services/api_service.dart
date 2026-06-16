@@ -60,12 +60,24 @@ class ApiService {
 
       if (response.statusCode == 200 && data['resultado'] == 1) {
         _token = data['token']?.toString();
-        final usuarioData = data['usuario'];
-        if (usuarioData is Map) {
-          _user = Map<String, dynamic>.from(usuarioData);
+        // Try every common key the API might use for the user object
+        final raw = data['usuario'] ?? data['user'] ?? data['data'] ??
+            data['info'] ?? data['perfil'];
+        if (raw is Map) {
+          _user = Map<String, dynamic>.from(raw);
+        } else if (raw == null) {
+          // Some APIs return the user fields at the top level alongside token
+          final topLevel = Map<String, dynamic>.from(data)
+            ..remove('token')
+            ..remove('resultado')
+            ..remove('mensaje')
+            ..remove('message');
+          _user = topLevel.isNotEmpty ? topLevel : null;
         } else {
           _user = null;
         }
+        debugPrint('[SAF API] user keys: ${_user?.keys.toList()}');
+        debugPrint('[SAF API] user: $_user');
         await _saveSession();
       }
 
