@@ -62,87 +62,111 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Data loading ────────────────────────────────────────────────
   Future<void> _loadData() async {
     await _api.init();
-    // Debug: identify actual API field names
-    debugPrint('[SAF] user keys: ${_api.user?.keys.toList()}');
-    debugPrint('[SAF] user: ${_api.user}');
+    final u = _api.user;
+    final codigoUsuario = u?['codigo_usuario']?.toString() ?? '';
+    final anio = DateTime.now().year.toString();
 
     await Future.wait([
-      _fetchList('/api/cuentas/listar.php',
-          keys: const ['cuentas', 'data', 'resultado_data'],
-          out: (v) => _cuentas = v),
-      _fetchList('/api/movimientos/listar.php',
-          keys: const ['movimientos', 'data', 'resultado_data'],
-          out: (v) => _movimientos = v),
-      _fetchList('/api/ahorradores/listar.php',
-          keys: const ['ahorradores', 'data', 'resultado_data'],
-          out: (v) => _ahorradores = v),
-      _fetchList('/api/creditos/listar.php',
-          keys: const ['creditos', 'prestamos', 'data'],
-          out: (v) => _creditos = v),
+      _fetchCuentas(codigoUsuario),
+      _fetchMovimientos(codigoUsuario),
+      _fetchAhorradores(anio),
+      _fetchCreditos(codigoUsuario),
     ]);
 
     if (mounted) setState(() => _loadingData = false);
   }
 
-  Future<void> _fetchList(String endpoint,
-      {required List<String> keys,
-      required void Function(List<Map<String, dynamic>>) out}) async {
+  Future<void> _fetchCuentas(String filtro) async {
     try {
-      final r = await _api.get(endpoint);
+      final r = await _api.post('/ajax/listar_cuentas_gasto.php', {'filtro': filtro});
       if (r.statusCode == 200) {
-        final d = _json(r.body);
-        for (final k in keys) {
-          final v = d[k];
-          if (v is List) {
-            out(v.whereType<Map>()
-                .map((e) => Map<String, dynamic>.from(e))
-                .toList());
-            return;
-          }
+        final d = jsonDecode(r.body);
+        if (d is List) {
+          _cuentas = d.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
         }
       }
-    } catch (e) {
-      debugPrint('[SAF] $endpoint: $e');
-    }
+    } catch (e) { debugPrint('[SAF] cuentas: $e'); }
+  }
+
+  Future<void> _fetchMovimientos(String usuario) async {
+    try {
+      final r = await _api.post('/ajax/listar_movimientos_cuenta.php',
+          {'usuario': usuario, 'pagina': '1'});
+      if (r.statusCode == 200) {
+        final d = _json(r.body);
+        final list = d['movimientos'];
+        if (list is List) {
+          _movimientos = list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+        }
+      }
+    } catch (e) { debugPrint('[SAF] movimientos: $e'); }
+  }
+
+  Future<void> _fetchAhorradores(String anio) async {
+    try {
+      final r = await _api.post('/ajax/listado_ahorros.php',
+          {'anio_ahorro': anio, 'filtro_asesor': '0'});
+      if (r.statusCode == 200) {
+        final d = _json(r.body);
+        debugPrint('[SAF] ahorros body: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+        final list = d['ahorradores'];
+        if (list is List) {
+          _ahorradores = list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+        }
+      }
+    } catch (e) { debugPrint('[SAF] ahorradores: $e'); }
+  }
+
+  Future<void> _fetchCreditos(String filtro) async {
+    try {
+      final r = await _api.post('/ajax/listado_json_campos.php',
+          {'codigo_consulta': 'json_total_creditos_valores', 'filtro': filtro});
+      if (r.statusCode == 200) {
+        final d = _json(r.body);
+        debugPrint('[SAF] creditos body: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
+        final list = d['datos'];
+        if (list is List) {
+          _creditos = list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+        }
+      }
+    } catch (e) { debugPrint('[SAF] creditos: $e'); }
   }
 
   // ── User helpers ────────────────────────────────────────────────
   String get _fullName {
     final u = _api.user;
     if (u == null) return 'Usuario';
-    // Try separate first + last name fields (most common in Spanish PHP apps)
-    for (final nk in ['nombre', 'nombres', 'primer_nombre', 'p_nombre', 'firstname', 'first_name']) {
-      for (final ak in ['apellido', 'apellidos', 'primer_apellido', 'p_apellido', 'lastname', 'last_name']) {
-        final n = (u[nk] ?? '').toString().trim();
-        final a = (u[ak] ?? '').toString().trim();
-        if (n.isNotEmpty && a.isNotEmpty) return '$n $a';
+    // Buscar en el objeto perfil primero (tbl_asesores, tbl_deudores, etc.)
+    final p = u['perfil'];
+    final perfil = p is Map ? Map<String, dynamic>.from(p) : <String, dynamic>{};
+    for (final src in [perfil, u]) {
+      final nombres = (src['nombres'] ?? src['nombre'] ?? '').toString().trim();
+      final apellidos = (src['apellidos'] ?? src['apellido'] ?? '').toString().trim();
+      if (nombres.isNotEmpty && apellidos.isNotEmpty) return '$nombres $apellidos';
+      for (final k in ['nombre_completo', 'fullname', 'name', 'nombres', 'nombre']) {
+        final v = (src[k] ?? '').toString().trim();
+        if (v.isNotEmpty) return v;
       }
     }
-    // Try full-name fields
-    for (final k in ['nombre', 'nombres', 'nombre_completo', 'nombreCompleto',
-                     'nombre_usuario', 'fullname', 'full_name', 'name', 'usuario']) {
-      final v = (u[k] ?? '').toString().trim();
-      if (v.isNotEmpty && v.contains(' ')) return v; // prefer multi-word
-    }
-    for (final k in ['nombre', 'nombres', 'name', 'usuario', 'email', 'correo']) {
-      final v = (u[k] ?? '').toString().trim();
-      if (v.isNotEmpty) return v;
-    }
+    final email = (u['usuario'] ?? u['email'] ?? '').toString().trim();
+    if (email.contains('@')) return email.split('@').first;
+    if (email.isNotEmpty) return email;
     return 'Usuario';
   }
 
   String get _photoUrl {
     final u = _api.user;
     if (u == null) return '';
-    for (final k in [
-      'foto', 'imagen', 'avatar', 'photo', 'fotografia',
-      'foto_perfil', 'imagen_perfil', 'profile_photo',
-      'profile_picture', 'profile_image', 'picture', 'img',
-    ]) {
-      final raw = (u[k] ?? '').toString().trim();
-      if (raw.isNotEmpty && raw != 'null') {
-        if (raw.startsWith('http')) return raw;
-        return 'https://safenlinea.com/$raw';
+    final p = u['perfil'];
+    final perfil = p is Map ? Map<String, dynamic>.from(p) : <String, dynamic>{};
+    for (final src in [perfil, u]) {
+      for (final k in ['foto', 'imagen', 'avatar', 'photo', 'fotografia',
+                       'foto_perfil', 'imagen_perfil', 'picture', 'img']) {
+        final raw = (src[k] ?? '').toString().trim();
+        if (raw.isNotEmpty && raw != 'null') {
+          if (raw.startsWith('http')) return raw;
+          return 'https://www.jorgemario.co/ext/saf/img/icons/$raw';
+        }
       }
     }
     return '';
@@ -1630,26 +1654,6 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 4),
               Text(email,
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
-            ],
-            // DEBUG: remove after confirming field names
-            if (_api.user != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'API fields: ${_api.user!.keys.join(', ')}',
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ] else ...[
-              const SizedBox(height: 8),
-              const Text('⚠ user is null',
-                  style: TextStyle(fontSize: 11, color: Colors.red)),
             ],
             const SizedBox(height: 20),
             const Divider(height: 1),

@@ -149,14 +149,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     try {
       final r = await _api.login(_emailCtrl.text.trim(), _passwordCtrl.text);
       if (!mounted) return;
-      if (r['success'] == true || r['token'] != null) {
+      if (r['success'] == true) {
         Navigator.of(context).pushReplacementNamed('/home');
       } else {
-        setState(() => _error = r['message'] ?? 'Credenciales incorrectas');
+        setState(() => _error = r['message'] as String? ?? 'Credenciales incorrectas');
       }
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Error de conexión. Verifica tu red.');
+      setState(() => _error = 'Error de conexión: $e');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
