@@ -319,8 +319,9 @@ class _HomeScreenState extends State<HomeScreen>
       final nombres = (src['nombres'] ?? src['nombre'] ?? '').toString().trim();
       final apellidos =
           (src['apellidos'] ?? src['apellido'] ?? '').toString().trim();
-      if (nombres.isNotEmpty && apellidos.isNotEmpty)
+      if (nombres.isNotEmpty && apellidos.isNotEmpty) {
         return '$nombres $apellidos';
+      }
       for (final k in [
         'nombre_completo',
         'fullname',
@@ -752,27 +753,27 @@ class _HomeScreenState extends State<HomeScreen>
               colors: [Color(0xFF3B3B8A), Color(0xFF5252B4)]),
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Row(children: [
+        child: const Row(children: [
           Expanded(
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                 Row(children: [
-                  const Icon(Icons.credit_card_rounded,
+                  Icon(Icons.credit_card_rounded,
                       color: Colors.white70, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('Gestión de Créditos',
+                  SizedBox(width: 8),
+                  Text('Gestión de Créditos',
                       style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w800)),
                 ]),
-                const SizedBox(height: 6),
-                const Text(
+                SizedBox(height: 6),
+                Text(
                     'Administra solicitudes, créditos aprobados y simulaciones',
                     style: TextStyle(color: Colors.white60, fontSize: 11)),
               ])),
-          const Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text('Sistema de Créditos',
                 style: TextStyle(color: Colors.white60, fontSize: 10)),
             SizedBox(height: 2),

@@ -459,10 +459,12 @@ class _LoginScreenState extends State<LoginScreen>
                                 icon: Icons.email_outlined,
                                 keyboardType: TextInputType.emailAddress,
                                 validator: (v) {
-                                  if (v == null || v.trim().isEmpty)
+                                  if (v == null || v.trim().isEmpty) {
                                     return 'Ingresa tu correo';
-                                  if (!v.contains('@'))
+                                  }
+                                  if (!v.contains('@')) {
                                     return 'Correo inválido';
+                                  }
                                   return null;
                                 },
                               ),
@@ -487,8 +489,9 @@ class _LoginScreenState extends State<LoginScreen>
                                       setState(() => _obscure = !_obscure),
                                 ),
                                 validator: (v) {
-                                  if (v == null || v.isEmpty)
+                                  if (v == null || v.isEmpty) {
                                     return 'Ingresa tu contraseña';
+                                  }
                                   return null;
                                 },
                               ),
