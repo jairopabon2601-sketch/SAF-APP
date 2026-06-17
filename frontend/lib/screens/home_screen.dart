@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
@@ -28,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen>
   List<Map<String, dynamic>> _estData = [];
   int _estPage = 0; // página actual (0-based)
   static const int _estPorPagina = 10;
+  Timer? _filterDebounce;
 
   // Filtros movimientos
   String _filterCuenta = '';
@@ -37,6 +39,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Filtros créditos
   String _creditoFiltroEstado = '';
+
+  // Listas para diálogos
+  List<Map<String, dynamic>> _deudoresLista = [];
+  List<Map<String, dynamic>> _tasasLista = [];
+  List<Map<String, dynamic>> _fuentesLista = [];
 
   // Simulador crédito
   double _simMeses = 6;
@@ -50,10 +57,24 @@ class _HomeScreenState extends State<HomeScreen>
   List<Map<String, dynamic>> _cuentas = [];
   List<Map<String, dynamic>> _movimientos = [];
   List<Map<String, dynamic>> _ahorradores = []; // Lista completa del año
-  List<Map<String, dynamic>> _creditos = []; // Estadística por fuente
+  List<Map<String, dynamic>> _creditos = []; // Estadística por fuente (get_estadistica_fuente.php)
   String _ahorFilterAnio = DateTime.now().year.toString();
   String _ahorFilterAsesor = '0'; // '0' = Todos; o la sigla (DT, JP, …)
   List<Map<String, dynamic>> _creditosLista = []; // Aprobados/Pendientes
+
+  // ── Memoisation caches ──────────────────────────────────────────
+  double? _cachedTotalSaldo;
+  double? _cachedTotalIngresos;
+  double? _cachedTotalEgresos;
+  List<Map<String, dynamic>>? _cachedAhorradoresFiltrados;
+  String? _cachedAhorFilterAsesor;
+
+  void _invalidateComputedCache() {
+    _cachedTotalSaldo = null;
+    _cachedTotalIngresos = null;
+    _cachedTotalEgresos = null;
+    _cachedAhorradoresFiltrados = null;
+  }
 
   // Mapa sigla → nombre completo del asesor (igual que el select de la web)
   static const Map<String, String> _asesorNombres = {
@@ -69,29 +90,48 @@ class _HomeScreenState extends State<HomeScreen>
   String _nombreAsesor(String sigla) =>
       _asesorNombres[sigla.toUpperCase()] ?? sigla;
 
-  // Ahorradores tras aplicar el filtro de asesor (cliente)
+  // Ahorradores tras aplicar el filtro de asesor (memoizado)
   List<Map<String, dynamic>> get _ahorradoresFiltrados {
-    if (_ahorFilterAsesor == '0') return _ahorradores;
-    return _ahorradores
-        .where((a) =>
-            (a['asesor'] ?? '').toString().trim().toUpperCase() ==
-            _ahorFilterAsesor.toUpperCase())
-        .toList();
+    if (_cachedAhorFilterAsesor == _ahorFilterAsesor &&
+        _cachedAhorradoresFiltrados != null) {
+      return _cachedAhorradoresFiltrados!;
+    }
+    _cachedAhorFilterAsesor = _ahorFilterAsesor;
+    if (_ahorFilterAsesor == '0') {
+      _cachedAhorradoresFiltrados = _ahorradores;
+    } else {
+      _cachedAhorradoresFiltrados = _ahorradores
+          .where((a) =>
+              (a['asesor'] ?? '').toString().trim().toUpperCase() ==
+              _ahorFilterAsesor.toUpperCase())
+          .toList();
+    }
+    return _cachedAhorradoresFiltrados!;
   }
 
-  // ── Computed ────────────────────────────────────────────────────
-  double get _totalSaldo => _cuentas.fold(0.0,
-      (s, c) => s + _num(c['saldo_actual'] ?? c['saldo'] ?? c['balance'] ?? 0));
+  // ── Computed (memoized) ─────────────────────────────────────────
+  double get _totalSaldo {
+    _cachedTotalSaldo ??= _cuentas.fold<double>(
+        0.0,
+        (s, c) =>
+            s + _num(c['saldo_actual'] ?? c['saldo'] ?? c['balance'] ?? 0));
+    return _cachedTotalSaldo!;
+  }
 
-  // tipo_movimiento: "2"=Gasto "3"=Ingreso/Transferencia
-  double get _totalIngresos => _movimientos.where((m) {
-        final t = (m['tipo_movimiento'] ?? '').toString();
-        return t == '3' || t == '1';
-      }).fold(0.0, (s, m) => s + _num(m['valor'] ?? 0));
+  double get _totalIngresos {
+    _cachedTotalIngresos ??= _movimientos.where((m) {
+      final t = (m['tipo_movimiento'] ?? '').toString();
+      return t == '3' || t == '1';
+    }).fold<double>(0.0, (s, m) => s + _num(m['valor'] ?? 0));
+    return _cachedTotalIngresos!;
+  }
 
-  double get _totalEgresos => _movimientos
-      .where((m) => (m['tipo_movimiento'] ?? '').toString() == '2')
-      .fold(0.0, (s, m) => s + _num(m['valor'] ?? 0));
+  double get _totalEgresos {
+    _cachedTotalEgresos ??= _movimientos
+        .where((m) => (m['tipo_movimiento'] ?? '').toString() == '2')
+        .fold<double>(0.0, (s, m) => s + _num(m['valor'] ?? 0));
+    return _cachedTotalEgresos!;
+  }
 
   // ── Theme ───────────────────────────────────────────────────────
   static const _navy = Color(0xFF0D1B4B);
@@ -122,6 +162,7 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   void dispose() {
     _shimmer.dispose();
+    _filterDebounce?.cancel();
     super.dispose();
   }
 
@@ -132,30 +173,55 @@ class _HomeScreenState extends State<HomeScreen>
     final codigoUsuario = u?['codigo_usuario']?.toString() ?? '';
     final anio = DateTime.now().year.toString();
 
+    // Show cached data immediately so the screen isn't blank
+    final cachedCuentas = await _api.loadLocalData('cuentas');
+    final cachedMovs = await _api.loadLocalData('movimientos');
+    final cachedAhorradores = await _api.loadLocalData('ahorradores');
+    final cachedCreditos = await _api.loadLocalData('creditos');
+    final cachedCreditosLista = await _api.loadLocalData('creditos_lista');
+
+    if (cachedCuentas != null) {
+      _cuentas = cachedCuentas;
+      _invalidateComputedCache();
+    }
+    if (cachedMovs != null) {
+      _movimientos = cachedMovs;
+      _invalidateComputedCache();
+    }
+    if (cachedAhorradores != null) _ahorradores = cachedAhorradores;
+    if (cachedCreditos != null) _creditos = cachedCreditos;
+    if (cachedCreditosLista != null) _creditosLista = cachedCreditosLista;
+
+    final hasCachedData = cachedCuentas != null;
+    if (hasCachedData && mounted) setState(() => _loadingData = false);
+
+    // Fetch fresh data from network
     await _fetchCuentas(codigoUsuario);
+    // Primero cargar créditos y ahorradores (fuentes del fallback de deudores)
     await Future.wait([
       _fetchMovimientosTodasCuentas(codigoUsuario),
       _fetchAhorradores(anio),
       _fetchCreditos(codigoUsuario),
     ]);
+    // Con _creditosLista ya cargada, construir deudores al instante
+    _tryBuildDeudoresFromLocal();
+    // Tasas y fuentes en paralelo; deudores via API en background (no bloquea)
+    unawaited(_fetchDeudores());
+    await Future.wait([_fetchTasas(), _fetchFuentes()]);
 
     if (mounted) setState(() => _loadingData = false);
   }
 
   Future<void> _fetchCuentas(String filtro) async {
     try {
-      final r =
-          await _api.post('/ajax/listar_cuentas_gasto.php', {'filtro': filtro});
-      debugPrint('[SAF] cuentas status: ${r.statusCode}');
-      debugPrint(
-          '[SAF] cuentas body: ${r.body.substring(0, r.body.length.clamp(0, 400))}');
+      final r = await _api.cachedPost(
+          '/ajax/listar_cuentas_gasto.php', {'filtro': filtro});
       if (r.statusCode == 200) {
         final d = jsonDecode(r.body);
         List<dynamic>? list;
         if (d is List) {
           list = d;
         } else if (d is Map) {
-          // try common wrapper keys
           for (final k in ['cuentas', 'datos', 'data', 'resultado_datos']) {
             if (d[k] is List) {
               list = d[k] as List;
@@ -168,6 +234,8 @@ class _HomeScreenState extends State<HomeScreen>
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList();
+          _invalidateComputedCache();
+          unawaited(_api.saveLocalData('cuentas', _cuentas));
         }
       }
     } catch (e) {
@@ -177,53 +245,58 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _fetchMovimientosTodasCuentas(String usuario) async {
     final all = <Map<String, dynamic>>[];
-    await Future.wait(_cuentas.map((cuenta) async {
-      final codigo = cuenta['codigo']?.toString() ?? '';
-      if (codigo.isEmpty) return;
-      try {
-        final r = await _api.post('/ajax/listar_movimientos_cuenta.php',
-            {'codigo_cuenta': codigo, 'pagina': '1', 'usuario': usuario});
-        if (r.statusCode == 200) {
-          final d = _json(r.body);
-          final list = d['movimientos'];
-          if (list is List) {
-            for (final m in list) {
-              if (m is Map) {
-                final mov = Map<String, dynamic>.from(m);
-                mov['cuenta_nombre'] = cuenta['nombre'];
-                mov['cuenta_color'] = cuenta['color'];
-                all.add(mov);
+    // Process in batches of 3 to avoid saturating the network
+    const batchSize = 3;
+    for (var i = 0; i < _cuentas.length; i += batchSize) {
+      final batch = _cuentas.skip(i).take(batchSize);
+      await Future.wait(batch.map((cuenta) async {
+        final codigo = cuenta['codigo']?.toString() ?? '';
+        if (codigo.isEmpty) return;
+        try {
+          final r = await _api.cachedPost('/ajax/listar_movimientos_cuenta.php',
+              {'codigo_cuenta': codigo, 'pagina': '1', 'usuario': usuario});
+          if (r.statusCode == 200) {
+            final d = _json(r.body);
+            final list = d['movimientos'];
+            if (list is List) {
+              for (final m in list) {
+                if (m is Map) {
+                  final mov = Map<String, dynamic>.from(m);
+                  mov['cuenta_nombre'] = cuenta['nombre'];
+                  mov['cuenta_color'] = cuenta['color'];
+                  all.add(mov);
+                }
               }
             }
           }
+        } catch (e) {
+          debugPrint('[SAF] mov cuenta $codigo: $e');
         }
-      } catch (e) {
-        debugPrint('[SAF] mov cuenta $codigo: $e');
-      }
-    }));
+      }));
+    }
     all.sort((a, b) =>
         (b['fecha'] ?? '').toString().compareTo((a['fecha'] ?? '').toString()));
     _movimientos = all;
+    _invalidateComputedCache();
+    unawaited(_api.saveLocalData('movimientos', _movimientos));
   }
 
   Future<void> _fetchAhorradores([String? anio, String? asesor]) async {
     try {
-      final r = await _api.post('/ajax/listado_ahorros.php', {
+      final r = await _api.cachedPost('/ajax/listado_ahorros.php', {
         'anio_ahorro': anio ?? _ahorFilterAnio,
         'filtro_asesor': asesor ?? _ahorFilterAsesor,
       });
       if (r.statusCode == 200) {
         final d = _json(r.body);
-        debugPrint(
-            '[SAF] ahorros body: ${r.body.substring(0, r.body.length.clamp(0, 200))}');
         final list = d['ahorradores'];
         if (list is List) {
-          setState(() {
-            _ahorradores = list
-                .whereType<Map>()
-                .map((e) => Map<String, dynamic>.from(e))
-                .toList();
-          });
+          _ahorradores = list
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+          _cachedAhorradoresFiltrados = null;
+          unawaited(_api.saveLocalData('ahorradores', _ahorradores));
         }
       }
     } catch (e) {
@@ -238,44 +311,102 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _fetchCreditos(String filtro) async {
-    // Estadística por fuente (totales agrupados)
+    // Lista de créditos aprobados/pendientes
     try {
-      final r = await _api.post('/ajax/listado_json_campos.php',
-          {'codigo_consulta': 'json_total_creditos_valores', 'filtro': filtro});
-      if (r.statusCode == 200) {
-        final d = _json(r.body);
-        debugPrint('[SAF] creditos-stat FULL: ${r.body}');
-        final list = d['datos'];
-        if (list is List) {
-          _creditos = list
-              .whereType<Map>()
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList();
-        }
-      }
-    } catch (e) {
-      debugPrint('[SAF] creditos stat: $e');
-    }
-
-    // Lista individual de créditos aprobados
-    try {
-      final r = await _api.post('/ajax/listado_json_campos.php',
+      final r = await _api.cachedPost('/ajax/listado_json_campos.php',
           {'codigo_consulta': 'json_creditos_aprobados', 'filtro': filtro});
       if (r.statusCode == 200) {
         final d = _json(r.body);
-        debugPrint(
-            '[SAF] creditos-lista: ${r.body.substring(0, r.body.length.clamp(0, 300))}');
         final list = d['datos'];
         if (list is List) {
           _creditosLista = list
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList();
+          unawaited(_api.saveLocalData('creditos_lista', _creditosLista));
         }
       }
     } catch (e) {
       debugPrint('[SAF] creditos lista: $e');
     }
+
+    // Estadística por fuente — endpoint dedicado con campos fijos
+    try {
+      final r = await _api.cachedPost('/ajax/get_estadistica_fuente.php', {},
+          ttl: const Duration(minutes: 10));
+      if (r.statusCode == 200) {
+        final decoded = jsonDecode(r.body);
+        if (decoded is List && decoded.isNotEmpty) {
+          _creditos = decoded
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+          unawaited(_api.saveLocalData('creditos', _creditos));
+          return;
+        }
+      }
+      debugPrint('[SAF] get_estadistica_fuente status=${r.statusCode} body=${r.body.substring(0, r.body.length.clamp(0, 300))}');
+    } catch (e) {
+      debugPrint('[SAF] estadistica fuente: $e');
+    }
+
+    // Fallback 1: calcular desde _creditosLista ya cargada
+    final local = _buildEstadisticaFromLocal();
+    if (local.isNotEmpty) { _creditos = local; return; }
+
+    // Fallback 2: query original json_total_creditos_valores (campos variables pero nunca vacío)
+    try {
+      final r = await _api.cachedPost('/ajax/listado_json_campos.php',
+          {'codigo_consulta': 'json_total_creditos_valores', 'filtro': filtro});
+      if (r.statusCode == 200) {
+        final d = _json(r.body);
+        final list = d['datos'];
+        if (list is List && list.isNotEmpty) {
+          final raw = list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+          debugPrint('[SAF] json_total_creditos_valores keys: ${raw.first.keys.toList()}');
+          debugPrint('[SAF] json_total_creditos_valores first: ${raw.first}');
+          _creditos = raw;
+          unawaited(_api.saveLocalData('creditos', _creditos));
+        }
+      }
+    } catch (e) {
+      debugPrint('[SAF] creditos stat fallback: $e');
+    }
+  }
+
+  /// Agrega _creditosLista por fuente para obtener salidas. Entradas = 0 (sin data de pagos).
+  List<Map<String, dynamic>> _buildEstadisticaFromLocal() {
+    if (_creditosLista.isEmpty) return [];
+    const fuenteKeys = [
+      'fuente', 'nombre_fuente', 'cuenta', 'nombre_cuenta',
+      'origen', 'nombre_origen', 'nombre', 'fuente_nombre',
+    ];
+    const valorKeys = ['monto', 'valor_prestamo', 'valor_credito', 'valor', 'prestado', 'total'];
+    final first = _creditosLista.first;
+    final allKeys = first.keys.toList();
+    debugPrint('[SAF] creditosLista keys: $allKeys  first: $first');
+
+    final fk = fuenteKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
+    // Intenta campo de valor conocido; si no, usa el primero con valor numérico > 0
+    var vk = valorKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
+    if (vk.isEmpty) {
+      vk = allKeys.firstWhere((k) => _num(first[k]) > 0, orElse: () => '');
+    }
+    if (vk.isEmpty) return [];
+
+    final mapa = <String, double>{};
+    for (final c in _creditosLista) {
+      final fuente = fk.isNotEmpty
+          ? (c[fk] ?? 'Sin fuente').toString().trim()
+          : 'Sin fuente';
+      mapa[fuente] = (mapa[fuente] ?? 0) + _num(c[vk]);
+    }
+    final result = mapa.entries
+        .map((e) => {'fuente': e.key, 'total_salidas': e.value, 'total_entradas': 0.0})
+        .toList();
+    result.sort((a, b) => (b['total_salidas'] as double).compareTo(a['total_salidas'] as double));
+    debugPrint('[SAF] fallback estadistica: ${result.length} fuentes, total=${result.fold(0.0,(s,r) => s + (r["total_salidas"] as double))}');
+    return result;
   }
 
   // Carga la estadística de la sub-pestaña activa.
@@ -286,12 +417,11 @@ class _HomeScreenState extends State<HomeScreen>
       _estData = [];
     });
     try {
-      final r = await _api.post('/ajax/listado_json_campos.php',
-          {'codigo_consulta': codigo, 'filtro': '', 'agrupacion': ''});
+      final r = await _api.cachedPost('/ajax/listado_json_campos.php',
+          {'codigo_consulta': codigo, 'filtro': '', 'agrupacion': ''},
+          ttl: const Duration(minutes: 10));
       if (r.statusCode == 200) {
         final d = _json(r.body);
-        debugPrint(
-            '[SAF] est $codigo: ${r.body.substring(0, r.body.length.clamp(0, 250))}');
         final list = d['datos'] ?? d['resultado_datos'] ?? d['data'];
         if (list is List) {
           _estData = list
@@ -304,6 +434,155 @@ class _HomeScreenState extends State<HomeScreen>
       debugPrint('[SAF] estadistica: $e');
     } finally {
       if (mounted) setState(() => _estLoading = false);
+    }
+  }
+
+  // Construye _deudoresLista desde datos ya en memoria (sin red).
+  void _tryBuildDeudoresFromLocal() {
+    if (_deudoresLista.isNotEmpty) return;
+
+    // Campos de nombre conocidos, en orden de preferencia
+    const nameKeys = [
+      'cliente', 'deudor', 'etiqueta', 'nombre_deudor', 'deudor_nombre',
+      'nombre_completo', 'fullname', 'nombre', 'nombres',
+    ];
+    // Valores que claramente NO son nombres de persona
+    final notName = RegExp(r'^(activ|pagad|pendient|inactiv|mensual|quincenal|semanal|diario|fijo|variable|\d)', caseSensitive: false);
+
+    String extractName(Map<String, dynamic> c) {
+      // 1. Campos conocidos
+      for (final k in nameKeys) {
+        final v = c[k]?.toString().trim() ?? '';
+        if (v.isNotEmpty) return v;
+      }
+      // 2. Nombres + apellidos concatenados
+      final n = '${c['nombres'] ?? c['nombre'] ?? ''} ${c['apellidos'] ?? c['apellido'] ?? ''}'.trim();
+      if (n.isNotEmpty) return n;
+      // 3. Escanear todos los strings: buscar el más largo que parezca nombre
+      String best = '';
+      for (final v in c.values) {
+        if (v is! String) continue;
+        final s = v.trim();
+        if (s.length > best.length && s.contains(' ') && s.length > 5 && !notName.hasMatch(s) && !s.contains('<') && !s.contains('/')) {
+          best = s;
+        }
+      }
+      return best;
+    }
+
+    for (final source in [_creditosLista, _ahorradores]) {
+      if (source.isEmpty) continue;
+      final seen = <String>{};
+      final lista = <Map<String, dynamic>>[];
+      for (final c in source) {
+        final label = extractName(c);
+        final id = (c['valor'] ?? c['codigo_deudor'] ?? c['id_deudor'] ??
+            c['codigo'] ?? c['id'] ?? label).toString();
+        if (label.isNotEmpty && seen.add(id)) {
+          lista.add({'valor': id, 'etiqueta': label});
+        }
+      }
+      if (lista.isNotEmpty) {
+        lista.sort((a, b) =>
+            a['etiqueta'].toString().compareTo(b['etiqueta'].toString()));
+        _deudoresLista = lista;
+        debugPrint('[SAF] deudores desde local: ${lista.length} — primer item: ${lista.first}');
+        return;
+      }
+    }
+    debugPrint('[SAF] _tryBuildDeudoresFromLocal: creditosLista=${_creditosLista.length}, ahorradores=${_ahorradores.length}');
+    if (_creditosLista.isNotEmpty) debugPrint('[SAF] creditosLista[0] keys: ${_creditosLista.first.keys.toList()}');
+  }
+
+  Future<void> _fetchDeudores() async {
+    try {
+      final r = await _api.cachedPost('/ajax/get_deudores.php', {},
+              ttl: const Duration(minutes: 10))
+          .timeout(const Duration(seconds: 8));
+
+      if (r.statusCode == 200) {
+        final decoded = jsonDecode(r.body);
+        List<dynamic>? list;
+        if (decoded is List) {
+          list = decoded;
+        } else if (decoded is Map) {
+          for (final k in ['datos', 'data', 'resultado', 'resultado_datos', 'items', 'deudores']) {
+            if (decoded[k] is List) { list = decoded[k] as List; break; }
+          }
+        }
+        if (list != null && list.isNotEmpty) {
+          _deudoresLista = list
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+          return;
+        }
+      }
+      debugPrint('[SAF] get_deudores.php status=${r.statusCode} body=${r.body.substring(0, r.body.length.clamp(0, 200))}');
+    } catch (e) {
+      debugPrint('[SAF] deudores fetch: $e');
+    }
+
+    // Fallback: extraer desde creditosLista (campo real: 'cliente')
+    if (_deudoresLista.isEmpty && _creditosLista.isNotEmpty) {
+      final seen = <String>{};
+      final lista = <Map<String, dynamic>>[];
+      for (final c in _creditosLista) {
+        final label = [
+          c['cliente'], c['nombre_deudor'], c['deudor_nombre'],
+          c['nombre_completo'], c['deudor'], c['nombre'], c['nombres']
+        ].firstWhere((v) => v != null && v.toString().trim().isNotEmpty,
+            orElse: () => null)?.toString().trim() ?? '';
+        final id = (c['codigo_deudor'] ?? c['id_deudor'] ??
+            c['codigo'] ?? c['id'] ?? label).toString();
+        if (label.isNotEmpty && seen.add(id)) {
+          lista.add({'valor': id, 'etiqueta': label});
+        }
+      }
+      if (lista.isNotEmpty) {
+        lista.sort((a, b) => a['etiqueta'].toString().compareTo(b['etiqueta'].toString()));
+        _deudoresLista = lista;
+      }
+    }
+  }
+
+  Future<void> _fetchTasas() async {
+    try {
+      final r = await _api.cachedPost('/ajax/listado_json_campos.php',
+          {'codigo_consulta': 'json_tasas', 'filtro': '', 'agrupacion': ''},
+          ttl: const Duration(hours: 1));
+      if (r.statusCode == 200) {
+        final d = _json(r.body);
+        final list = d['datos'] ?? d['data'] ?? d['tasas'];
+        if (list is List) {
+          _tasasLista = list
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('[SAF] tasas: $e');
+    }
+  }
+
+  Future<void> _fetchFuentes() async {
+    try {
+      final r = await _api.cachedPost('/ajax/listado_json_campos.php',
+          {'codigo_consulta': 'json_fuentes', 'filtro': '', 'agrupacion': ''},
+          ttl: const Duration(hours: 1));
+      if (r.statusCode == 200) {
+        final d = _json(r.body);
+        final list = d['datos'] ?? d['data'] ?? d['fuentes'];
+        if (list is List) {
+          _fuentesLista = list
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('[SAF] fuentes: $e');
     }
   }
 
@@ -812,14 +1091,14 @@ class _HomeScreenState extends State<HomeScreen>
                     label: 'AGREGAR DEUDOR',
                     color: _navy,
                     icon: Icons.person_add_rounded,
-                    onTap: () => _snack('Agregar deudor próximamente'))),
+                    onTap: _showCrearDeudorDialog)),
             const SizedBox(width: 8),
             Expanded(
                 child: _actionBtn(
                     label: 'AGREGAR CRÉDITO',
                     color: _navy,
                     icon: Icons.add_card_rounded,
-                    onTap: () => _snack('Agregar crédito próximamente'))),
+                    onTap: _showCrearCreditoDialog)),
           ]),
         ),
         // Stats Total Pagado / Total Pendiente
@@ -907,11 +1186,8 @@ class _HomeScreenState extends State<HomeScreen>
                             TextStyle(fontSize: 12, color: Color(0xFF8899BB))),
                     items: const [
                       DropdownMenuItem(value: null, child: Text('Todos')),
-                      DropdownMenuItem(value: 'activ', child: Text('Activo')),
-                      DropdownMenuItem(
-                          value: 'inactiv', child: Text('Inactivo')),
-                      DropdownMenuItem(
-                          value: 'pendiente', child: Text('Pendiente')),
+                      DropdownMenuItem(value: 'activo', child: Text('Activo')),
+                      DropdownMenuItem(value: 'pagado', child: Text('Pagado')),
                     ],
                     style:
                         const TextStyle(fontSize: 12, color: Color(0xFF0D1B4B)),
@@ -925,7 +1201,13 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             const SizedBox(width: 10),
             GestureDetector(
-              onTap: () => setState(() {}),
+              onTap: () async {
+                final u = _api.user;
+                final codigo = u?['codigo_usuario']?.toString() ?? '';
+                _api.invalidateCache('/ajax/listado_json_campos.php');
+                await _fetchCreditos(codigo);
+                if (mounted) setState(() {});
+              },
               child: Container(
                 height: 38,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -1097,66 +1379,13 @@ class _HomeScreenState extends State<HomeScreen>
       );
     }
 
-    // Auto-detectar nombres de campo desde el primer registro
-    final first = _creditos.first;
-    final allKeys = first.keys.toList();
-    debugPrint('[SAF] stat keys: $allKeys');
-    debugPrint('[SAF] stat first: $first');
+    // Campos fijos: get_estadistica_fuente.php devuelve {fuente, total_salidas, total_entradas}
+    String labelOf(Map<String, dynamic> d) =>
+        (d['fuente'] ?? '?').toString();
+    double salidasOf(Map<String, dynamic> d) => _num(d['total_salidas']);
+    double entradasOf(Map<String, dynamic> d) => _num(d['total_entradas']);
 
-    const fuenteKeys = [
-      'fuente',
-      'nombre_fuente',
-      'cuenta',
-      'nombre',
-      'nombre_cuenta',
-      'cuenta_fuente',
-      'nombre_origen',
-      'origen'
-    ];
-    const salidasKeys = [
-      'total_salidas',
-      'salidas',
-      'creditos_otorgados',
-      'total_creditos',
-      'prestado',
-      'total_prestado',
-      'valor_credito'
-    ];
-    const entradasKeys = [
-      'total_entradas',
-      'entradas',
-      'cuotas_pagadas',
-      'total_cuotas',
-      'cobrado',
-      'total_cobrado',
-      'total_pagado',
-      'valor_cobrado'
-    ];
-
-    var fk =
-        fuenteKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
-    if (fk.isEmpty) {
-      fk = allKeys.firstWhere(
-          (k) => first[k] is String && (first[k] as String).isNotEmpty,
-          orElse: () => allKeys.first);
-    }
-    var sk =
-        salidasKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
-    var ek =
-        entradasKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
-
-    // Fallback: usar campos numéricos por posición
-    final numKeys = allKeys.where((k) => _num(first[k]) > 0).toList();
-    if (sk.isEmpty && numKeys.isNotEmpty) sk = numKeys[0];
-    if (ek.isEmpty && numKeys.length >= 2) ek = numKeys[1];
-
-    debugPrint('[SAF] detect → fuente=$fk  salidas=$sk  entradas=$ek');
-
-    String labelOf(Map<String, dynamic> d) => (d[fk] ?? '?').toString();
-    double salidasOf(Map<String, dynamic> d) => _num(d[sk]);
-    double entradasOf(Map<String, dynamic> d) => _num(d[ek]);
-
-    final totalSalidas = _creditos.fold(0.0, (s, d) => s + salidasOf(d));
+    final totalSalidas  = _creditos.fold(0.0, (s, d) => s + salidasOf(d));
     final totalEntradas = _creditos.fold(0.0, (s, d) => s + entradasOf(d));
 
     return Padding(
@@ -1232,23 +1461,24 @@ class _HomeScreenState extends State<HomeScreen>
                       color: _navy))),
         ]),
         const SizedBox(height: 12),
-        // Barras horizontales
+        // Barras horizontales con color por fuente
         ...sorted.map((d) {
           final val = valueFn(d);
           final pct = val / maxVal;
           final name = labelFn(d);
+          final rowColor = _hexColor(d['color']?.toString() ?? barColor.toARGB32().toRadixString(16));
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Row(children: [
               SizedBox(
-                width: 76,
+                width: 90,
                 child: Text(name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                         fontSize: 11, color: Color(0xFF8899BB))),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(4),
@@ -1259,16 +1489,16 @@ class _HomeScreenState extends State<HomeScreen>
                       child: Container(
                           height: 18,
                           decoration: BoxDecoration(
-                            color: barColor,
+                            color: rowColor,
                             borderRadius: BorderRadius.circular(4),
                           )),
                     ),
                   ]),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               SizedBox(
-                width: 80,
+                width: 82,
                 child: Text(_cop(val),
                     textAlign: TextAlign.right,
                     style: const TextStyle(
@@ -2085,6 +2315,686 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ]);
 
+  // ── Diálogo Crear Deudor ─────────────────────────────────────────
+  void _showCrearDeudorDialog() {
+    final formKey = GlobalKey<FormState>();
+    String? selectedAsesor;
+    final docCtrl = TextEditingController();
+    final nombresCtrl = TextEditingController();
+    final apellidosCtrl = TextEditingController();
+    final direccionCtrl = TextEditingController();
+    final telefonoCtrl = TextEditingController();
+    bool saving = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        Future<void> grabar() async {
+          if (!formKey.currentState!.validate()) return;
+          setS(() => saving = true);
+          try {
+            final r = await _api.post('/ajax/crear_deudor.php', {
+              'asesor': selectedAsesor ?? '',
+              'numero_documento': docCtrl.text.trim(),
+              'nombres': nombresCtrl.text.trim(),
+              'apellidos': apellidosCtrl.text.trim(),
+              'direccion': direccionCtrl.text.trim(),
+              'telefono': telefonoCtrl.text.trim(),
+            });
+            final d = _json(r.body);
+            final ok = d['resultado'] == 1 ||
+                d['resultado'] == '1' ||
+                d['success'] == true;
+            if (ctx.mounted) Navigator.pop(ctx);
+            if (mounted) {
+              showDialog(
+                context: context,
+                builder: (_) => _resultDialog(
+                  ok ? 'Deudor creado exitosamente' : (d['mensaje']?.toString() ?? 'Error al crear el deudor'),
+                  ok,
+                ),
+              );
+              if (ok) {
+                _api.invalidateCache('/ajax/listado_json_campos.php');
+                final u = _api.user;
+                await _fetchCreditos(u?['codigo_usuario']?.toString() ?? '');
+                if (mounted) setState(() {});
+              }
+            }
+          } catch (e) {
+            setS(() => saving = false);
+            if (ctx.mounted) {
+              showDialog(
+                context: ctx,
+                builder: (_) => _resultDialog('Error de conexión: $e', false),
+              );
+            }
+          }
+        }
+
+        return Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+                maxWidth: 460,
+                maxHeight: MediaQuery.of(ctx).size.height * 0.9),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: formKey,
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  // Título
+                  Row(children: [
+                    const Expanded(
+                        child: Text('Crear Deudor',
+                            style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0D1B4B)))),
+                    IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints()),
+                  ]),
+                  const Divider(height: 20),
+                  // Asesor
+                  _dRow(
+                    'Asesor',
+                    _dDropdown<String>(
+                      value: selectedAsesor,
+                      items: _asesorNombres.entries
+                          .map((e) => DropdownMenuItem(
+                              value: e.key, child: Text(e.value)))
+                          .toList(),
+                      onChanged: (v) => setS(() => selectedAsesor = v),
+                      validator: (v) =>
+                          v == null ? 'Seleccione un asesor' : null,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _dRow('N° Documento',
+                      _dField(docCtrl, required: true, keyboard: TextInputType.number)),
+                  const SizedBox(height: 8),
+                  _dRow('Nombres', _dField(nombresCtrl, required: true)),
+                  const SizedBox(height: 8),
+                  _dRow('Apellidos', _dField(apellidosCtrl, required: true)),
+                  const SizedBox(height: 8),
+                  _dRow('Dirección', _dField(direccionCtrl)),
+                  const SizedBox(height: 8),
+                  _dRow('Telefono',
+                      _dField(telefonoCtrl, keyboard: TextInputType.phone)),
+                  const SizedBox(height: 20),
+                  // Botones
+                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                    TextButton(
+                        onPressed: saving ? null : () => Navigator.pop(ctx),
+                        style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF6B7280)),
+                        child: const Text('Cerrar')),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                        onPressed: saving ? null : grabar,
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D1B4B),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8))),
+                        child: saving
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white))
+                            : const Text('Grabar')),
+                  ]),
+                ]),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  // ── Diálogo Crear Crédito ────────────────────────────────────────
+  void _showCrearCreditoDialog() {
+    final formKey = GlobalKey<FormState>();
+    String? selectedDeudor;
+    String? selectedTiempoC = 'Mensual';
+    String? selectedTipoInt = 'fijo';
+    String? selectedTasa;
+    String? selectedFuente;
+    DateTime? fechaPrestamo;
+    final valorCtrl = TextEditingController();
+    final numCuotasCtrl = TextEditingController();
+    double totalAPagar = 0;
+    // Empieza cargando si no tenemos deudores aún
+    bool loadingDeudores = _deudoresLista.isEmpty;
+    bool listsStarted = false;
+
+    // Opciones estáticas (según el sistema)
+    const tiempoOpciones = [
+      ('Mensual', 'Mensual'),
+      ('Quincenal', 'Quincenal'),
+      ('Semanal', 'Semanal'),
+      ('Diario', 'Diario'),
+    ];
+    const tipoIntOpciones = [
+      ('fijo', 'Interés Fijo'),
+      ('variable', 'Interés Variable'),
+    ];
+
+    // Tasas: de la API o fallback
+    List<String> tasaOpciones() {
+      if (_tasasLista.isNotEmpty) {
+        return _tasasLista
+            .map((t) =>
+                (t['tasa'] ?? t['valor'] ?? t['nombre'] ?? '').toString())
+            .where((t) => t.isNotEmpty)
+            .toList();
+      }
+      return ['0%', '8%', '10%', '15%', '17.5%', '18%', '20%'];
+    }
+
+    // Fuentes: de la API o fallback
+    List<String> fuenteOpciones() {
+      if (_fuentesLista.isNotEmpty) {
+        return _fuentesLista
+            .map((f) =>
+                (f['fuente'] ?? f['nombre'] ?? f['name'] ?? '').toString())
+            .where((f) => f.isNotEmpty)
+            .toList();
+      }
+      return [
+        'Davivienda', 'Bancolombia', 'Daviplata', 'Nequi',
+        'Efectivo', 'Préstamos', 'SAF Ahorros', 'Cámaras', 'Dínamo Jr',
+      ];
+    }
+
+    void recalcTotal(void Function(void Function()) setS) {
+      final valor = double.tryParse(
+              valorCtrl.text.replaceAll('.', '').replaceAll(',', '.')) ??
+          0;
+      final cuotas = int.tryParse(numCuotasCtrl.text) ?? 0;
+      final tasaStr = (selectedTasa ?? '0').replaceAll('%', '').trim();
+      final tasa = double.tryParse(tasaStr) ?? 0;
+      final diasPorCuota = {
+        'Mensual': 30, 'Quincenal': 15, 'Semanal': 7, 'Diario': 1
+      }[selectedTiempoC ?? 'Mensual'] ?? 30;
+      final totalDias = cuotas * diasPorCuota;
+      final tasaDiaria = tasa / 100 / 30;
+      final total = valor + (valor * tasaDiaria * totalDias);
+      setS(() => totalAPagar = total);
+    }
+
+    bool saving = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        // Arranca fetch la primera vez que el builder corre
+        if (!listsStarted) {
+          listsStarted = true;
+          Future(() async {
+            // Mostrar datos locales de inmediato (sin red)
+            _tryBuildDeudoresFromLocal();
+            if (ctx.mounted) setS(() => loadingDeudores = _deudoresLista.isEmpty);
+
+            // Siempre refrescar desde API para obtener la lista completa
+            await Future.wait([
+              _fetchDeudores(),
+              if (_tasasLista.isEmpty) _fetchTasas(),
+              if (_fuentesLista.isEmpty) _fetchFuentes(),
+            ]);
+            if (ctx.mounted) setS(() => loadingDeudores = false);
+          });
+        }
+
+        Future<void> grabar() async {
+          if (!formKey.currentState!.validate()) return;
+          if (fechaPrestamo == null) {
+            showDialog(
+                context: ctx,
+                builder: (_) =>
+                    _resultDialog('Seleccione la fecha de préstamo', false));
+            return;
+          }
+          setS(() => saving = true);
+          try {
+            final r = await _api.post('/ajax/crear_credito.php', {
+              'deudor': selectedDeudor ?? '',
+              'fecha_prestamo':
+                  '${fechaPrestamo!.year}-${fechaPrestamo!.month.toString().padLeft(2, '0')}-${fechaPrestamo!.day.toString().padLeft(2, '0')}',
+              'valor_prestamo': valorCtrl.text.trim(),
+              'tiempo_cuotas': selectedTiempoC ?? '',
+              'numero_cuotas': numCuotasCtrl.text.trim(),
+              'tipo_interes': selectedTipoInt ?? '',
+              'tasa_interes': selectedTasa ?? '',
+              'fuente': selectedFuente ?? '',
+              'total_pagar': totalAPagar.toStringAsFixed(0),
+            });
+            final d = _json(r.body);
+            final ok = d['resultado'] == 1 ||
+                d['resultado'] == '1' ||
+                d['success'] == true;
+            if (ctx.mounted) Navigator.pop(ctx);
+            if (mounted) {
+              showDialog(
+                context: context,
+                builder: (_) => _resultDialog(
+                  ok ? 'Crédito creado exitosamente' : (d['mensaje']?.toString() ?? 'Error al crear el crédito'),
+                  ok,
+                ),
+              );
+              if (ok) {
+                _api.invalidateCache('/ajax/listado_json_campos.php');
+                final u = _api.user;
+                await _fetchCreditos(u?['codigo_usuario']?.toString() ?? '');
+                if (mounted) setState(() {});
+              }
+            }
+          } catch (e) {
+            setS(() => saving = false);
+            if (ctx.mounted) {
+              showDialog(
+                  context: ctx,
+                  builder: (_) => _resultDialog('Error de conexión: $e', false));
+            }
+          }
+        }
+
+        final tasas = tasaOpciones();
+        final fuentes = fuenteOpciones();
+
+        return Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+                maxWidth: 460,
+                maxHeight: MediaQuery.of(ctx).size.height * 0.9),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Form(
+                key: formKey,
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  // Título
+                  Row(children: [
+                    const Expanded(
+                        child: Text('Crear Crédito',
+                            style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0D1B4B)))),
+                    IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints()),
+                  ]),
+                  const Divider(height: 20),
+                  // Deudor
+                  _dRow(
+                    'Deudor:',
+                    loadingDeudores
+                        ? Stack(children: [
+                            _dDropdown<String>(
+                              value: null,
+                              items: const [],
+                              onChanged: (_) {},
+                              hint: 'Cargando...',
+                            ),
+                            const Positioned(
+                              right: 36, top: 0, bottom: 0,
+                              child: Center(
+                                child: SizedBox(width: 14, height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF9CA3AF))),
+                              ),
+                            ),
+                          ])
+                        : _dDropdown<String>(
+                                value: selectedDeudor,
+                                items: _deudoresLista.map((d) {
+                                  final label = (d['etiqueta'] ?? d['nombres'] ?? d['nombre'] ?? '').toString().trim();
+                                  final id = (d['valor'] ?? d['codigo'] ?? d['id'] ?? label).toString();
+                                  return DropdownMenuItem(
+                                      value: id,
+                                      child: Text(label.isEmpty ? id : label,
+                                          overflow: TextOverflow.ellipsis));
+                                }).toList(),
+                                onChanged: (v) => setS(() => selectedDeudor = v),
+                                validator: (v) => v == null ? 'Seleccione un deudor' : null,
+                              ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Fecha Préstamo
+                  _dRow(
+                    'Fecha de Préstamo',
+                    GestureDetector(
+                      onTap: () async {
+                        final d = await showDatePicker(
+                          context: ctx,
+                          initialDate: fechaPrestamo ?? DateTime.now(),
+                          firstDate: DateTime(2015),
+                          lastDate: DateTime(2035),
+                          builder: (c, child) => Theme(
+                            data: Theme.of(c).copyWith(
+                                colorScheme: const ColorScheme.light(
+                                    primary: Color(0xFF0D1B4B))),
+                            child: child!,
+                          ),
+                        );
+                        if (d != null) setS(() => fechaPrestamo = d);
+                      },
+                      child: Container(
+                        height: 40,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFFF5F7FB),
+                            border: Border.all(color: const Color(0xFFDDE3EF)),
+                            borderRadius: BorderRadius.circular(8)),
+                        alignment: Alignment.centerLeft,
+                        child: Row(children: [
+                          Expanded(
+                            child: Text(
+                              fechaPrestamo != null
+                                  ? '${fechaPrestamo!.day.toString().padLeft(2, '0')}/${fechaPrestamo!.month.toString().padLeft(2, '0')}/${fechaPrestamo!.year}'
+                                  : 'dd/mm/aaaa',
+                              style: _dTextStyle.copyWith(
+                                  color: fechaPrestamo != null
+                                      ? const Color(0xFF374151)
+                                      : const Color(0xFF9CA3AF)),
+                            ),
+                          ),
+                          const Icon(Icons.calendar_today_outlined,
+                              size: 16, color: Color(0xFF9CA3AF)),
+                        ]),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Valor Préstamo
+                  _dRow(
+                    'Valor Préstamo',
+                    TextFormField(
+                      controller: valorCtrl,
+                      decoration: _dInputDeco(),
+                      keyboardType: TextInputType.number,
+                      style: _dTextStyle,
+                      onChanged: (_) => recalcTotal(setS),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Ingrese el valor'
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Tiempo Cuotas
+                  _dRow(
+                    'Tiempo Cuotas',
+                    _dDropdown<String>(
+                      value: selectedTiempoC,
+                      hint: 'Seleccione',
+                      items: tiempoOpciones
+                          .map((o) => DropdownMenuItem(
+                              value: o.$1, child: Text(o.$2)))
+                          .toList(),
+                      onChanged: (v) {
+                        setS(() => selectedTiempoC = v);
+                        recalcTotal(setS);
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Número de Cuotas
+                  _dRow(
+                    'Número de Cuotas',
+                    TextFormField(
+                      controller: numCuotasCtrl,
+                      decoration: _dInputDeco(),
+                      keyboardType: TextInputType.number,
+                      style: _dTextStyle,
+                      onChanged: (_) => recalcTotal(setS),
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Ingrese el número de cuotas'
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Tipo de Interés
+                  _dRow(
+                    'Tipo de Interés',
+                    _dDropdown<String>(
+                      value: selectedTipoInt,
+                      hint: 'Seleccione',
+                      items: tipoIntOpciones
+                          .map((o) => DropdownMenuItem(
+                              value: o.$1, child: Text(o.$2)))
+                          .toList(),
+                      onChanged: (v) => setS(() => selectedTipoInt = v),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Tasa Interés
+                  _dRow(
+                    'Tasa interés',
+                    _dDropdown<String>(
+                      value: tasas.contains(selectedTasa) ? selectedTasa : null,
+                      items: tasas
+                          .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                          .toList(),
+                      onChanged: (v) {
+                        setS(() => selectedTasa = v);
+                        recalcTotal(setS);
+                      },
+                      validator: (v) =>
+                          v == null ? 'Seleccione una tasa' : null,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Fuente
+                  _dRow(
+                    'Fuente',
+                    _dDropdown<String>(
+                      value: fuentes.contains(selectedFuente)
+                          ? selectedFuente
+                          : null,
+                      items: fuentes
+                          .map((f) => DropdownMenuItem(value: f, child: Text(f)))
+                          .toList(),
+                      onChanged: (v) => setS(() => selectedFuente = v),
+                      validator: (v) =>
+                          v == null ? 'Seleccione una fuente' : null,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  // Total a Pagar (read-only calculado)
+                  _dRow(
+                    'Total a Pagar',
+                    Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFFF5F7FB),
+                          border: Border.all(color: const Color(0xFFDDE3EF)),
+                          borderRadius: BorderRadius.circular(8)),
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        totalAPagar > 0 ? _cop(totalAPagar) : '',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF0D1B4B),
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Botones
+                  Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                    TextButton(
+                        onPressed: saving ? null : () => Navigator.pop(ctx),
+                        style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF6B7280)),
+                        child: const Text('Cerrar')),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                        onPressed: saving ? null : grabar,
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0D1B4B),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8))),
+                        child: saving
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Text('Grabar')),
+                  ]),
+                ]),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  // ── Diálogo de resultado (éxito / error) ─────────────────────────
+  Widget _resultDialog(String msg, bool ok) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(children: [
+          Icon(
+              ok ? Icons.check_circle_outline : Icons.error_outline,
+              color: ok ? Colors.green : Colors.red),
+          const SizedBox(width: 8),
+          Text(ok ? 'Éxito' : 'Error',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ]),
+        content: Text(msg, style: const TextStyle(fontSize: 14)),
+        actions: [
+          ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D1B4B),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8))),
+              child: const Text('Aceptar')),
+        ],
+      );
+
+  // ── Helpers de formulario ────────────────────────────────────────
+  Widget _dRow(String label, Widget input) => LayoutBuilder(
+        builder: (_, constraints) {
+          final labelW = (constraints.maxWidth * 0.37).clamp(90.0, 130.0);
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: labelW,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  decoration: BoxDecoration(
+                      color: const Color(0xFFE2E8F0),
+                      borderRadius: BorderRadius.circular(6)),
+                  child: Text(label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF475569))),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(child: input),
+            ],
+          );
+        },
+      );
+
+  static const _dTextStyle =
+      TextStyle(fontSize: 13, color: Color(0xFF374151));
+  static const _dHintStyle =
+      TextStyle(fontSize: 13, color: Color(0xFF9CA3AF));
+
+  // Dropdown estilizado para los diálogos
+  Widget _dDropdown<T>({
+    required T? value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+    String? hint,
+    String? Function(T?)? validator,
+    bool isExpanded = true,
+  }) =>
+      DropdownButtonFormField<T>(
+        // ignore: deprecated_member_use
+        value: value,
+        isExpanded: isExpanded,
+        decoration: _dInputDeco(),
+        dropdownColor: Colors.white,
+        style: _dTextStyle,
+        hint: Text(hint ?? '[Seleccione]', style: _dHintStyle),
+        icon: const Icon(Icons.keyboard_arrow_down_rounded,
+            size: 18, color: Color(0xFF9CA3AF)),
+        items: items,
+        onChanged: onChanged,
+        validator: validator,
+      );
+
+  InputDecoration _dInputDeco() => InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: const Color(0xFFF5F7FB),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFFDDE3EF))),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFFDDE3EF))),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide:
+                const BorderSide(color: Color(0xFF4361EE), width: 1.5)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFFEF4444))),
+        focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide:
+                const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+      );
+
+  Widget _dField(
+    TextEditingController ctrl, {
+    bool required = false,
+    TextInputType keyboard = TextInputType.text,
+    bool obscure = false,
+  }) =>
+      TextFormField(
+        controller: ctrl,
+        decoration: _dInputDeco(),
+        keyboardType: keyboard,
+        obscureText: obscure,
+        style: _dTextStyle,
+        validator: required
+            ? (v) => (v == null || v.trim().isEmpty) ? 'Campo requerido' : null
+            : null,
+      );
+
   void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
 
@@ -2521,14 +3431,20 @@ class _HomeScreenState extends State<HomeScreen>
       // recrea vacío (sin necesidad de un controller que haya que liberar).
       key: ValueKey('estfiltro_${_estSubTab}_${col.$2}'),
       keyboardType: col.$3 ? TextInputType.number : TextInputType.text,
-      onChanged: (v) => setState(() {
-        if (v.isEmpty) {
-          _estFiltros.remove(col.$2);
-        } else {
-          _estFiltros[col.$2] = v;
-        }
-        _estPage = 0;
-      }),
+      onChanged: (v) {
+        _filterDebounce?.cancel();
+        _filterDebounce = Timer(const Duration(milliseconds: 300), () {
+          if (!mounted) return;
+          setState(() {
+            if (v.isEmpty) {
+              _estFiltros.remove(col.$2);
+            } else {
+              _estFiltros[col.$2] = v;
+            }
+            _estPage = 0;
+          });
+        });
+      },
       style: const TextStyle(fontSize: 13, color: navy),
       decoration: InputDecoration(
         hintText: hint,
