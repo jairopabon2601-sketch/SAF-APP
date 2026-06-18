@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' show min, pi;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
@@ -71,10 +72,11 @@ class _HomeScreenState extends State<HomeScreen>
   List<Map<String, dynamic>> _asesoresLista = [];
 
   // Filtros de Estadística por Fuente
-  String _statEstado = '';          // '' = Todos, '1' = Activos, '2' = Pagados, '3' = Pendientes
+  String _statEstado =
+      ''; // '' = Todos, '1' = Activos, '2' = Pagados, '3' = Pendientes
   DateTime? _statFechaDesde;
   DateTime? _statFechaHasta;
-  String _statFuente = '0';         // '0' = Todos, o codigo de tbl_cuentas
+  String _statFuente = '0'; // '0' = Todos, o codigo de tbl_cuentas
   bool _statLoading = false;
 
   // Simulador crédito
@@ -89,10 +91,12 @@ class _HomeScreenState extends State<HomeScreen>
   List<Map<String, dynamic>> _cuentas = [];
   List<Map<String, dynamic>> _movimientos = [];
   List<Map<String, dynamic>> _ahorradores = []; // Lista completa del año
-  List<Map<String, dynamic>> _creditos = []; // Estadística por fuente (get_estadistica_fuente.php)
+  List<Map<String, dynamic>> _creditos =
+      []; // Estadística por fuente (get_estadistica_fuente.php)
   String _ahorFilterAnio = DateTime.now().year.toString();
   String _ahorFilterAsesor = '0'; // '0' = Todos; o la sigla (DT, JP, …)
   List<Map<String, dynamic>> _creditosLista = []; // Aprobados/Pendientes
+  final Set<String> _expandedCreditos = {};
 
   // ── Memoisation caches ──────────────────────────────────────────
   double? _cachedTotalSaldo;
@@ -256,8 +260,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _fetchCuentas(String filtro) async {
     try {
-      final r = await _api.cachedPost(
-          '/ajax/listar_cuentas_gasto.php', {'filtro': filtro});
+      final r = await _api
+          .cachedPost('/ajax/listar_cuentas_gasto.php', {'filtro': filtro});
       if (r.statusCode == 200) {
         final d = jsonDecode(r.body);
         List<dynamic>? list;
@@ -317,12 +321,21 @@ class _HomeScreenState extends State<HomeScreen>
       }));
     }
     all.sort((a, b) {
-      final cmpFecha = (b['fecha'] ?? '').toString()
-          .compareTo((a['fecha'] ?? '').toString());
+      // Normalize to date-only (first 10 chars) so timestamps don't affect grouping
+      final fechaA = (a['fecha'] ?? '').toString();
+      final fechaB = (b['fecha'] ?? '').toString();
+      final dA = fechaA.length >= 10 ? fechaA.substring(0, 10) : fechaA;
+      final dB = fechaB.length >= 10 ? fechaB.substring(0, 10) : fechaB;
+      final cmpFecha = dB.compareTo(dA); // date DESC
       if (cmpFecha != 0) return cmpFecha;
-      final idA = int.tryParse((a['codigo_movimiento'] ?? a['id'] ?? '0').toString()) ?? 0;
-      final idB = int.tryParse((b['codigo_movimiento'] ?? b['id'] ?? '0').toString()) ?? 0;
-      return idB.compareTo(idA);
+      // Within same date: ASC by codigo (matches web order)
+      final idA =
+          int.tryParse((a['codigo'] ?? a['codigo_movimiento'] ?? a['id'] ?? '0').toString()) ??
+              0;
+      final idB =
+          int.tryParse((b['codigo'] ?? b['codigo_movimiento'] ?? b['id'] ?? '0').toString()) ??
+              0;
+      return idA.compareTo(idB);
     });
     _movimientos = all;
     _invalidateComputedCache();
@@ -333,15 +346,18 @@ class _HomeScreenState extends State<HomeScreen>
     final usuario = (_api.user?['codigo_usuario'] ?? '').toString();
     if (usuario.isEmpty) return;
     String pad2(int n) => n.toString().padLeft(2, '0');
-    final desde = _filterDesde ?? DateTime.now().subtract(const Duration(days: 31));
+    final desde =
+        _filterDesde ?? DateTime.now().subtract(const Duration(days: 31));
     final hasta = _filterHasta ?? DateTime.now();
     final dStr = '${desde.year}-${pad2(desde.month)}-${pad2(desde.day)}';
     final hStr = '${hasta.year}-${pad2(hasta.month)}-${pad2(hasta.day)}';
-    String filtro = 'm.usuario="$usuario" and m.fecha between "$dStr" and "$hStr"';
+    String filtro =
+        'm.usuario="$usuario" and m.fecha between "$dStr" and "$hStr"';
     if (_filterTipo.isNotEmpty) filtro += ' and m.tipo_movimiento=$_filterTipo';
     if (_filterCuenta.isNotEmpty) {
       final cuenta = _cuentas.firstWhere(
-          (c) => (c['nombre'] ?? '') == _filterCuenta, orElse: () => {});
+          (c) => (c['nombre'] ?? '') == _filterCuenta,
+          orElse: () => {});
       final cod = (cuenta['codigo'] ?? '').toString();
       if (cod.isNotEmpty) filtro += ' and m.codigo_cuenta=$cod';
     }
@@ -353,28 +369,37 @@ class _HomeScreenState extends State<HomeScreen>
       });
       if (r.statusCode == 200) {
         final d = _json(r.body);
-        if (d['resultado'] == 1 && d['datos'] is List && (d['datos'] as List).isNotEmpty) {
-          final row = Map<String, dynamic>.from((d['datos'] as List).first as Map);
+        if (d['resultado'] == 1 &&
+            d['datos'] is List &&
+            (d['datos'] as List).isNotEmpty) {
+          final row =
+              Map<String, dynamic>.from((d['datos'] as List).first as Map);
           double g = 0.0, ing = 0.0;
           for (final k in row.keys) {
             final kl = k.toString().toLowerCase();
             if (kl.contains('gasto')) g = _num(row[k]);
             if (kl.contains('ingreso')) ing = _num(row[k]);
           }
-          if (mounted) setState(() { _filtGastos = g; _filtIngresos = ing; _filtTotalesLoaded = true; });
+          if (mounted) {
+            setState(() {
+              _filtGastos = g;
+              _filtIngresos = ing;
+              _filtTotalesLoaded = true;
+            });
+          }
         }
       }
-    } catch (e) { debugPrint('[SAF] fetchTotalesFiltrados: $e'); }
+    } catch (e) {
+      debugPrint('[SAF] fetchTotalesFiltrados: $e');
+    }
   }
 
   Future<void> _fetchTotalesResumen(String usuario) async {
     final now = DateTime.now();
     final desde = now.subtract(const Duration(days: 31));
     String pad2(int n) => n.toString().padLeft(2, '0');
-    final dStr =
-        '${desde.year}-${pad2(desde.month)}-${pad2(desde.day)}';
-    final hStr =
-        '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
+    final dStr = '${desde.year}-${pad2(desde.month)}-${pad2(desde.day)}';
+    final hStr = '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
     final filtro =
         'm.usuario="$usuario" and m.fecha between "$dStr" and "$hStr"';
     try {
@@ -430,6 +455,7 @@ class _HomeScreenState extends State<HomeScreen>
             final s = v.toString().replaceAll(RegExp(r'[^\d]'), '');
             return double.tryParse(s) ?? 0.0;
           }
+
           final pagado = parseFmt(row['pagado'] ?? row['total_pagado'] ?? 0);
           final pendiente =
               parseFmt(row['pendiente'] ?? row['total_pendiente'] ?? 0);
@@ -487,9 +513,14 @@ class _HomeScreenState extends State<HomeScreen>
       if (r.statusCode == 200) {
         final decoded = jsonDecode(r.body);
         if (decoded is Map && decoded['datos'] is List) {
-          _creditosTotal           = int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
-          _creditosTotalPagado     = double.tryParse(decoded['total_pagado_global']?.toString() ?? '0') ?? 0;
-          _creditosTotalPendiente  = double.tryParse(decoded['total_pendiente_global']?.toString() ?? '0') ?? 0;
+          _creditosTotal =
+              int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
+          _creditosTotalPagado = double.tryParse(
+                  decoded['total_pagado_global']?.toString() ?? '0') ??
+              0;
+          _creditosTotalPendiente = double.tryParse(
+                  decoded['total_pendiente_global']?.toString() ?? '0') ??
+              0;
           _creditosLista = (decoded['datos'] as List)
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
@@ -516,14 +547,18 @@ class _HomeScreenState extends State<HomeScreen>
           return;
         }
       }
-      debugPrint('[SAF] get_estadistica_fuente status=${r.statusCode} body=${r.body.substring(0, r.body.length.clamp(0, 300))}');
+      debugPrint(
+          '[SAF] get_estadistica_fuente status=${r.statusCode} body=${r.body.substring(0, r.body.length.clamp(0, 300))}');
     } catch (e) {
       debugPrint('[SAF] estadistica fuente: $e');
     }
 
     // Fallback 1: calcular desde _creditosLista ya cargada
     final local = _buildEstadisticaFromLocal();
-    if (local.isNotEmpty) { _creditos = local; return; }
+    if (local.isNotEmpty) {
+      _creditos = local;
+      return;
+    }
 
     // Fallback 2: query original json_total_creditos_valores (campos variables pero nunca vacío)
     try {
@@ -533,8 +568,12 @@ class _HomeScreenState extends State<HomeScreen>
         final d = _json(r.body);
         final list = d['datos'];
         if (list is List && list.isNotEmpty) {
-          final raw = list.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
-          debugPrint('[SAF] json_total_creditos_valores keys: ${raw.first.keys.toList()}');
+          final raw = list
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+          debugPrint(
+              '[SAF] json_total_creditos_valores keys: ${raw.first.keys.toList()}');
           debugPrint('[SAF] json_total_creditos_valores first: ${raw.first}');
           _creditos = raw;
           unawaited(_api.saveLocalData('creditos', _creditos));
@@ -583,15 +622,29 @@ class _HomeScreenState extends State<HomeScreen>
   List<Map<String, dynamic>> _buildEstadisticaFromLocal() {
     if (_creditosLista.isEmpty) return [];
     const fuenteKeys = [
-      'fuente', 'nombre_fuente', 'cuenta', 'nombre_cuenta',
-      'origen', 'nombre_origen', 'nombre', 'fuente_nombre',
+      'fuente',
+      'nombre_fuente',
+      'cuenta',
+      'nombre_cuenta',
+      'origen',
+      'nombre_origen',
+      'nombre',
+      'fuente_nombre',
     ];
-    const valorKeys = ['monto', 'valor_prestamo', 'valor_credito', 'valor', 'prestado', 'total'];
+    const valorKeys = [
+      'monto',
+      'valor_prestamo',
+      'valor_credito',
+      'valor',
+      'prestado',
+      'total'
+    ];
     final first = _creditosLista.first;
     final allKeys = first.keys.toList();
     debugPrint('[SAF] creditosLista keys: $allKeys  first: $first');
 
-    final fk = fuenteKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
+    final fk =
+        fuenteKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
     // Intenta campo de valor conocido; si no, usa el primero con valor numérico > 0
     var vk = valorKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
     if (vk.isEmpty) {
@@ -607,10 +660,13 @@ class _HomeScreenState extends State<HomeScreen>
       mapa[fuente] = (mapa[fuente] ?? 0) + _num(c[vk]);
     }
     final result = mapa.entries
-        .map((e) => {'fuente': e.key, 'total_salidas': e.value, 'total_entradas': 0.0})
+        .map((e) =>
+            {'fuente': e.key, 'total_salidas': e.value, 'total_entradas': 0.0})
         .toList();
-    result.sort((a, b) => (b['total_salidas'] as double).compareTo(a['total_salidas'] as double));
-    debugPrint('[SAF] fallback estadistica: ${result.length} fuentes, total=${result.fold(0.0,(s,r) => s + (r["total_salidas"] as double))}');
+    result.sort((a, b) =>
+        (b['total_salidas'] as double).compareTo(a['total_salidas'] as double));
+    debugPrint(
+        '[SAF] fallback estadistica: ${result.length} fuentes, total=${result.fold(0.0, (s, r) => s + (r["total_salidas"] as double))}');
     return result;
   }
 
@@ -648,11 +704,20 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Campos de nombre conocidos, en orden de preferencia
     const nameKeys = [
-      'cliente', 'deudor', 'etiqueta', 'nombre_deudor', 'deudor_nombre',
-      'nombre_completo', 'fullname', 'nombre', 'nombres',
+      'cliente',
+      'deudor',
+      'etiqueta',
+      'nombre_deudor',
+      'deudor_nombre',
+      'nombre_completo',
+      'fullname',
+      'nombre',
+      'nombres',
     ];
     // Valores que claramente NO son nombres de persona
-    final notName = RegExp(r'^(activ|pagad|pendient|inactiv|mensual|quincenal|semanal|diario|fijo|variable|\d)', caseSensitive: false);
+    final notName = RegExp(
+        r'^(activ|pagad|pendient|inactiv|mensual|quincenal|semanal|diario|fijo|variable|\d)',
+        caseSensitive: false);
 
     String extractName(Map<String, dynamic> c) {
       // 1. Campos conocidos
@@ -661,14 +726,21 @@ class _HomeScreenState extends State<HomeScreen>
         if (v.isNotEmpty) return v;
       }
       // 2. Nombres + apellidos concatenados
-      final n = '${c['nombres'] ?? c['nombre'] ?? ''} ${c['apellidos'] ?? c['apellido'] ?? ''}'.trim();
+      final n =
+          '${c['nombres'] ?? c['nombre'] ?? ''} ${c['apellidos'] ?? c['apellido'] ?? ''}'
+              .trim();
       if (n.isNotEmpty) return n;
       // 3. Escanear todos los strings: buscar el más largo que parezca nombre
       String best = '';
       for (final v in c.values) {
         if (v is! String) continue;
         final s = v.trim();
-        if (s.length > best.length && s.contains(' ') && s.length > 5 && !notName.hasMatch(s) && !s.contains('<') && !s.contains('/')) {
+        if (s.length > best.length &&
+            s.contains(' ') &&
+            s.length > 5 &&
+            !notName.hasMatch(s) &&
+            !s.contains('<') &&
+            !s.contains('/')) {
           best = s;
         }
       }
@@ -681,8 +753,13 @@ class _HomeScreenState extends State<HomeScreen>
       final lista = <Map<String, dynamic>>[];
       for (final c in source) {
         final label = extractName(c);
-        final id = (c['valor'] ?? c['codigo_deudor'] ?? c['id_deudor'] ??
-            c['codigo'] ?? c['id'] ?? label).toString();
+        final id = (c['valor'] ??
+                c['codigo_deudor'] ??
+                c['id_deudor'] ??
+                c['codigo'] ??
+                c['id'] ??
+                label)
+            .toString();
         if (label.isNotEmpty && seen.add(id)) {
           lista.add({'valor': id, 'etiqueta': label});
         }
@@ -691,17 +768,23 @@ class _HomeScreenState extends State<HomeScreen>
         lista.sort((a, b) =>
             a['etiqueta'].toString().compareTo(b['etiqueta'].toString()));
         _deudoresLista = lista;
-        debugPrint('[SAF] deudores desde local: ${lista.length} — primer item: ${lista.first}');
+        debugPrint(
+            '[SAF] deudores desde local: ${lista.length} — primer item: ${lista.first}');
         return;
       }
     }
-    debugPrint('[SAF] _tryBuildDeudoresFromLocal: creditosLista=${_creditosLista.length}, ahorradores=${_ahorradores.length}');
-    if (_creditosLista.isNotEmpty) debugPrint('[SAF] creditosLista[0] keys: ${_creditosLista.first.keys.toList()}');
+    debugPrint(
+        '[SAF] _tryBuildDeudoresFromLocal: creditosLista=${_creditosLista.length}, ahorradores=${_ahorradores.length}');
+    if (_creditosLista.isNotEmpty) {
+      debugPrint(
+          '[SAF] creditosLista[0] keys: ${_creditosLista.first.keys.toList()}');
+    }
   }
 
   Future<void> _fetchDeudores() async {
     try {
-      final r = await _api.cachedPost('/ajax/get_deudores.php', {},
+      final r = await _api
+          .cachedPost('/ajax/get_deudores.php', {},
               ttl: const Duration(minutes: 10))
           .timeout(const Duration(seconds: 8));
 
@@ -711,8 +794,18 @@ class _HomeScreenState extends State<HomeScreen>
         if (decoded is List) {
           list = decoded;
         } else if (decoded is Map) {
-          for (final k in ['datos', 'data', 'resultado', 'resultado_datos', 'items', 'deudores']) {
-            if (decoded[k] is List) { list = decoded[k] as List; break; }
+          for (final k in [
+            'datos',
+            'data',
+            'resultado',
+            'resultado_datos',
+            'items',
+            'deudores'
+          ]) {
+            if (decoded[k] is List) {
+              list = decoded[k] as List;
+              break;
+            }
           }
         }
         if (list != null && list.isNotEmpty) {
@@ -723,7 +816,8 @@ class _HomeScreenState extends State<HomeScreen>
           return;
         }
       }
-      debugPrint('[SAF] get_deudores.php status=${r.statusCode} body=${r.body.substring(0, r.body.length.clamp(0, 200))}');
+      debugPrint(
+          '[SAF] get_deudores.php status=${r.statusCode} body=${r.body.substring(0, r.body.length.clamp(0, 200))}');
     } catch (e) {
       debugPrint('[SAF] deudores fetch: $e');
     }
@@ -734,18 +828,32 @@ class _HomeScreenState extends State<HomeScreen>
       final lista = <Map<String, dynamic>>[];
       for (final c in _creditosLista) {
         final label = [
-          c['cliente'], c['nombre_deudor'], c['deudor_nombre'],
-          c['nombre_completo'], c['deudor'], c['nombre'], c['nombres']
-        ].firstWhere((v) => v != null && v.toString().trim().isNotEmpty,
-            orElse: () => null)?.toString().trim() ?? '';
-        final id = (c['codigo_deudor'] ?? c['id_deudor'] ??
-            c['codigo'] ?? c['id'] ?? label).toString();
+              c['cliente'],
+              c['nombre_deudor'],
+              c['deudor_nombre'],
+              c['nombre_completo'],
+              c['deudor'],
+              c['nombre'],
+              c['nombres']
+            ]
+                .firstWhere((v) => v != null && v.toString().trim().isNotEmpty,
+                    orElse: () => null)
+                ?.toString()
+                .trim() ??
+            '';
+        final id = (c['codigo_deudor'] ??
+                c['id_deudor'] ??
+                c['codigo'] ??
+                c['id'] ??
+                label)
+            .toString();
         if (label.isNotEmpty && seen.add(id)) {
           lista.add({'valor': id, 'etiqueta': label});
         }
       }
       if (lista.isNotEmpty) {
-        lista.sort((a, b) => a['etiqueta'].toString().compareTo(b['etiqueta'].toString()));
+        lista.sort((a, b) =>
+            a['etiqueta'].toString().compareTo(b['etiqueta'].toString()));
         _deudoresLista = lista;
       }
     }
@@ -803,7 +911,8 @@ class _HomeScreenState extends State<HomeScreen>
       if (r.statusCode == 200) {
         final decoded = jsonDecode(r.body);
         if (decoded is Map && decoded['datos'] is List) {
-          _pendientesTotal = int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
+          _pendientesTotal =
+              int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
           _pendientesLista = (decoded['datos'] as List)
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
@@ -917,11 +1026,15 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Future<List<Map<String, dynamic>>> _fetchUsuariosAdmin({bool forceRefresh = false}) async {
+  Future<List<Map<String, dynamic>>> _fetchUsuariosAdmin(
+      {bool forceRefresh = false}) async {
     if (forceRefresh) _api.invalidateCache('/ajax/gestion_usuarios.php');
-    final response = await _api.cachedPost('/ajax/gestion_usuarios.php', {
-      'accion': 'listar',
-    }, ttl: const Duration(minutes: 5));
+    final response = await _api.cachedPost(
+        '/ajax/gestion_usuarios.php',
+        {
+          'accion': 'listar',
+        },
+        ttl: const Duration(minutes: 5));
     if (response.statusCode != 200) {
       throw Exception('El servidor no respondió correctamente');
     }
@@ -1123,8 +1236,7 @@ class _HomeScreenState extends State<HomeScreen>
                       style: const TextStyle(color: _navy, fontSize: 14),
                       decoration: InputDecoration(
                         hintText: 'Buscar usuario, perfil o estado',
-                        hintStyle:
-                            const TextStyle(color: Color(0xFFB0BBCC)),
+                        hintStyle: const TextStyle(color: Color(0xFFB0BBCC)),
                         prefixIcon: const Icon(Icons.search_rounded,
                             color: Color(0xFF8899BB)),
                         filled: true,
@@ -1204,7 +1316,8 @@ class _HomeScreenState extends State<HomeScreen>
                                           });
                                           try {
                                             final data =
-                                                await _fetchUsuariosAdmin(forceRefresh: true);
+                                                await _fetchUsuariosAdmin(
+                                                    forceRefresh: true);
                                             if (ctx.mounted) {
                                               setS(() {
                                                 usuarios = data;
@@ -1238,8 +1351,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<Map<String, dynamic>> _usuariosRequest(
       Map<String, dynamic> body) async {
-    final response =
-        await _api.post('/ajax/gestion_usuarios.php', body);
+    final response = await _api.post('/ajax/gestion_usuarios.php', body);
     if (response.statusCode != 200) {
       throw Exception('El servidor no respondió correctamente');
     }
@@ -1309,8 +1421,7 @@ class _HomeScreenState extends State<HomeScreen>
             initStarted = true;
             Future.microtask(() async {
               try {
-                final cats =
-                    await _usuariosRequest({'accion': 'catalogos'});
+                final cats = await _usuariosRequest({'accion': 'catalogos'});
                 final data = cats['datos'] is Map
                     ? Map<String, dynamic>.from(cats['datos'] as Map)
                     : <String, dynamic>{};
@@ -1332,8 +1443,7 @@ class _HomeScreenState extends State<HomeScreen>
                     'codigo_usuario': codigoUsuario,
                   });
                   if (resp['datos'] is Map) {
-                    detail =
-                        Map<String, dynamic>.from(resp['datos'] as Map);
+                    detail = Map<String, dynamic>.from(resp['datos'] as Map);
                   }
                 }
 
@@ -1342,12 +1452,10 @@ class _HomeScreenState extends State<HomeScreen>
                         listadoUser?['email'] ??
                         '')
                     .toString();
-                final initPerfil =
-                    (detail['codigo_perfil'] ?? '').toString();
+                final initPerfil = (detail['codigo_perfil'] ?? '').toString();
                 final initTipo =
                     (detail['codigo_tipo_usuario'] ?? '').toString();
-                final initOrigen =
-                    (detail['codigo_origen'] ?? '').toString();
+                final initOrigen = (detail['codigo_origen'] ?? '').toString();
 
                 List<Map<String, dynamic>> loadedOrigenes = [];
                 if (initTipo.isNotEmpty) {
@@ -1371,8 +1479,7 @@ class _HomeScreenState extends State<HomeScreen>
               } catch (e) {
                 if (ctx.mounted) {
                   setS(() {
-                    loadError =
-                        e.toString().replaceFirst('Exception: ', '');
+                    loadError = e.toString().replaceFirst('Exception: ', '');
                     loadingData = false;
                   });
                 }
@@ -1385,14 +1492,18 @@ class _HomeScreenState extends State<HomeScreen>
             surfaceTintColor: Colors.transparent,
             insetPadding:
                 const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             titlePadding: EdgeInsets.zero,
             title: Container(
               padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Color(0xFF0D1B4B), Color(0xFF1E40AF), Color(0xFF0EA5E9)],
+                  colors: [
+                    Color(0xFF0D1B4B),
+                    Color(0xFF1E40AF),
+                    Color(0xFF0EA5E9)
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -1466,8 +1577,7 @@ class _HomeScreenState extends State<HomeScreen>
                         child: Center(
                           child: Text(loadError,
                               textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  color: Color(0xFFDC2626))),
+                              style: const TextStyle(color: Color(0xFFDC2626))),
                         ),
                       )
                     : SingleChildScrollView(
@@ -1488,26 +1598,24 @@ class _HomeScreenState extends State<HomeScreen>
                               ),
                               const SizedBox(height: 12),
                               DropdownButtonFormField<String>(
-                                initialValue:
-                                    perfil.isEmpty ? null : perfil,
+                                initialValue: perfil.isEmpty ? null : perfil,
                                 isExpanded: true,
                                 dropdownColor: Colors.white,
-                                style: const TextStyle(
-                                    color: _navy, fontSize: 14),
+                                style:
+                                    const TextStyle(color: _navy, fontSize: 14),
                                 decoration: _userInputDecoration(
                                   'Perfil',
                                   Icons.admin_panel_settings_outlined,
                                 ),
                                 items: perfiles
                                     .map((item) => DropdownMenuItem(
-                                          value: (item['codigo'] ?? '')
-                                              .toString(),
+                                          value:
+                                              (item['codigo'] ?? '').toString(),
                                           child: Text(
-                                            (item['nombre'] ?? '')
-                                                .toString(),
+                                            (item['nombre'] ?? '').toString(),
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                                color: _navy),
+                                            style:
+                                                const TextStyle(color: _navy),
                                           ),
                                         ))
                                     .toList(),
@@ -1521,22 +1629,21 @@ class _HomeScreenState extends State<HomeScreen>
                                 initialValue: tipo.isEmpty ? null : tipo,
                                 isExpanded: true,
                                 dropdownColor: Colors.white,
-                                style: const TextStyle(
-                                    color: _navy, fontSize: 14),
+                                style:
+                                    const TextStyle(color: _navy, fontSize: 14),
                                 decoration: _userInputDecoration(
                                   'Tipo de usuario',
                                   Icons.badge_outlined,
                                 ),
                                 items: tipos
                                     .map((item) => DropdownMenuItem(
-                                          value: (item['codigo'] ?? '')
-                                              .toString(),
+                                          value:
+                                              (item['codigo'] ?? '').toString(),
                                           child: Text(
-                                            (item['nombre'] ?? '')
-                                                .toString(),
+                                            (item['nombre'] ?? '').toString(),
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                                color: _navy),
+                                            style:
+                                                const TextStyle(color: _navy),
                                           ),
                                         ))
                                     .toList(),
@@ -1548,13 +1655,12 @@ class _HomeScreenState extends State<HomeScreen>
                                           tipo = selected;
                                           origen = '';
                                           origenes = [];
-                                          loadingOrigenes =
-                                              selected.isNotEmpty;
+                                          loadingOrigenes = selected.isNotEmpty;
                                         });
                                         if (selected.isEmpty) return;
                                         try {
-                                          final result = await loadOrigins(
-                                              selected, setS);
+                                          final result =
+                                              await loadOrigins(selected, setS);
                                           if (ctx.mounted) {
                                             setS(() {
                                               origenes = result;
@@ -1563,16 +1669,14 @@ class _HomeScreenState extends State<HomeScreen>
                                           }
                                         } catch (e) {
                                           if (ctx.mounted) {
-                                            setS(() =>
-                                                loadingOrigenes = false);
+                                            setS(() => loadingOrigenes = false);
                                             ScaffoldMessenger.of(ctx)
                                                 .showSnackBar(
                                               SnackBar(
                                                 content: Text(e
                                                     .toString()
                                                     .replaceFirst(
-                                                        'Exception: ',
-                                                        '')),
+                                                        'Exception: ', '')),
                                                 backgroundColor:
                                                     const Color(0xFFDC2626),
                                               ),
@@ -1584,102 +1688,271 @@ class _HomeScreenState extends State<HomeScreen>
                               const SizedBox(height: 12),
                               // Usuario asociado — searchable picker
                               GestureDetector(
-                                onTap: (saving || loadingOrigenes || origenes.isEmpty) ? null : () async {
-                                  final searchCtrl = TextEditingController();
-                                  List<Map<String, dynamic>> filtered = List.from(origenes);
-                                  final picked = await showDialog<Map<String, dynamic>>(
-                                    context: ctx,
-                                    builder: (dCtx) => StatefulBuilder(builder: (dCtx, setSrch) {
-                                      return Dialog(
-                                        backgroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
-                                        child: Column(mainAxisSize: MainAxisSize.min, children: [
-                                          Container(
-                                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                                            decoration: const BoxDecoration(
-                                              gradient: LinearGradient(colors: [Color(0xFF0D1B4B), Color(0xFF1E40AF), Color(0xFF0EA5E9)]),
-                                              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                                            ),
-                                            child: Row(children: [
-                                              const Icon(Icons.person_search_rounded, color: Colors.white, size: 20),
-                                              const SizedBox(width: 10),
-                                              const Expanded(child: Text('Seleccionar Usuario', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15))),
-                                              GestureDetector(onTap: () => Navigator.pop(dCtx), child: const Icon(Icons.close_rounded, color: Colors.white70, size: 20)),
-                                            ]),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-                                            child: TextField(
-                                              controller: searchCtrl,
-                                              autofocus: true,
-                                              decoration: InputDecoration(
-                                                hintText: 'Buscar usuario...',
-                                                prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF6B7280)),
-                                                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFD1D5DB))),
-                                                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFD1D5DB))),
-                                                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF4361EE))),
-                                              ),
-                                              onChanged: (q) => setSrch(() {
-                                                filtered = origenes.where((item) => (item['nombre'] ?? '').toString().toLowerCase().contains(q.toLowerCase())).toList();
-                                              }),
-                                            ),
-                                          ),
-                                          Flexible(
-                                            child: ListView.builder(
-                                              shrinkWrap: true,
-                                              padding: const EdgeInsets.symmetric(vertical: 4),
-                                              itemCount: filtered.length,
-                                              itemBuilder: (_, i) {
-                                                final item = filtered[i];
-                                                final nom = (item['nombre'] ?? '').toString();
-                                                final cod = (item['codigo'] ?? '').toString();
-                                                final isSelected = cod == origen;
-                                                return InkWell(
-                                                  onTap: () => Navigator.pop(dCtx, item),
-                                                  child: Container(
-                                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                                    color: isSelected ? const Color(0xFFEEF2FF) : null,
-                                                    child: Row(children: [
-                                                      Expanded(child: Text(nom, style: TextStyle(fontSize: 14, color: isSelected ? const Color(0xFF4361EE) : const Color(0xFF374151), fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400))),
-                                                      if (isSelected) const Icon(Icons.check_rounded, size: 16, color: Color(0xFF4361EE)),
-                                                    ]),
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                        ]),
-                                      );
-                                    }),
-                                  );
-                                  if (picked != null) {
-                                    setS(() {
-                                      origen = (picked['codigo'] ?? '').toString();
-                                    });
-                                  }
-                                },
+                                onTap: (saving ||
+                                        loadingOrigenes ||
+                                        origenes.isEmpty)
+                                    ? null
+                                    : () async {
+                                        final searchCtrl =
+                                            TextEditingController();
+                                        List<Map<String, dynamic>> filtered =
+                                            List.from(origenes);
+                                        final picked = await showDialog<
+                                            Map<String, dynamic>>(
+                                          context: ctx,
+                                          builder: (dCtx) => StatefulBuilder(
+                                              builder: (dCtx, setSrch) {
+                                            return Dialog(
+                                              backgroundColor: Colors.white,
+                                              shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          16)),
+                                              insetPadding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 24,
+                                                      vertical: 60),
+                                              child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets
+                                                          .fromLTRB(
+                                                          16, 16, 16, 12),
+                                                      decoration:
+                                                          const BoxDecoration(
+                                                        gradient:
+                                                            LinearGradient(
+                                                                colors: [
+                                                              Color(0xFF0D1B4B),
+                                                              Color(0xFF1E40AF),
+                                                              Color(0xFF0EA5E9)
+                                                            ]),
+                                                        borderRadius:
+                                                            BorderRadius.vertical(
+                                                                top: Radius
+                                                                    .circular(
+                                                                        16)),
+                                                      ),
+                                                      child: Row(children: [
+                                                        const Icon(
+                                                            Icons
+                                                                .person_search_rounded,
+                                                            color: Colors.white,
+                                                            size: 20),
+                                                        const SizedBox(
+                                                            width: 10),
+                                                        const Expanded(
+                                                            child: Text(
+                                                                'Seleccionar Usuario',
+                                                                style: TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w700,
+                                                                    fontSize:
+                                                                        15))),
+                                                        GestureDetector(
+                                                            onTap: () =>
+                                                                Navigator.pop(
+                                                                    dCtx),
+                                                            child: const Icon(
+                                                                Icons
+                                                                    .close_rounded,
+                                                                color: Colors
+                                                                    .white70,
+                                                                size: 20)),
+                                                      ]),
+                                                    ),
+                                                    Padding(
+                                                      padding: const EdgeInsets
+                                                          .fromLTRB(
+                                                          12, 12, 12, 4),
+                                                      child: TextField(
+                                                        controller: searchCtrl,
+                                                        autofocus: true,
+                                                        decoration:
+                                                            InputDecoration(
+                                                          hintText:
+                                                              'Buscar usuario...',
+                                                          prefixIcon: const Icon(
+                                                              Icons
+                                                                  .search_rounded,
+                                                              size: 18,
+                                                              color: Color(
+                                                                  0xFF6B7280)),
+                                                          contentPadding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal:
+                                                                      12,
+                                                                  vertical: 10),
+                                                          border: OutlineInputBorder(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          10),
+                                                              borderSide:
+                                                                  const BorderSide(
+                                                                      color: Color(
+                                                                          0xFFD1D5DB))),
+                                                          enabledBorder: OutlineInputBorder(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          10),
+                                                              borderSide:
+                                                                  const BorderSide(
+                                                                      color: Color(
+                                                                          0xFFD1D5DB))),
+                                                          focusedBorder: OutlineInputBorder(
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          10),
+                                                              borderSide:
+                                                                  const BorderSide(
+                                                                      color: Color(
+                                                                          0xFF4361EE))),
+                                                        ),
+                                                        onChanged: (q) =>
+                                                            setSrch(() {
+                                                          filtered = origenes
+                                                              .where((item) => (item[
+                                                                          'nombre'] ??
+                                                                      '')
+                                                                  .toString()
+                                                                  .toLowerCase()
+                                                                  .contains(q
+                                                                      .toLowerCase()))
+                                                              .toList();
+                                                        }),
+                                                      ),
+                                                    ),
+                                                    Flexible(
+                                                      child: ListView.builder(
+                                                        shrinkWrap: true,
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                vertical: 4),
+                                                        itemCount:
+                                                            filtered.length,
+                                                        itemBuilder: (_, i) {
+                                                          final item =
+                                                              filtered[i];
+                                                          final nom =
+                                                              (item['nombre'] ??
+                                                                      '')
+                                                                  .toString();
+                                                          final cod =
+                                                              (item['codigo'] ??
+                                                                      '')
+                                                                  .toString();
+                                                          final isSelected =
+                                                              cod == origen;
+                                                          return InkWell(
+                                                            onTap: () =>
+                                                                Navigator.pop(
+                                                                    dCtx, item),
+                                                            child: Container(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .symmetric(
+                                                                      horizontal:
+                                                                          16,
+                                                                      vertical:
+                                                                          12),
+                                                              color: isSelected
+                                                                  ? const Color(
+                                                                      0xFFEEF2FF)
+                                                                  : null,
+                                                              child: Row(
+                                                                  children: [
+                                                                    Expanded(
+                                                                        child: Text(
+                                                                            nom,
+                                                                            style: TextStyle(
+                                                                                fontSize: 14,
+                                                                                color: isSelected ? const Color(0xFF4361EE) : const Color(0xFF374151),
+                                                                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400))),
+                                                                    if (isSelected)
+                                                                      const Icon(
+                                                                          Icons
+                                                                              .check_rounded,
+                                                                          size:
+                                                                              16,
+                                                                          color:
+                                                                              Color(0xFF4361EE)),
+                                                                  ]),
+                                                            ),
+                                                          );
+                                                        },
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                  ]),
+                                            );
+                                          }),
+                                        );
+                                        if (picked != null) {
+                                          setS(() {
+                                            origen = (picked['codigo'] ?? '')
+                                                .toString();
+                                          });
+                                        }
+                                      },
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 14),
                                   decoration: BoxDecoration(
-                                    border: Border.all(color: const Color(0xFFD1D5DB)),
+                                    border: Border.all(
+                                        color: const Color(0xFFD1D5DB)),
                                     borderRadius: BorderRadius.circular(10),
-                                    color: (saving || loadingOrigenes) ? const Color(0xFFF9FAFB) : Colors.white,
+                                    color: (saving || loadingOrigenes)
+                                        ? const Color(0xFFF9FAFB)
+                                        : Colors.white,
                                   ),
                                   child: Row(children: [
-                                    Icon(Icons.person_search_outlined, size: 18, color: origen.isNotEmpty ? const Color(0xFF4361EE) : const Color(0xFF9CA3AF)),
+                                    Icon(Icons.person_search_outlined,
+                                        size: 18,
+                                        color: origen.isNotEmpty
+                                            ? const Color(0xFF4361EE)
+                                            : const Color(0xFF9CA3AF)),
                                     const SizedBox(width: 10),
-                                    Expanded(child: Text(
+                                    Expanded(
+                                        child: Text(
                                       loadingOrigenes
                                           ? 'Cargando usuarios...'
                                           : origen.isNotEmpty
-                                              ? (origenes.firstWhere((e) => (e['codigo'] ?? '').toString() == origen, orElse: () => {'nombre': 'Usuario seleccionado'})['nombre'] ?? '').toString()
+                                              ? (origenes.firstWhere(
+                                                          (e) =>
+                                                              (e['codigo'] ??
+                                                                      '')
+                                                                  .toString() ==
+                                                              origen,
+                                                          orElse: () => {
+                                                                'nombre':
+                                                                    'Usuario seleccionado'
+                                                              })['nombre'] ??
+                                                      '')
+                                                  .toString()
                                               : 'Usuario asociado',
-                                      style: TextStyle(fontSize: 14, color: origen.isNotEmpty && !loadingOrigenes ? const Color(0xFF0D1B4B) : const Color(0xFF9CA3AF)),
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          color: origen.isNotEmpty &&
+                                                  !loadingOrigenes
+                                              ? const Color(0xFF0D1B4B)
+                                              : const Color(0xFF9CA3AF)),
                                     )),
-                                    Icon(loadingOrigenes ? Icons.hourglass_empty_rounded : Icons.keyboard_arrow_down_rounded, size: 18, color: const Color(0xFF6B7280)),
+                                    Icon(
+                                        loadingOrigenes
+                                            ? Icons.hourglass_empty_rounded
+                                            : Icons.keyboard_arrow_down_rounded,
+                                        size: 18,
+                                        color: const Color(0xFF6B7280)),
                                   ]),
                                 ),
                               ),
@@ -1707,10 +1980,7 @@ class _HomeScreenState extends State<HomeScreen>
                         gradient: saving
                             ? null
                             : const LinearGradient(
-                                colors: [
-                                  Color(0xFF0D1B4B),
-                                  Color(0xFF1E3A8A)
-                                ],
+                                colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
                                 begin: Alignment.centerLeft,
                                 end: Alignment.centerRight,
                               ),
@@ -1730,8 +2000,7 @@ class _HomeScreenState extends State<HomeScreen>
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor:
-                              const Color(0xFFCBD5E1),
+                          disabledBackgroundColor: const Color(0xFFCBD5E1),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 18, vertical: 12),
                           shape: RoundedRectangleBorder(
@@ -1793,8 +2062,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 ),
                               )
                             : const Icon(Icons.save_rounded, size: 18),
-                        label:
-                            Text(saving ? 'Guardando...' : 'Guardar'),
+                        label: Text(saving ? 'Guardando...' : 'Guardar'),
                       ),
                     ),
                   ],
@@ -1826,15 +2094,13 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       );
 
-  Widget _adminUserCard(
-      Map<String, dynamic> user, VoidCallback onEdit) {
+  Widget _adminUserCard(Map<String, dynamic> user, VoidCallback onEdit) {
     final email = (user['usuario'] ??
             user['email'] ??
             user['correo'] ??
             'Usuario sin correo')
         .toString();
-    final tipo =
-        (user['tipo_usuario'] ?? user['tipo'] ?? 'Usuario').toString();
+    final tipo = (user['tipo_usuario'] ?? user['tipo'] ?? 'Usuario').toString();
     final perfil =
         (user['perfil'] ?? user['nombre_perfil'] ?? 'Sin perfil').toString();
     final estadoRaw = (user['estado'] ?? user['activo'] ?? '').toString();
@@ -1892,8 +2158,8 @@ class _HomeScreenState extends State<HomeScreen>
               color: activo ? null : const Color(0xFFCBD5E1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.person_rounded,
-                color: Colors.white, size: 22),
+            child:
+                const Icon(Icons.person_rounded, color: Colors.white, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -2008,20 +2274,7 @@ class _HomeScreenState extends State<HomeScreen>
         titleSpacing: 16,
         title: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.12),
-                border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.18), width: 1),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.all(6),
-                child: CustomPaint(painter: SafLogoPainter(Colors.white)),
-              ),
-            ),
+            const _AnimatedSafLogo(),
             const SizedBox(width: 10),
             const Text('SAF',
                 style: TextStyle(
@@ -2122,8 +2375,6 @@ class _HomeScreenState extends State<HomeScreen>
                             value: _cop(ingresos),
                             color: const Color(0xFF059669),
                             bgColor: const Color(0xFF6EE7B7),
-                            badge:
-                                '+${_movimientos.where((m) => _tipoOf(m) == 'ingreso').length}',
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -2134,8 +2385,6 @@ class _HomeScreenState extends State<HomeScreen>
                             value: _cop(egresos),
                             color: const Color(0xFFDC2626),
                             bgColor: const Color(0xFFFCA5A5),
-                            badge:
-                                '${_movimientos.where((m) => _tipoOf(m) == 'gasto').length}',
                           ),
                         ),
                       ],
@@ -2155,8 +2404,8 @@ class _HomeScreenState extends State<HomeScreen>
                             bgColor: const Color(0xFF93C5FD),
                             badge: '${_cuentas.length} cuentas',
                             valueColor: balance < 0
-                                ? const Color(0xFFDC2626)
-                                : null,
+                                ? const Color(0xFFFCA5A5)
+                                : const Color(0xFF6EE7B7),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -2278,7 +2527,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (_loadingData) return _loadingView();
 
     // Totales globales (todos los registros del filtro, no solo la página actual)
-    final totalPagado    = _creditosTotalPagado;
+    final totalPagado = _creditosTotalPagado;
     final totalPendiente = _creditosTotalPendiente;
 
     final creditosFiltrados = _creditosLista;
@@ -2300,9 +2549,7 @@ class _HomeScreenState extends State<HomeScreen>
     final dias = (_simDesde != null && _simHasta != null)
         ? _simHasta!.difference(_simDesde!).inDays.clamp(0, 100000)
         : 0;
-    final valorTotalDiario = dias > 0
-        ? _simMonto + (valorDiario * dias)
-        : 0.0;
+    final valorTotalDiario = dias > 0 ? _simMonto + (valorDiario * dias) : 0.0;
     final cuotaReal = cuotaMensual;
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2349,229 +2596,381 @@ class _HomeScreenState extends State<HomeScreen>
       ),
 
       // ── Sub-tabs scrollables ────────────────────────────────
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-        child: Row(children: [
-          _creditoTabBtn(0, 'Aprobados'),
-          const SizedBox(width: 8),
-          _creditoTabBtn(1, 'Pendientes'),
-          const SizedBox(width: 8),
-          _creditoTabBtn(2, 'Simular Crédito'),
-          const SizedBox(width: 8),
-          _creditoTabBtn(3, 'Estadística por Fuente'),
-        ]),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F4FA),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _creditoTabBtn(
+                  0, 'Aprobados', Icons.check_circle_outline_rounded),
+              _creditoTabBtn(1, 'Pendientes', Icons.schedule_rounded),
+              _creditoTabBtn(2, 'Simular crédito', Icons.calculate_outlined),
+              _creditoTabBtn(
+                  3, 'Estadística por fuente', Icons.bar_chart_rounded),
+            ]),
+          ),
+        ),
       ),
 
       // ── Contenido por sub-tab ───────────────────────────────
       if (_creditoSubTab == 0 || _creditoSubTab == 1) ...[
-        // Botones acción (solo en Aprobados)
+        // ── Botones acción (solo en Aprobados) ───────────────────
         if (_creditoSubTab == 0)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          child: Row(children: [
-            Expanded(
-                child: _actionBtn(
-                    label: 'AGREGAR DEUDOR',
-                    color: _navy,
-                    icon: Icons.person_add_rounded,
-                    onTap: _showCrearDeudorDialog)),
-            const SizedBox(width: 8),
-            Expanded(
-                child: _actionBtn(
-                    label: 'AGREGAR CRÉDITO',
-                    color: _navy,
-                    icon: Icons.add_card_rounded,
-                    onTap: _showCrearCreditoDialog)),
-          ]),
-        ),
-        // Stats Total Pagado / Total Pendiente
-        if (_creditoSubTab == 0)
-        Container(
-          margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-                colors: [Color(0xFF3B3B8A), Color(0xFF5252B4)]),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(children: [
-            Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  const Text('TOTAL PAGADO',
-                      style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(_cop(totalPagado),
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800)),
-                ])),
-            Container(width: 1, height: 40, color: Colors.white24),
-            Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                  const Text('TOTAL PENDIENTE',
-                      style: TextStyle(
-                          color: Colors.white60,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 4),
-                  Text(_cop(totalPendiente),
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800)),
-                ])),
-          ]),
-        ),
-        // Filtros Asesor + Estado (solo en Aprobados)
-        if (_creditoSubTab == 0)
-        Container(
-          margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3))
-            ],
-          ),
-          child: Column(children: [
-            Row(children: [
-              // Asesor
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Asesor', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF8899BB))),
-                const SizedBox(height: 4),
-                Container(
-                  height: 36,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(color: const Color(0xFFF0F2FA), borderRadius: BorderRadius.circular(8)),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _creditoFiltroAsesor.isEmpty ? null : _creditoFiltroAsesor,
-                      isExpanded: true,
-                      dropdownColor: Colors.white,
-                      hint: const Text('[Seleccione]', style: TextStyle(fontSize: 11, color: Color(0xFF8899BB))),
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF0D1B4B)),
-                      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF8899BB)),
-                      items: [
-                        const DropdownMenuItem(value: null, child: Text('[Seleccione]', style: TextStyle(color: Color(0xFF0D1B4B)))),
-                        ..._asesoresLista.map((a) {
-                          final sigla = (a['sigla'] ?? a['codigo_asesor'] ?? a['codigo'] ?? '').toString();
-                          final nombre = ([a['nombres'], a['apellidos']].where((x) => x != null && x.toString().isNotEmpty).join(' ')).trim();
-                          final display = nombre.isNotEmpty ? nombre : sigla;
-                          return DropdownMenuItem(
-                            value: sigla,
-                            child: Text(display, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF0D1B4B))),
-                          );
-                        }),
-                      ],
-                      onChanged: (v) => setState(() => _creditoFiltroAsesor = v ?? ''),
-                    ),
-                  ),
-                ),
-              ])),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            child: Row(children: [
+              Expanded(
+                  child: _actionBtn(
+                      label: 'Agregar Deudor',
+                      color: const Color(0xFF4338CA),
+                      icon: Icons.person_add_rounded,
+                      onTap: _showCrearDeudorDialog)),
               const SizedBox(width: 10),
-              // Estado
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Estado', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF8899BB))),
-                const SizedBox(height: 4),
-                Container(
-                  height: 36,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  decoration: BoxDecoration(color: const Color(0xFFF0F2FA), borderRadius: BorderRadius.circular(8)),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _creditoFiltroEstado.isEmpty ? null : _creditoFiltroEstado,
-                      isExpanded: true,
-                      dropdownColor: Colors.white,
-                      hint: const Text('[Seleccione]', style: TextStyle(fontSize: 11, color: Color(0xFF8899BB))),
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF0D1B4B)),
-                      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF8899BB)),
-                      items: const [
-                        DropdownMenuItem(value: null, child: Text('[Seleccione]', style: TextStyle(color: Color(0xFF0D1B4B)))),
-                        DropdownMenuItem(value: '1', child: Text('Activo', style: TextStyle(color: Color(0xFF0D1B4B)))),
-                        DropdownMenuItem(value: '2', child: Text('Pagado', style: TextStyle(color: Color(0xFF0D1B4B)))),
-                      ],
-                      onChanged: (v) => setState(() => _creditoFiltroEstado = v ?? ''),
-                    ),
-                  ),
-                ),
-              ])),
+              Expanded(
+                  child: _actionBtn(
+                      label: 'Agregar Crédito',
+                      color: const Color(0xFF0D9488),
+                      icon: Icons.add_card_rounded,
+                      onTap: _showCrearCreditoDialog)),
             ]),
-            const SizedBox(height: 10),
-            // Consultar
-            GestureDetector(
-              onTap: _creditoConsultando
-                  ? null
-                  : () async {
-                      setState(() => _creditoConsultando = true);
-                      try {
-                        if (_creditoSubTab == 0) {
-                          setState(() => _creditoPagina = 1);
-                          await _fetchCreditos('');
-                        } else {
-                          setState(() => _pendientesPagina = 1);
-                          await _fetchPendientes();
-                        }
-                      } finally {
-                        if (mounted) {
-                          setState(() => _creditoConsultando = false);
-                        }
-                      }
-                    },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                height: 36,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: _creditoConsultando
-                      ? _navy.withValues(alpha: 0.78)
-                      : _navy,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: _creditoConsultando
-                      ? const SizedBox(
-                          width: 17,
-                          height: 17,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Row(
-                          mainAxisSize: MainAxisSize.min,
+          ),
+
+        // ── Stats card ──────────────────────────────────────────
+        if (_creditoSubTab == 0)
+          Container(
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [
+                Color(0xFF1E1B6A),
+                Color(0xFF3B3B8A),
+                Color(0xFF5252B4)
+              ], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: const Color(0xFF3B3B8A).withValues(alpha: 0.4),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6))
+              ],
+            ),
+            child: Stack(children: [
+              // Decoración fondo
+              Positioned(
+                  right: -20,
+                  top: -20,
+                  child: Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.04),
+                    ),
+                  )),
+              Positioned(
+                  right: 30,
+                  bottom: -30,
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.03),
+                    ),
+                  )),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                child: Row(children: [
+                  // Pagado
+                  Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(Icons.search_rounded,
-                                color: Colors.white, size: 14),
-                            SizedBox(width: 6),
-                            Text(
-                              'Consultar',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
+                        Row(children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                          ],
+                            child: const Icon(
+                                Icons.check_circle_outline_rounded,
+                                color: Colors.white70,
+                                size: 14),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text('TOTAL PAGADO',
+                              style: TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5)),
+                        ]),
+                        const SizedBox(height: 8),
+                        Text(_cop(totalPagado),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800)),
+                      ])),
+                  Container(
+                      width: 1,
+                      height: 44,
+                      color: Colors.white.withValues(alpha: 0.15)),
+                  // Pendiente
+                  Expanded(
+                      child: Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Icon(Icons.schedule_rounded,
+                                  color: Colors.white70, size: 14),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text('TOTAL PENDIENTE',
+                                style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.5)),
+                          ]),
+                          const SizedBox(height: 8),
+                          Text(_cop(totalPendiente),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800)),
+                        ]),
+                  )),
+                ]),
+              ),
+            ]),
+          ),
+
+        // ── Filtros (solo en Aprobados) ─────────────────────────
+        if (_creditoSubTab == 0)
+          Container(
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4))
+              ],
+            ),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Filtrar resultados',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF8899BB),
+                      letterSpacing: 0.3)),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      const Text('Asesor',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: _navy)),
+                      const SizedBox(height: 4),
+                      Container(
+                        height: 38,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F6FA),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _creditoFiltroAsesor.isEmpty
+                                ? null
+                                : _creditoFiltroAsesor,
+                            isExpanded: true,
+                            dropdownColor: Colors.white,
+                            hint: const Text('Todos',
+                                style: TextStyle(
+                                    fontSize: 11, color: Color(0xFF8899BB))),
+                            style: const TextStyle(fontSize: 12, color: _navy),
+                            icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                                size: 16, color: Color(0xFF8899BB)),
+                            items: [
+                              const DropdownMenuItem(
+                                  value: null,
+                                  child: Text('Todos',
+                                      style: TextStyle(color: _navy))),
+                              ..._asesoresLista.map((a) {
+                                final sigla = (a['sigla'] ??
+                                        a['codigo_asesor'] ??
+                                        a['codigo'] ??
+                                        '')
+                                    .toString();
+                                final nombre = ([a['nombres'], a['apellidos']]
+                                        .where((x) =>
+                                            x != null &&
+                                            x.toString().isNotEmpty)
+                                        .join(' '))
+                                    .trim();
+                                final display =
+                                    nombre.isNotEmpty ? nombre : sigla;
+                                return DropdownMenuItem(
+                                    value: sigla,
+                                    child: Text(display,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(color: _navy)));
+                              }),
+                            ],
+                            onChanged: (v) =>
+                                setState(() => _creditoFiltroAsesor = v ?? ''),
+                          ),
+                        ),
+                      ),
+                    ])),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      const Text('Estado',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: _navy)),
+                      const SizedBox(height: 4),
+                      Container(
+                        height: 38,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F6FA),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _creditoFiltroEstado.isEmpty
+                                ? null
+                                : _creditoFiltroEstado,
+                            isExpanded: true,
+                            dropdownColor: Colors.white,
+                            hint: const Text('Todos',
+                                style: TextStyle(
+                                    fontSize: 11, color: Color(0xFF8899BB))),
+                            style: const TextStyle(fontSize: 12, color: _navy),
+                            icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                                size: 16, color: Color(0xFF8899BB)),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: null,
+                                  child: Text('Todos',
+                                      style: TextStyle(color: _navy))),
+                              DropdownMenuItem(
+                                  value: '1',
+                                  child: Text('Activo',
+                                      style: TextStyle(color: _navy))),
+                              DropdownMenuItem(
+                                  value: '2',
+                                  child: Text('Pagado',
+                                      style: TextStyle(color: _navy))),
+                            ],
+                            onChanged: (v) =>
+                                setState(() => _creditoFiltroEstado = v ?? ''),
+                          ),
+                        ),
+                      ),
+                    ])),
+              ]),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: _creditoConsultando
+                    ? null
+                    : () async {
+                        setState(() => _creditoConsultando = true);
+                        try {
+                          if (_creditoSubTab == 0) {
+                            setState(() => _creditoPagina = 1);
+                            await _fetchCreditos('');
+                          } else {
+                            setState(() => _pendientesPagina = 1);
+                            await _fetchPendientes();
+                          }
+                        } finally {
+                          if (mounted) {
+                            setState(() => _creditoConsultando = false);
+                          }
+                        }
+                      },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  height: 42,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: _creditoConsultando
+                        ? null
+                        : const LinearGradient(
+                            colors: [Color(0xFF4338CA), Color(0xFF2D2A9E)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight),
+                    color: _creditoConsultando ? const Color(0xFFE2E8F0) : null,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: _creditoConsultando
+                        ? null
+                        : [
+                            BoxShadow(
+                                color: const Color(0xFF4338CA)
+                                    .withValues(alpha: 0.4),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4)),
+                          ],
+                  ),
+                  child: Center(
+                    child: _creditoConsultando
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    Color(0xFF4338CA))))
+                        : const Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.search_rounded,
+                                color: Colors.white, size: 15),
+                            SizedBox(width: 7),
+                            Text('Consultar',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.3)),
+                          ]),
+                  ),
                 ),
               ),
-            ),
-          ]),
-        ),
+            ]),
+          ),
         // ── Lista Aprobados ──
         if (_creditoSubTab == 0) ...[
           if (creditosFiltrados.isEmpty)
@@ -2582,25 +2981,32 @@ class _HomeScreenState extends State<HomeScreen>
           else
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Column(children: creditosFiltrados.map((c) => _creditoCard(c)).toList()),
+              child: Column(
+                  children:
+                      creditosFiltrados.map((c) => _creditoCard(c)).toList()),
             ),
           if (_creditosTotal > _creditosPorPagina)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
               child: Row(children: [
-                _pgBtn(Icons.chevron_left_rounded, _creditoPagina > 1, () async {
+                _pgBtn(Icons.chevron_left_rounded, _creditoPagina > 1,
+                    () async {
                   setState(() => _creditoPagina--);
                   await _fetchCreditos('');
                   if (mounted) setState(() {});
                 }),
                 const SizedBox(width: 8),
-                Expanded(child: Center(child: Text(
+                Expanded(
+                    child: Center(
+                        child: Text(
                   'Pág $_creditoPagina de ${((_creditosTotal - 1) ~/ _creditosPorPagina) + 1}  ·  $_creditosTotal registros',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF8899BB)),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF8899BB)),
                 ))),
                 const SizedBox(width: 8),
                 _pgBtn(Icons.chevron_right_rounded,
-                    _creditoPagina * _creditosPorPagina < _creditosTotal, () async {
+                    _creditoPagina * _creditosPorPagina < _creditosTotal,
+                    () async {
                   setState(() => _creditoPagina++);
                   await _fetchCreditos('');
                   if (mounted) setState(() {});
@@ -2620,25 +3026,32 @@ class _HomeScreenState extends State<HomeScreen>
           else
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-              child: Column(children: _pendientesLista.map((p) => _pendienteCard(p)).toList()),
+              child: Column(
+                  children:
+                      _pendientesLista.map((p) => _pendienteCard(p)).toList()),
             ),
           if (_pendientesTotal > _creditosPorPagina)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
               child: Row(children: [
-                _pgBtn(Icons.chevron_left_rounded, _pendientesPagina > 1, () async {
+                _pgBtn(Icons.chevron_left_rounded, _pendientesPagina > 1,
+                    () async {
                   setState(() => _pendientesPagina--);
                   await _fetchPendientes();
                   if (mounted) setState(() {});
                 }),
                 const SizedBox(width: 8),
-                Expanded(child: Center(child: Text(
+                Expanded(
+                    child: Center(
+                        child: Text(
                   'Pág $_pendientesPagina de ${((_pendientesTotal - 1) ~/ _creditosPorPagina) + 1}  ·  $_pendientesTotal solicitudes',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF8899BB)),
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF8899BB)),
                 ))),
                 const SizedBox(width: 8),
                 _pgBtn(Icons.chevron_right_rounded,
-                    _pendientesPagina * _creditosPorPagina < _pendientesTotal, () async {
+                    _pendientesPagina * _creditosPorPagina < _pendientesTotal,
+                    () async {
                   setState(() => _pendientesPagina++);
                   await _fetchPendientes();
                   if (mounted) setState(() {});
@@ -2757,13 +3170,12 @@ class _HomeScreenState extends State<HomeScreen>
               child: Column(children: [
                 _simResultRow('Valor Diaria', _cop(valorDiario)),
                 if (dias > 0)
-                  _simResultRow(
-                      'Valor total con intereses diarios',
+                  _simResultRow('Valor total con intereses diarios',
                       _cop(valorTotalDiario)),
                 _simResultRow(
                     '$meses Cuota(s) Mensual(es)', _cop(cuotaMensual)),
-                _simResultRow(
-                    '${meses * 2} Cuota(s) Quincenal(es)', _cop(cuotaQuincenal)),
+                _simResultRow('${meses * 2} Cuota(s) Quincenal(es)',
+                    _cop(cuotaQuincenal)),
                 _simResultRow('Valor a Pagar', _cop(valorAPagar),
                     destacado: true),
               ]),
@@ -2777,42 +3189,34 @@ class _HomeScreenState extends State<HomeScreen>
     ]);
   }
 
-
   // ── Estadística por Fuente — filtros + barras horizontales ──────
   Widget _estadisticaCreditosWidget() {
-    String labelOf(Map<String, dynamic> d)   => (d['fuente'] ?? '?').toString();
+    String labelOf(Map<String, dynamic> d) => (d['fuente'] ?? '?').toString();
     double salidasOf(Map<String, dynamic> d) => _num(d['total_salidas']);
-    double entradasOf(Map<String, dynamic> d)=> _num(d['total_entradas']);
+    double entradasOf(Map<String, dynamic> d) => _num(d['total_entradas']);
 
     String fmtDate(DateTime? d) => d == null
         ? 'dd/mm/aaaa'
-        : '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
+        : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
-    // Dropdown de fuentes para el filtro
+    // Fuentes = cuentas registradas (igual que la web)
     final fuenteItems = <DropdownMenuItem<String>>[
-      const DropdownMenuItem(value: '0', child: Text('[Seleccione]')),
-      ..._fuentesLista.map((f) {
-        final label = (f['fuente'] ?? f['nombre'] ?? f['name'] ?? '').toString();
-        final codigo = (f['valor'] ?? f['codigo'] ?? f['id'] ?? '0').toString();
-        return DropdownMenuItem(value: codigo, child: Text(label, overflow: TextOverflow.ellipsis));
+      const DropdownMenuItem(value: '0', child: Text('Todas las fuentes')),
+      ..._cuentas.map((c) {
+        final label  = (c['nombre'] ?? '').toString();
+        final codigo = (c['codigo'] ?? '0').toString();
+        return DropdownMenuItem(
+            value: codigo, child: Text(label, overflow: TextOverflow.ellipsis));
       }),
     ];
-
-    final inputDeco = InputDecoration(
-      isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFD1D5DB))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Color(0xFFD1D5DB))),
-      filled: true, fillColor: Colors.white,
-    );
 
     Future<void> pickDate(bool isDesde) async {
       final picked = await showDatePicker(
         context: context,
-        initialDate: (isDesde ? _statFechaDesde : _statFechaHasta) ?? DateTime.now(),
-        firstDate: DateTime(2015), lastDate: DateTime(2035),
+        initialDate:
+            (isDesde ? _statFechaDesde : _statFechaHasta) ?? DateTime.now(),
+        firstDate: DateTime(2015),
+        lastDate: DateTime(2035),
       );
       if (picked != null && mounted) {
         setState(() {
@@ -2825,112 +3229,175 @@ class _HomeScreenState extends State<HomeScreen>
       }
     }
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Balance de valores por fuente',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _navy)),
-        const SizedBox(height: 14),
+    // helpers de estilo local
+    const borderCol = Color(0xFFE2E8F0);
+    const bgField   = Color(0xFFF8F9FC);
+    const hintCol   = Color(0xFF94A3B8);
 
-        // ── Filtro Estado ──────────────────────────────────────
-        Text('Estado:', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-        const SizedBox(height: 4),
-        DropdownButtonFormField<String>(
-          initialValue: _statEstado.isEmpty ? '' : _statEstado,
-          decoration: inputDeco,
-          dropdownColor: Colors.white,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
-          items: const [
-            DropdownMenuItem(value: '',  child: Text('Todos', style: TextStyle(color: Color(0xFF1E293B)))),
-            DropdownMenuItem(value: '1', child: Text('Activos', style: TextStyle(color: Color(0xFF1E293B)))),
-            DropdownMenuItem(value: '2', child: Text('Pagados', style: TextStyle(color: Color(0xFF1E293B)))),
-            DropdownMenuItem(value: '3', child: Text('Pendientes', style: TextStyle(color: Color(0xFF1E293B)))),
-          ],
-          onChanged: (v) {
-            setState(() => _statEstado = v ?? '');
-            _aplicarFiltrosEstadistica();
-          },
-        ),
-        const SizedBox(height: 10),
+    InputDecoration fieldDeco(String label, IconData icon) => InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(fontSize: 12, color: hintCol),
+      prefixIcon: Icon(icon, size: 16, color: hintCol),
+      filled: true, fillColor: bgField,
+      isDense: true,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: borderCol)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: borderCol)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: _navy, width: 1.5)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    );
 
-        // ── Filtro Fechas ──────────────────────────────────────
-        Row(children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Fecha desde:', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-            const SizedBox(height: 4),
-            GestureDetector(
-              onTap: () => pickDate(true),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-                decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFD1D5DB)),
-                ),
-                child: Row(children: [
-                  Expanded(child: Text(fmtDate(_statFechaDesde),
-                      style: TextStyle(fontSize: 13,
-                          color: _statFechaDesde == null ? Colors.grey[400] : _navy))),
-                  const Icon(Icons.calendar_today, size: 14, color: Color(0xFF9CA3AF)),
-                ]),
-              ),
-            ),
-          ])),
-          const SizedBox(width: 8),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Fecha hasta:', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-            const SizedBox(height: 4),
-            GestureDetector(
-              onTap: () => pickDate(false),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-                decoration: BoxDecoration(
-                  color: Colors.white, borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFD1D5DB)),
-                ),
-                child: Row(children: [
-                  Expanded(child: Text(fmtDate(_statFechaHasta),
-                      style: TextStyle(fontSize: 13,
-                          color: _statFechaHasta == null ? Colors.grey[400] : _navy))),
-                  const Icon(Icons.calendar_today, size: 14, color: Color(0xFF9CA3AF)),
-                ]),
-              ),
-            ),
-          ])),
-        ]),
-        const SizedBox(height: 10),
-
-        // ── Filtro Fuente ──────────────────────────────────────
-        Text('Fuente:', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-        const SizedBox(height: 4),
-        DropdownButtonFormField<String>(
-          initialValue: _statFuente,
-          decoration: inputDeco,
-          dropdownColor: Colors.white,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
-          items: fuenteItems,
-          onChanged: (v) {
-            setState(() => _statFuente = v ?? '0');
-            _aplicarFiltrosEstadistica();
-          },
-        ),
-        const SizedBox(height: 14),
-
-        // ── Botón Mostrar Gráficos ─────────────────────────────
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _statLoading ? null : _aplicarFiltrosEstadistica,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _navy,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: _statLoading
-                ? const SizedBox(height: 18, width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('Mostrar Gráficos',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+    Widget datePicker(String label, DateTime? val, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: bgField,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderCol),
           ),
+          child: Row(children: [
+            Icon(Icons.calendar_today_outlined, size: 15, color: hintCol),
+            const SizedBox(width: 8),
+            Expanded(child: Text(fmtDate(val),
+                style: TextStyle(fontSize: 13,
+                    color: val == null ? hintCol : _navy))),
+            if (val != null)
+              GestureDetector(
+                onTap: () => setState(() {
+                  if (label.contains('desde')) { _statFechaDesde = null; }
+                  else { _statFechaHasta = null; }
+                }),
+                child: const Icon(Icons.close, size: 14, color: hintCol)),
+          ]),
+        ),
+      );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+        // ── Header ────────────────────────────────────────────
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+                colors: [Color(0xFF0D1B4B), Color(0xFF1A3170)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.bar_chart_rounded, color: Colors.white, size: 18)),
+            const SizedBox(width: 12),
+            const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Balance por Fuente',
+                  style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+              SizedBox(height: 2),
+              Text('Créditos otorgados vs cuotas recibidas',
+                  style: TextStyle(color: Colors.white60, fontSize: 11)),
+            ])),
+          ]),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Card de filtros ───────────────────────────────────
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 12, offset: const Offset(0, 4))],
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Estado
+            DropdownButtonFormField<String>(
+              initialValue: _statEstado.isEmpty ? '' : _statEstado,
+              decoration: fieldDeco('Estado', Icons.filter_list_rounded),
+              dropdownColor: Colors.white,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: hintCol),
+              style: const TextStyle(fontSize: 13, color: _navy),
+              items: const [
+                DropdownMenuItem(value: '', child: Text('Todos')),
+                DropdownMenuItem(value: '1', child: Text('Activos')),
+                DropdownMenuItem(value: '2', child: Text('Pagados')),
+                DropdownMenuItem(value: '3', child: Text('Pendientes')),
+              ],
+              onChanged: (v) {
+                setState(() => _statEstado = v ?? '');
+                _aplicarFiltrosEstadistica();
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // Fechas
+            Row(children: [
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Desde', style: TextStyle(fontSize: 11, color: hintCol, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                datePicker('desde', _statFechaDesde, () => pickDate(true)),
+              ])),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Hasta', style: TextStyle(fontSize: 11, color: hintCol, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                datePicker('hasta', _statFechaHasta, () => pickDate(false)),
+              ])),
+            ]),
+            const SizedBox(height: 10),
+
+            // Fuente
+            DropdownButtonFormField<String>(
+              initialValue: _statFuente,
+              decoration: fieldDeco('Fuente', Icons.account_balance_outlined),
+              dropdownColor: Colors.white,
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: hintCol),
+              style: const TextStyle(fontSize: 13, color: _navy),
+              items: fuenteItems,
+              onChanged: (v) {
+                setState(() => _statFuente = v ?? '0');
+                _aplicarFiltrosEstadistica();
+              },
+            ),
+            const SizedBox(height: 14),
+
+            // Botón
+            GestureDetector(
+              onTap: _statLoading ? null : _aplicarFiltrosEstadistica,
+              child: Container(
+                width: double.infinity,
+                height: 46,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                      colors: [Color(0xFF0D1B4B), Color(0xFF1A3170)],
+                      begin: Alignment.topLeft, end: Alignment.bottomRight),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [BoxShadow(
+                      color: _navy.withValues(alpha: 0.35),
+                      blurRadius: 10, offset: const Offset(0, 4))],
+                ),
+                child: Center(child: _statLoading
+                    ? const SizedBox(width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(Icons.bar_chart_rounded, color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text('Mostrar Gráficos',
+                            style: TextStyle(color: Colors.white,
+                                fontWeight: FontWeight.w700, fontSize: 14)),
+                      ])),
+              ),
+            ),
+          ]),
         ),
         const SizedBox(height: 20),
 
@@ -2942,7 +3409,8 @@ class _HomeScreenState extends State<HomeScreen>
             title: 'Salidas por fuente (Créditos otorgados)',
             barColor: const Color(0xFF3B3B8A),
             data: _creditos,
-            labelFn: labelOf, valueFn: salidasOf,
+            labelFn: labelOf,
+            valueFn: salidasOf,
             total: _creditos.fold(0.0, (s, d) => s + salidasOf(d)),
             totalLabel: 'Total salidas',
           ),
@@ -2951,7 +3419,8 @@ class _HomeScreenState extends State<HomeScreen>
             title: 'Entradas por fuente (Cuotas pagadas)',
             barColor: const Color(0xFF16A34A),
             data: _creditos,
-            labelFn: labelOf, valueFn: entradasOf,
+            labelFn: labelOf,
+            valueFn: entradasOf,
             total: _creditos.fold(0.0, (s, d) => s + entradasOf(d)),
             totalLabel: 'Total entradas',
           ),
@@ -3008,7 +3477,8 @@ class _HomeScreenState extends State<HomeScreen>
           final val = valueFn(d);
           final pct = val / maxVal;
           final name = labelFn(d);
-          final rowColor = _hexColor(d['color']?.toString() ?? barColor.toARGB32().toRadixString(16));
+          final rowColor = _hexColor(
+              d['color']?.toString() ?? barColor.toARGB32().toRadixString(16));
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Row(children: [
@@ -3064,8 +3534,11 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _creditoTabBtn(int index, String label) {
+  Widget _creditoTabBtn(int index, String label, IconData icon) {
     final active = _creditoSubTab == index;
+    const dur = Duration(milliseconds: 180);
+    const activeColor = Colors.white;
+    const inactiveColor = Color(0xFF8899BB);
     return GestureDetector(
       onTap: () {
         setState(() => _creditoSubTab = index);
@@ -3073,34 +3546,52 @@ class _HomeScreenState extends State<HomeScreen>
           _fetchPendientes();
         }
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: active ? Colors.white : Colors.transparent,
-          border: Border(
-            bottom: BorderSide(
-              color: active ? const Color(0xFF3B3B8A) : Colors.transparent,
-              width: 2,
+      child: Stack(children: [
+        // ── Fondo (primero = detrás) ──────────────────────
+        Positioned.fill(
+          child: AnimatedOpacity(
+            duration: dur,
+            opacity: active ? 1.0 : 0.0,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [Color(0xFF0D1B4B), Color(0xFF1A3170)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                      color: const Color(0xFF0D1B4B).withValues(alpha: 0.30),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3))
+                ],
+              ),
             ),
           ),
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: active
-              ? [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.06),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2))
-                ]
-              : null,
         ),
-        child: Text(label,
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: active
-                    ? const Color(0xFF3B3B8A)
-                    : const Color(0xFF8899BB))),
-      ),
+        // ── Contenido (encima) ────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            AnimatedSwitcher(
+              duration: dur,
+              child: Icon(icon,
+                  size: 14,
+                  key: ValueKey(active),
+                  color: active ? activeColor : inactiveColor),
+            ),
+            const SizedBox(width: 6),
+            AnimatedDefaultTextStyle(
+              duration: dur,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: active ? activeColor : inactiveColor),
+              child: Text(label),
+            ),
+          ]),
+        ),
+      ]),
     );
   }
 
@@ -3149,9 +3640,7 @@ class _HomeScreenState extends State<HomeScreen>
                         '${value.month.toString().padLeft(2, '0')}/${value.year}',
                 style: TextStyle(
                     fontSize: 13,
-                    color: value == null
-                        ? const Color(0xFF94A3B8)
-                        : navy),
+                    color: value == null ? const Color(0xFF94A3B8) : navy),
               ),
             ),
             const Icon(Icons.calendar_today_rounded,
@@ -3173,8 +3662,7 @@ class _HomeScreenState extends State<HomeScreen>
               child: Text(label,
                   style: TextStyle(
                       fontSize: destacado ? 14 : 13,
-                      fontWeight:
-                          destacado ? FontWeight.w800 : FontWeight.w500,
+                      fontWeight: destacado ? FontWeight.w800 : FontWeight.w500,
                       color: destacado
                           ? const Color(0xFF0D1B4B)
                           : const Color(0xFF64748B))),
@@ -3194,8 +3682,8 @@ class _HomeScreenState extends State<HomeScreen>
   // ── Diálogo Configurar Ahorro ────────────────────────────────────
   Future<void> _showConfigurarAhorroDialog() async {
     final formKey = GlobalKey<FormState>();
-    final anioCtrl = TextEditingController(
-        text: DateTime.now().year.toString());
+    final anioCtrl =
+        TextEditingController(text: DateTime.now().year.toString());
     final tiempoCtrl = TextEditingController();
     DateTime? fechaInicio;
     DateTime? fechaFinal;
@@ -3222,7 +3710,7 @@ class _HomeScreenState extends State<HomeScreen>
               const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: 480,
+              maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
               maxHeight: MediaQuery.of(ctx).size.height * 0.85,
             ),
             child: Column(
@@ -3244,7 +3732,8 @@ class _HomeScreenState extends State<HomeScreen>
                   child: Row(
                     children: [
                       Container(
-                        width: 42, height: 42,
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
@@ -3320,7 +3809,9 @@ class _HomeScreenState extends State<HomeScreen>
                               if (d != null) setS(() => fechaInicio = d);
                             },
                             child: _dateContainer(
-                                fechaInicio != null ? fmtDisplay(fechaInicio!) : null,
+                                fechaInicio != null
+                                    ? fmtDisplay(fechaInicio!)
+                                    : null,
                                 'dd/mm/aaaa'),
                           ),
                           const SizedBox(height: 14),
@@ -3346,7 +3837,9 @@ class _HomeScreenState extends State<HomeScreen>
                               if (d != null) setS(() => fechaFinal = d);
                             },
                             child: _dateContainer(
-                                fechaFinal != null ? fmtDisplay(fechaFinal!) : null,
+                                fechaFinal != null
+                                    ? fmtDisplay(fechaFinal!)
+                                    : null,
                                 'dd/mm/aaaa'),
                           ),
                           const SizedBox(height: 14),
@@ -3376,17 +3869,21 @@ class _HomeScreenState extends State<HomeScreen>
                                       style: TextStyle(
                                           color: _navy,
                                           fontWeight: FontWeight.w700)),
-                                  children: tipos.map((t) => SimpleDialogOption(
-                                    onPressed: () =>
-                                        Navigator.pop(dCtx, t),
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 4),
-                                      child: Text(t,
-                                          style: const TextStyle(
-                                              color: _navy, fontSize: 14)),
-                                    ),
-                                  )).toList(),
+                                  children: tipos
+                                      .map((t) => SimpleDialogOption(
+                                            onPressed: () =>
+                                                Navigator.pop(dCtx, t),
+                                            child: Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      vertical: 4),
+                                              child: Text(t,
+                                                  style: const TextStyle(
+                                                      color: _navy,
+                                                      fontSize: 14)),
+                                            ),
+                                          ))
+                                      .toList(),
                                 ),
                               );
                               if (picked != null) {
@@ -3395,8 +3892,8 @@ class _HomeScreenState extends State<HomeScreen>
                             },
                             child: Container(
                               height: 48,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF5F7FB),
                                 border: Border.all(
@@ -3415,8 +3912,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    selectedTipo ??
-                                        '[Seleccione una Opción]',
+                                    selectedTipo ?? '[Seleccione una Opción]',
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: selectedTipo != null
@@ -3444,19 +3940,16 @@ class _HomeScreenState extends State<HomeScreen>
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed:
-                              saving ? null : () => Navigator.pop(ctx),
+                          onPressed: saving ? null : () => Navigator.pop(ctx),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF8899BB),
                             padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: const BorderSide(
-                                color: Color(0xFFDDE3EF)),
+                            side: const BorderSide(color: Color(0xFFDDE3EF)),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
                           child: const Text('Cerrar',
-                              style:
-                                  TextStyle(fontWeight: FontWeight.w600)),
+                              style: TextStyle(fontWeight: FontWeight.w600)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -3474,9 +3967,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     begin: Alignment.centerLeft,
                                     end: Alignment.centerRight,
                                   ),
-                            color: saving
-                                ? const Color(0xFFCBD5E1)
-                                : null,
+                            color: saving ? const Color(0xFFCBD5E1) : null,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: saving
                                 ? null
@@ -3493,11 +3984,9 @@ class _HomeScreenState extends State<HomeScreen>
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(12)),
+                                  borderRadius: BorderRadius.circular(12)),
                             ),
                             onPressed: saving
                                 ? null
@@ -3505,20 +3994,18 @@ class _HomeScreenState extends State<HomeScreen>
                                     if (fechaInicio == null) {
                                       ScaffoldMessenger.of(ctx)
                                           .showSnackBar(const SnackBar(
-                                        content: Text(
-                                            'Seleccione la fecha inicio'),
-                                        backgroundColor:
-                                            Color(0xFFDC2626),
+                                        content:
+                                            Text('Seleccione la fecha inicio'),
+                                        backgroundColor: Color(0xFFDC2626),
                                       ));
                                       return;
                                     }
                                     if (fechaFinal == null) {
                                       ScaffoldMessenger.of(ctx)
                                           .showSnackBar(const SnackBar(
-                                        content: Text(
-                                            'Seleccione la fecha final'),
-                                        backgroundColor:
-                                            Color(0xFFDC2626),
+                                        content:
+                                            Text('Seleccione la fecha final'),
+                                        backgroundColor: Color(0xFFDC2626),
                                       ));
                                       return;
                                     }
@@ -3528,10 +4015,8 @@ class _HomeScreenState extends State<HomeScreen>
                                     if (selectedTipo == null) {
                                       ScaffoldMessenger.of(ctx)
                                           .showSnackBar(const SnackBar(
-                                        content:
-                                            Text('Seleccione el tipo'),
-                                        backgroundColor:
-                                            Color(0xFFDC2626),
+                                        content: Text('Seleccione el tipo'),
+                                        backgroundColor: Color(0xFFDC2626),
                                       ));
                                       return;
                                     }
@@ -3541,12 +4026,9 @@ class _HomeScreenState extends State<HomeScreen>
                                         '/ajax/registrar_conf_cuota.php',
                                         {
                                           'anio': anioCtrl.text.trim(),
-                                          'fecha_inicio':
-                                              fmtApi(fechaInicio!),
-                                          'fecha_final':
-                                              fmtApi(fechaFinal!),
-                                          'tiempo_mes':
-                                              tiempoCtrl.text.trim(),
+                                          'fecha_inicio': fmtApi(fechaInicio!),
+                                          'fecha_final': fmtApi(fechaFinal!),
+                                          'tiempo_mes': tiempoCtrl.text.trim(),
                                           'tipo': selectedTipo ?? '',
                                         },
                                       );
@@ -3582,13 +4064,12 @@ class _HomeScreenState extends State<HomeScreen>
                                   },
                             icon: saving
                                 ? const SizedBox(
-                                    width: 16, height: 16,
+                                    width: 16,
+                                    height: 16,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white))
+                                        strokeWidth: 2, color: Colors.white))
                                 : const Icon(Icons.save_rounded, size: 18),
-                            label: Text(
-                                saving ? 'Guardando...' : 'Grabar'),
+                            label: Text(saving ? 'Guardando...' : 'Grabar'),
                           ),
                         ),
                       ),
@@ -3624,9 +4105,7 @@ class _HomeScreenState extends State<HomeScreen>
           children: [
             Icon(Icons.calendar_month_outlined,
                 size: 18,
-                color: value != null
-                    ? _accent1
-                    : const Color(0xFF9CA3AF)),
+                color: value != null ? _accent1 : const Color(0xFF9CA3AF)),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -3706,11 +4185,13 @@ class _HomeScreenState extends State<HomeScreen>
         return Dialog(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: 480,
+              maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
               maxHeight: MediaQuery.of(ctx).size.height * 0.85,
             ),
             child: Column(
@@ -3726,12 +4207,14 @@ class _HomeScreenState extends State<HomeScreen>
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
                   ),
                   child: Row(
                     children: [
                       Container(
-                        width: 42, height: 42,
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
@@ -3781,15 +4264,15 @@ class _HomeScreenState extends State<HomeScreen>
                           const SizedBox(height: 6),
                           GestureDetector(
                             onTap: () async {
-                                    final result = await _showAhorradorPicker(
-                                        ctx, ahorradorOpts);
-                                    if (result != null) {
-                                      setS(() {
-                                        selectedAhorrador = result['valor'];
-                                        ahorradorLabel  = result['nombre'];
-                                      });
-                                    }
-                                  },
+                              final result = await _showAhorradorPicker(
+                                  ctx, ahorradorOpts);
+                              if (result != null) {
+                                setS(() {
+                                  selectedAhorrador = result['valor'];
+                                  ahorradorLabel = result['nombre'];
+                                });
+                              }
+                            },
                             child: Container(
                               height: 48,
                               padding:
@@ -3813,19 +4296,18 @@ class _HomeScreenState extends State<HomeScreen>
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
-                                            ahorradorLabel.isNotEmpty
-                                                ? ahorradorLabel
-                                                : 'Seleccione un ahorrador...',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: ahorradorLabel.isNotEmpty
-                                                  ? _navy
-                                                  : const Color(0xFF9CA3AF),
-                                            ),
-                                          ),
+                                      ahorradorLabel.isNotEmpty
+                                          ? ahorradorLabel
+                                          : 'Seleccione un ahorrador...',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: ahorradorLabel.isNotEmpty
+                                            ? _navy
+                                            : const Color(0xFF9CA3AF),
+                                      ),
+                                    ),
                                   ),
-                                  const Icon(
-                                      Icons.keyboard_arrow_down_rounded,
+                                  const Icon(Icons.keyboard_arrow_down_rounded,
                                       color: Color(0xFF9CA3AF), size: 20),
                                 ],
                               ),
@@ -3840,8 +4322,8 @@ class _HomeScreenState extends State<HomeScreen>
                             onTap: loadingAnios || aniosOpts.isEmpty
                                 ? null
                                 : () async {
-                                    final result = await _showAnioPicker(
-                                        ctx, aniosOpts);
+                                    final result =
+                                        await _showAnioPicker(ctx, aniosOpts);
                                     if (result != null) {
                                       setS(() => selectedAnioCodigo =
                                           result['codigo']);
@@ -3874,12 +4356,13 @@ class _HomeScreenState extends State<HomeScreen>
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               SizedBox(
-                                                width: 14, height: 14,
+                                                width: 14,
+                                                height: 14,
                                                 child:
                                                     CircularProgressIndicator(
                                                         strokeWidth: 2,
-                                                        color: Color(
-                                                            0xFF9CA3AF)),
+                                                        color:
+                                                            Color(0xFF9CA3AF)),
                                               ),
                                               SizedBox(width: 8),
                                               Text('Cargando...',
@@ -3908,15 +4391,15 @@ class _HomeScreenState extends State<HomeScreen>
                                               label,
                                               style: TextStyle(
                                                 fontSize: 14,
-                                                color: selectedAnioCodigo != null
+                                                color: selectedAnioCodigo !=
+                                                        null
                                                     ? _navy
                                                     : const Color(0xFF6B7280),
                                               ),
                                             );
                                           }),
                                   ),
-                                  const Icon(
-                                      Icons.keyboard_arrow_down_rounded,
+                                  const Icon(Icons.keyboard_arrow_down_rounded,
                                       color: Color(0xFF9CA3AF), size: 20),
                                 ],
                               ),
@@ -3991,10 +4474,9 @@ class _HomeScreenState extends State<HomeScreen>
                             label: 'Valor Pactado',
                             icon: Icons.attach_money_rounded,
                             keyboard: TextInputType.number,
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty)
-                                    ? 'Requerido'
-                                    : null,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Requerido'
+                                : null,
                           ),
                           const SizedBox(height: 8),
                         ],
@@ -4013,16 +4495,13 @@ class _HomeScreenState extends State<HomeScreen>
                           onPressed: saving ? null : () => Navigator.pop(ctx),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF8899BB),
-                            padding:
-                                const EdgeInsets.symmetric(vertical: 14),
-                            side:
-                                const BorderSide(color: Color(0xFFDDE3EF)),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(color: Color(0xFFDDE3EF)),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
                           child: const Text('Cerrar',
-                              style:
-                                  TextStyle(fontWeight: FontWeight.w600)),
+                              style: TextStyle(fontWeight: FontWeight.w600)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -4040,9 +4519,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     begin: Alignment.centerLeft,
                                     end: Alignment.centerRight,
                                   ),
-                            color: saving
-                                ? const Color(0xFFCBD5E1)
-                                : null,
+                            color: saving ? const Color(0xFFCBD5E1) : null,
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: saving
                                 ? null
@@ -4059,8 +4536,7 @@ class _HomeScreenState extends State<HomeScreen>
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
                               foregroundColor: Colors.white,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                             ),
@@ -4070,10 +4546,9 @@ class _HomeScreenState extends State<HomeScreen>
                                     if (selectedAhorrador == null) {
                                       ScaffoldMessenger.of(ctx).showSnackBar(
                                         const SnackBar(
-                                          content: Text(
-                                              'Seleccione un ahorrador'),
-                                          backgroundColor:
-                                              Color(0xFFDC2626),
+                                          content:
+                                              Text('Seleccione un ahorrador'),
+                                          backgroundColor: Color(0xFFDC2626),
                                         ),
                                       );
                                       return;
@@ -4083,8 +4558,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         const SnackBar(
                                           content: Text(
                                               'Seleccione la fecha de ingreso'),
-                                          backgroundColor:
-                                              Color(0xFFDC2626),
+                                          backgroundColor: Color(0xFFDC2626),
                                         ),
                                       );
                                       return;
@@ -4109,11 +4583,19 @@ class _HomeScreenState extends State<HomeScreen>
                                         },
                                       );
                                       final ok = r.statusCode == 200 &&
-                                          (r.body.toLowerCase().contains('exitoso') ||
-                                           r.body.toLowerCase().contains('registrado') ||
-                                           r.body.toLowerCase().contains('creado') ||
-                                           r.body.contains('"resultado":1') ||
-                                           r.body.contains('"success":true'));
+                                          (r.body
+                                                  .toLowerCase()
+                                                  .contains('exitoso') ||
+                                              r.body
+                                                  .toLowerCase()
+                                                  .contains('registrado') ||
+                                              r.body
+                                                  .toLowerCase()
+                                                  .contains('creado') ||
+                                              r.body
+                                                  .contains('"resultado":1') ||
+                                              r.body
+                                                  .contains('"success":true'));
                                       if (ctx.mounted) Navigator.pop(ctx);
                                       if (mounted) {
                                         showDialog(
@@ -4143,10 +4625,10 @@ class _HomeScreenState extends State<HomeScreen>
                                   },
                             icon: saving
                                 ? const SizedBox(
-                                    width: 16, height: 16,
+                                    width: 16,
+                                    height: 16,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white))
+                                        strokeWidth: 2, color: Colors.white))
                                 : const Icon(Icons.save_rounded, size: 18),
                             label: Text(saving ? 'Guardando...' : 'Grabar'),
                           ),
@@ -4172,10 +4654,8 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (aCtx) => Dialog(
         backgroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
-        insetPadding:
-            const EdgeInsets.symmetric(horizontal: 40, vertical: 120),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 120),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -4183,8 +4663,7 @@ class _HomeScreenState extends State<HomeScreen>
               padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
               decoration: const BoxDecoration(
                 color: _navy,
-                borderRadius:
-                    BorderRadius.vertical(top: Radius.circular(18)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
               ),
               child: Row(
                 children: [
@@ -4252,15 +4731,18 @@ class _HomeScreenState extends State<HomeScreen>
     String query = '';
     // El campo nombre en listado_select viene como "concat(nombres,' ',apellidos)"
     String nombre(Map<String, dynamic> e) {
-      final keys = e.keys.where((k) => k.toLowerCase().contains('concat') ||
+      final keys = e.keys.where((k) =>
+          k.toLowerCase().contains('concat') ||
           k.toLowerCase().contains('nombre') ||
           k.toLowerCase().contains('apellido'));
       for (final k in keys) {
         final v = e[k]?.toString().trim() ?? '';
         if (v.isNotEmpty) return v;
       }
-      return e.values.lastWhere((v) => v != null && v.toString().isNotEmpty,
-          orElse: () => '').toString();
+      return e.values
+          .lastWhere((v) => v != null && v.toString().isNotEmpty,
+              orElse: () => '')
+          .toString();
     }
 
     return showDialog<Map<String, dynamic>>(
@@ -4277,12 +4759,12 @@ class _HomeScreenState extends State<HomeScreen>
             surfaceTintColor: Colors.transparent,
             insetPadding:
                 const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(aCtx).size.height * 0.65,
-                maxWidth: 420,
+                maxWidth: min(420, MediaQuery.of(aCtx).size.width - 40),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -4323,8 +4805,7 @@ class _HomeScreenState extends State<HomeScreen>
                     child: TextField(
                       autofocus: true,
                       onChanged: (v) => setA(() => query = v.trim()),
-                      style:
-                          const TextStyle(color: _navy, fontSize: 13),
+                      style: const TextStyle(color: _navy, fontSize: 13),
                       decoration: InputDecoration(
                         hintText: 'Buscar ahorrador...',
                         hintStyle: const TextStyle(
@@ -4337,16 +4818,16 @@ class _HomeScreenState extends State<HomeScreen>
                             const EdgeInsets.symmetric(vertical: 10),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                                color: Color(0xFFDDE3EF))),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFDDE3EF))),
                         enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                                color: Color(0xFFDDE3EF))),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFDDE3EF))),
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                                color: _accent1, width: 1.5)),
+                            borderSide:
+                                const BorderSide(color: _accent1, width: 1.5)),
                       ),
                     ),
                   ),
@@ -4359,33 +4840,32 @@ class _HomeScreenState extends State<HomeScreen>
                       itemBuilder: (_, i) {
                         final e = filtered[i];
                         final n = nombre(e);
-                        final id = (e['codigo'] ?? e['valor'] ??
-                                e['codigo_deudor'] ?? n)
+                        final id = (e['codigo'] ??
+                                e['valor'] ??
+                                e['codigo_deudor'] ??
+                                n)
                             .toString();
                         return Material(
                           color: Colors.transparent,
                           child: InkWell(
                             borderRadius: BorderRadius.circular(10),
-                            onTap: () => Navigator.pop(
-                                aCtx, {'valor': id, 'nombre': n}),
+                            onTap: () =>
+                                Navigator.pop(aCtx, {'valor': id, 'nombre': n}),
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 14, vertical: 12),
                               child: Row(
                                 children: [
                                   Container(
-                                    width: 34, height: 34,
+                                    width: 34,
+                                    height: 34,
                                     decoration: BoxDecoration(
-                                      color: _accent1
-                                          .withValues(alpha: 0.1),
-                                      borderRadius:
-                                          BorderRadius.circular(9),
+                                      color: _accent1.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(9),
                                     ),
                                     child: Center(
                                       child: Text(
-                                        n.isNotEmpty
-                                            ? n[0].toUpperCase()
-                                            : '?',
+                                        n.isNotEmpty ? n[0].toUpperCase() : '?',
                                         style: const TextStyle(
                                           color: _accent1,
                                           fontWeight: FontWeight.w800,
@@ -4427,11 +4907,11 @@ class _HomeScreenState extends State<HomeScreen>
     final formKey = GlobalKey<FormState>();
     String? selectedAsesor;
     String asesorLabel = '';
-    final docCtrl      = TextEditingController();
-    final nombresCtrl  = TextEditingController();
-    final apellCtrl    = TextEditingController();
-    final dirCtrl      = TextEditingController();
-    final telCtrl      = TextEditingController();
+    final docCtrl = TextEditingController();
+    final nombresCtrl = TextEditingController();
+    final apellCtrl = TextEditingController();
+    final dirCtrl = TextEditingController();
+    final telCtrl = TextEditingController();
     bool saving = false;
 
     await showDialog(
@@ -4441,11 +4921,13 @@ class _HomeScreenState extends State<HomeScreen>
         return Dialog(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: 480,
+              maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
               maxHeight: MediaQuery.of(ctx).size.height * 0.88,
             ),
             child: Column(
@@ -4461,12 +4943,14 @@ class _HomeScreenState extends State<HomeScreen>
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
                   ),
                   child: Row(
                     children: [
                       Container(
-                        width: 42, height: 42,
+                        width: 42,
+                        height: 42,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
@@ -4522,13 +5006,14 @@ class _HomeScreenState extends State<HomeScreen>
                               if (result != null) {
                                 setS(() {
                                   selectedAsesor = result['valor'];
-                                  asesorLabel   = result['nombre'];
+                                  asesorLabel = result['nombre'];
                                 });
                               }
                             },
                             child: Container(
                               height: 48,
-                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF5F7FB),
                                 border: Border.all(
@@ -4573,8 +5058,9 @@ class _HomeScreenState extends State<HomeScreen>
                             label: 'N° Documento',
                             icon: Icons.badge_outlined,
                             keyboard: TextInputType.number,
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Requerido'
+                                : null,
                           ),
                           const SizedBox(height: 12),
 
@@ -4587,7 +5073,9 @@ class _HomeScreenState extends State<HomeScreen>
                                   label: 'Nombres',
                                   icon: Icons.person_outline_rounded,
                                   validator: (v) =>
-                                      (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Requerido'
+                                          : null,
                                 ),
                               ),
                               const SizedBox(width: 10),
@@ -4597,7 +5085,9 @@ class _HomeScreenState extends State<HomeScreen>
                                   label: 'Apellidos',
                                   icon: Icons.person_outline_rounded,
                                   validator: (v) =>
-                                      (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                                      (v == null || v.trim().isEmpty)
+                                          ? 'Requerido'
+                                          : null,
                                 ),
                               ),
                             ],
@@ -4653,7 +5143,10 @@ class _HomeScreenState extends State<HomeScreen>
                             gradient: saving
                                 ? null
                                 : const LinearGradient(
-                                    colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                                    colors: [
+                                      Color(0xFF0D1B4B),
+                                      Color(0xFF1E3A8A)
+                                    ],
                                     begin: Alignment.centerLeft,
                                     end: Alignment.centerRight,
                                   ),
@@ -4690,7 +5183,9 @@ class _HomeScreenState extends State<HomeScreen>
                                       );
                                       return;
                                     }
-                                    if (!formKey.currentState!.validate()) return;
+                                    if (!formKey.currentState!.validate()) {
+                                      return;
+                                    }
                                     setS(() => saving = true);
                                     try {
                                       final r = await _api.post(
@@ -4705,11 +5200,19 @@ class _HomeScreenState extends State<HomeScreen>
                                         },
                                       );
                                       final ok = r.statusCode == 200 &&
-                                          (r.body.toLowerCase().contains('exitoso') ||
-                                           r.body.toLowerCase().contains('registrado') ||
-                                           r.body.toLowerCase().contains('creado') ||
-                                           r.body.contains('"resultado":1') ||
-                                           r.body.contains('"success":true'));
+                                          (r.body
+                                                  .toLowerCase()
+                                                  .contains('exitoso') ||
+                                              r.body
+                                                  .toLowerCase()
+                                                  .contains('registrado') ||
+                                              r.body
+                                                  .toLowerCase()
+                                                  .contains('creado') ||
+                                              r.body
+                                                  .contains('"resultado":1') ||
+                                              r.body
+                                                  .contains('"success":true'));
                                       if (ctx.mounted) Navigator.pop(ctx);
                                       if (mounted) {
                                         showDialog(
@@ -4739,7 +5242,8 @@ class _HomeScreenState extends State<HomeScreen>
                                   },
                             icon: saving
                                 ? const SizedBox(
-                                    width: 16, height: 16,
+                                    width: 16,
+                                    height: 16,
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2, color: Colors.white))
                                 : const Icon(Icons.save_rounded, size: 18),
@@ -4809,8 +5313,7 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide:
-                const BorderSide(color: Color(0xFFDC2626), width: 1.5),
+            borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
           ),
         ),
       );
@@ -4827,15 +5330,17 @@ class _HomeScreenState extends State<HomeScreen>
                 .where((x) => x != null && x.toString().isNotEmpty)
                 .join(' ')
                 .trim();
-            return {'valor': sigla, 'nombre': nombre.isNotEmpty ? nombre : sigla};
+            return {
+              'valor': sigla,
+              'nombre': nombre.isNotEmpty ? nombre : sigla
+            };
           }).toList();
 
           final filtered = query.isEmpty
               ? all
               : all
-                  .where((a) => a['nombre']!
-                      .toLowerCase()
-                      .contains(query.toLowerCase()))
+                  .where((a) =>
+                      a['nombre']!.toLowerCase().contains(query.toLowerCase()))
                   .toList();
 
           return Dialog(
@@ -4843,12 +5348,12 @@ class _HomeScreenState extends State<HomeScreen>
             surfaceTintColor: Colors.transparent,
             insetPadding:
                 const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(aCtx).size.height * 0.6,
-                maxWidth: 420,
+                maxWidth: min(420, MediaQuery.of(aCtx).size.width - 40),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -4908,8 +5413,8 @@ class _HomeScreenState extends State<HomeScreen>
                                 const BorderSide(color: Color(0xFFDDE3EF))),
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                                color: _accent1, width: 1.5)),
+                            borderSide:
+                                const BorderSide(color: _accent1, width: 1.5)),
                       ),
                     ),
                   ),
@@ -4932,7 +5437,8 @@ class _HomeScreenState extends State<HomeScreen>
                               child: Row(
                                 children: [
                                   Container(
-                                    width: 34, height: 34,
+                                    width: 34,
+                                    height: 34,
                                     decoration: BoxDecoration(
                                       color: _accent1.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(9),
@@ -4999,22 +5505,66 @@ class _HomeScreenState extends State<HomeScreen>
       if (v.isNotEmpty) asesorSet.add(v);
     }
     final asesorOrdenados = asesorSet.toList()
-      ..sort((a, b) =>
-          _nombreAsesor(a).toLowerCase().compareTo(_nombreAsesor(b).toLowerCase()));
+      ..sort((a, b) => _nombreAsesor(a)
+          .toLowerCase()
+          .compareTo(_nombreAsesor(b).toLowerCase()));
     final asesores = ['0', ...asesorOrdenados];
 
     final lista = _ahorradoresFiltrados;
     final total = lista.fold(
         0.0,
         (s, a) =>
-            s + _num(a['total_ahorrado'] ?? a['valor_pactado'] ?? a['monto'] ?? 0));
+            s +
+            _num(a['total_ahorrado'] ?? a['valor_pactado'] ?? a['monto'] ?? 0));
+
+    final enMoraCount = lista.where((a) {
+      final cuotas = a['ahorros'];
+      if (cuotas is! List) return false;
+      final hoy = _hoyColombia();
+      return cuotas.whereType<Map>().any((m) {
+        final pagado = (m['estado_pago'] ?? '').toString().toLowerCase().contains('pagado');
+        if (pagado) return false;
+        final fc = DateTime.tryParse((m['fecha_cuota'] ?? '').toString());
+        if (fc == null) return false;
+        return !DateTime(fc.year, fc.month, fc.day).isAfter(hoy);
+      });
+    }).length;
+    final alDiaCount = lista.length - enMoraCount;
+
+    Widget dropFilter({
+      required String label, required IconData icon,
+      required String value, required List<DropdownMenuItem<String>> items,
+      required ValueChanged<String?> onChanged,
+    }) => Expanded(child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6, offset: const Offset(0, 2))],
+      ),
+      child: Row(children: [
+        Icon(icon, size: 15, color: const Color(0xFF8899BB)),
+        const SizedBox(width: 6),
+        Expanded(child: DropdownButton<String>(
+          value: value, isExpanded: true,
+          underline: const SizedBox(), dropdownColor: Colors.white,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded,
+              size: 18, color: Color(0xFF8899BB)),
+          style: const TextStyle(color: navy, fontWeight: FontWeight.w600, fontSize: 13),
+          items: items,
+          onChanged: onChanged,
+        )),
+      ]),
+    ));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── Botones de acción ────────────────────────────────
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: Wrap(spacing: 8, runSpacing: 8, children: [
             _actionBtn(
                 icon: Icons.person_add_rounded,
@@ -5034,177 +5584,123 @@ class _HomeScreenState extends State<HomeScreen>
           ]),
         ),
 
-        // ── Filtros Año / Asesor ─────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-          child: Row(children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Año:',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: navy)),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: DropdownButton<String>(
-                      value: _ahorFilterAnio,
-                      isExpanded: true,
-                      underline: const SizedBox(),
-                      dropdownColor: Colors.white,
-                      style: const TextStyle(
-                          color: navy, fontWeight: FontWeight.w600, fontSize: 14),
-                      items: anios
-                          .map((y) => DropdownMenuItem(value: y, child: Text(y)))
-                          .toList(),
-                      onChanged: (v) {
-                        if (v == null) return;
-                        setState(() => _ahorFilterAnio = v);
-                        _reloadAhorradores();
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Asesor:',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: navy)),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: DropdownButton<String>(
-                      value: asesores.contains(_ahorFilterAsesor)
-                          ? _ahorFilterAsesor
-                          : '0',
-                      isExpanded: true,
-                      underline: const SizedBox(),
-                      dropdownColor: Colors.white,
-                      style: const TextStyle(
-                          color: navy, fontWeight: FontWeight.w600, fontSize: 14),
-                      items: asesores
-                          .map((s) => DropdownMenuItem(
-                                value: s,
-                                child: Text(
-                                    s == '0' ? 'Todos' : _nombreAsesor(s),
-                                    overflow: TextOverflow.ellipsis),
-                              ))
-                          .toList(),
-                      // Filtrado del lado del cliente (sin recargar del servidor)
-                      onChanged: (v) {
-                        if (v == null) return;
-                        setState(() => _ahorFilterAsesor = v);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ]),
-        ),
+        const SizedBox(height: 14),
 
-        const SizedBox(height: 16),
-
-        // ── Header card ──────────────────────────────────────
+        // ── Banner hero ───────────────────────────────────────
         Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20),
-          padding: const EdgeInsets.all(20),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF5B21B6), Color(0xFF4361EE)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              colors: [Color(0xFF3730A3), Color(0xFF4361EE), Color(0xFF6366F1)],
+              begin: Alignment.topLeft, end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF4361EE).withValues(alpha: 0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            boxShadow: [BoxShadow(
+              color: const Color(0xFF4361EE).withValues(alpha: 0.45),
+              blurRadius: 24, offset: const Offset(0, 8),
+            )],
           ),
-          child: Row(children: [
-            Container(
-              width: 50, height: 50,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(Icons.savings_rounded,
-                  color: Colors.white, size: 26),
-            ),
-            const SizedBox(width: 16),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Total Ahorradores',
-                  style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.75),
-                      fontSize: 12)),
-              const SizedBox(height: 4),
-              Text('${lista.length} registrados',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 18)),
+          child: Column(children: [
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.savings_rounded, color: Colors.white, size: 22)),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${lista.length} Ahorradores',
+                    style: const TextStyle(color: Colors.white,
+                        fontWeight: FontWeight.w800, fontSize: 20)),
+                Text('Total: ${_cop(total)}',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.80), fontSize: 13)),
+              ])),
             ]),
-            const Spacer(),
-            Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('Total ahorrado',
-                  style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.75),
-                      fontSize: 11)),
-              const SizedBox(height: 4),
-              Text(_cop(total),
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15)),
+            const SizedBox(height: 14),
+            // Mini stats row
+            Row(children: [
+              _ahorMiniStat(Icons.check_circle_outline_rounded,
+                  'Al día', '$alDiaCount', const Color(0xFF6EE7B7)),
+              Container(width: 1, height: 30,
+                  color: Colors.white.withValues(alpha: 0.2)),
+              _ahorMiniStat(Icons.warning_amber_rounded,
+                  'En mora', '$enMoraCount', const Color(0xFFFCA5A5)),
+              Container(width: 1, height: 30,
+                  color: Colors.white.withValues(alpha: 0.2)),
+              _ahorMiniStat(Icons.calendar_today_outlined,
+                  'Año', _ahorFilterAnio, Colors.white),
             ]),
           ]),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
+
+        // ── Filtros ───────────────────────────────────────────
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _sectionTitle(lista.isEmpty
-              ? 'Sin ahorradores para los filtros seleccionados'
-              : 'Lista de Ahorradores'),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            dropFilter(
+              label: 'Año', icon: Icons.calendar_today_outlined,
+              value: _ahorFilterAnio,
+              items: anios.map((y) => DropdownMenuItem(value: y, child: Text(y))).toList(),
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _ahorFilterAnio = v);
+                _reloadAhorradores();
+              },
+            ),
+            const SizedBox(width: 10),
+            dropFilter(
+              label: 'Asesor', icon: Icons.person_outline_rounded,
+              value: asesores.contains(_ahorFilterAsesor) ? _ahorFilterAsesor : '0',
+              items: asesores.map((s) => DropdownMenuItem(
+                value: s,
+                child: Text(s == '0' ? 'Todos' : _nombreAsesor(s),
+                    overflow: TextOverflow.ellipsis),
+              )).toList(),
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _ahorFilterAsesor = v);
+              },
+            ),
+          ]),
+        ),
+
+        const SizedBox(height: 14),
+
+        // ── Lista ─────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(children: [
+            const Expanded(child: Text('Lista de Ahorradores',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: navy))),
+            if (lista.isNotEmpty) Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4361EE).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20)),
+              child: Text('${lista.length}',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700,
+                      color: Color(0xFF4361EE)))),
+          ]),
         ),
         const SizedBox(height: 10),
+
         if (lista.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(40),
-            child: Center(
-              child: Text('No hay ahorradores para los filtros seleccionados',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFF8899BB))),
-            ),
+          Padding(
+            padding: const EdgeInsets.all(40),
+            child: Center(child: Text(
+                'No hay ahorradores para los filtros seleccionados',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF8899BB)))),
           )
         else
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             itemCount: lista.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (_, i) => _ahoradorCard(lista[i]),
@@ -5212,6 +5708,39 @@ class _HomeScreenState extends State<HomeScreen>
       ],
     );
   }
+
+  // ── Ahorros helpers ──────────────────────────────────────────
+  static DateTime _hoyColombia() {
+    final n = DateTime.now().toUtc().subtract(const Duration(hours: 5));
+    return DateTime(n.year, n.month, n.day);
+  }
+
+  Widget _ahorMiniStat(
+          IconData icon, String label, String value, Color color) =>
+      Expanded(
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.65),
+                        fontSize: 10)),
+                Text(value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13)),
+              ],
+            ),
+          ),
+        ]),
+      );
 
   // ══════════════════════════════════════════════════════════════
   //  MOVIMIENTOS TAB — Gestión de Gastos (2 sub-tabs)
@@ -5255,16 +5784,24 @@ class _HomeScreenState extends State<HomeScreen>
         (_filterDesde!.difference(defaultDesde).inDays.abs() <= 1 &&
             (_filterHasta == null ||
                 _filterHasta!.difference(now).inDays.abs() <= 1));
-    final hasUserFilter = _filterCuenta.isNotEmpty ||
-        _filterTipo.isNotEmpty ||
-        !datesAreDefault;
+    final hasUserFilter =
+        _filterCuenta.isNotEmpty || _filterTipo.isNotEmpty || !datesAreDefault;
 
     // Server totals: default range → _srvGastos/_srvIngresos; filtered → _filtGastos/_filtIngresos
     final gastos = hasUserFilter
-        ? (_filtTotalesLoaded ? _filtGastos : filtrados.where((m) => (m['tipo_movimiento'] ?? '').toString() == '2').fold(0.0, (s, m) => s + _num(m['valor'] ?? 0)))
+        ? (_filtTotalesLoaded
+            ? _filtGastos
+            : filtrados
+                .where((m) => (m['tipo_movimiento'] ?? '').toString() == '2')
+                .fold(0.0, (s, m) => s + _num(m['valor'] ?? 0)))
         : (_srvTotalesLoaded ? _srvGastos : 0.0);
     final ingresos = hasUserFilter
-        ? (_filtTotalesLoaded ? _filtIngresos : filtrados.where((m) { final t = (m['tipo_movimiento'] ?? '').toString(); return t == '3' || t == '1'; }).fold(0.0, (s, m) => s + _num(m['valor'] ?? 0)))
+        ? (_filtTotalesLoaded
+            ? _filtIngresos
+            : filtrados.where((m) {
+                final t = (m['tipo_movimiento'] ?? '').toString();
+                return t == '3' || t == '1';
+              }).fold(0.0, (s, m) => s + _num(m['valor'] ?? 0)))
         : (_srvTotalesLoaded ? _srvIngresos : 0.0);
     final balance = ingresos - gastos;
 
@@ -5332,7 +5869,9 @@ class _HomeScreenState extends State<HomeScreen>
                 const Text('Total de Saldos',
                     style: TextStyle(color: Colors.white60, fontSize: 12)),
                 const SizedBox(height: 4),
-                Text(_cop(_cuentas.fold(0.0, (s, c) => s + _num(c['saldo_actual'] ?? 0))),
+                Text(
+                    _cop(_cuentas.fold(
+                        0.0, (s, c) => s + _num(c['saldo_actual'] ?? 0))),
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 22,
@@ -5357,172 +5896,278 @@ class _HomeScreenState extends State<HomeScreen>
             ),
         ] else ...[
           // ── HERO BANNER ────────────────────────────────────
-          Container(
-            margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0D1B4B), Color(0xFF1E40AF), Color(0xFF0EA5E9)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                    color: const Color(0xFF0D1B4B).withValues(alpha: 0.35),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8)),
-              ],
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 700),
+            curve: Curves.easeOutCubic,
+            builder: (_, t, child) => Transform.translate(
+              offset: Offset(0, 20 * (1 - t)),
+              child: Opacity(opacity: t, child: child),
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Balance del período',
-                      style: TextStyle(color: Colors.white60, fontSize: 11, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 4),
-                  (hasUserFilter && !_filtTotalesLoaded)
-                      ? Container(width: 160, height: 26,
-                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)))
-                      : Text(_cop(balance),
-                          style: TextStyle(
-                              color: balance >= 0 ? Colors.white : const Color(0xFFFCA5A5),
-                              fontSize: 26,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5)),
-                ]),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text('${filtrados.length} mov.',
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              clipBehavior: Clip.hardEdge,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0D1B4B), Color(0xFF1E40AF), Color(0xFF0EA5E9)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(22),
+                boxShadow: [BoxShadow(
+                    color: const Color(0xFF1E40AF).withValues(alpha: 0.40),
+                    blurRadius: 24, offset: const Offset(0, 10))],
+              ),
+              child: Stack(children: [
+                Positioned(right: -55, top: -55,
+                  child: Container(width: 160, height: 160,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.07)))),
+                Positioned(right: -20, top: -20,
+                  child: Container(width: 90, height: 90,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.06)))),
+                Positioned(left: -30, bottom: -30,
+                  child: Container(width: 100, height: 100,
+                    decoration: BoxDecoration(shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.05)))),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Container(width: 7, height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: balance >= 0
+                              ? const Color(0xFF6EE7B7)
+                              : const Color(0xFFFCA5A5),
+                          boxShadow: [BoxShadow(
+                            color: (balance >= 0
+                                ? const Color(0xFF6EE7B7)
+                                : const Color(0xFFFCA5A5)).withValues(alpha: 0.7),
+                            blurRadius: 6, spreadRadius: 1)],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text('Balance del período',
+                          style: TextStyle(color: Colors.white60,
+                              fontSize: 11, fontWeight: FontWeight.w500)),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                        ),
+                        child: Text('${filtrados.length} mov.',
+                            style: const TextStyle(color: Colors.white,
+                                fontSize: 10, fontWeight: FontWeight.w600)),
+                      ),
+                    ]),
+                    const SizedBox(height: 8),
+                    (hasUserFilter && !_filtTotalesLoaded)
+                        ? Container(width: 170, height: 34,
+                            decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8)))
+                        : TweenAnimationBuilder<double>(
+                            key: ValueKey(balance),
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            duration: const Duration(milliseconds: 900),
+                            curve: Curves.easeOutQuart,
+                            builder: (_, t, __) => Text(
+                              _cop(balance * t),
+                              style: TextStyle(
+                                  color: balance >= 0
+                                      ? Colors.white
+                                      : const Color(0xFFFCA5A5),
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -1),
+                            ),
+                          ),
+                    const SizedBox(height: 18),
+                    Container(height: 1, color: Colors.white.withValues(alpha: 0.15)),
+                    const SizedBox(height: 14),
+                    Row(children: [
+                      Expanded(child: _heroStat(
+                        label: 'GASTOS',
+                        value: (hasUserFilter && !_filtTotalesLoaded) ? null : _cop(gastos),
+                        icon: Icons.arrow_upward_rounded,
+                        color: const Color(0xFFFCA5A5),
+                      )),
+                      Container(width: 1, height: 44,
+                          color: Colors.white.withValues(alpha: 0.18)),
+                      Expanded(child: _heroStat(
+                        label: 'INGRESOS',
+                        value: (hasUserFilter && !_filtTotalesLoaded) ? null : _cop(ingresos),
+                        icon: Icons.arrow_downward_rounded,
+                        color: const Color(0xFF6EE7B7),
+                        alignEnd: true,
+                      )),
+                    ]),
+                  ]),
                 ),
               ]),
-              const SizedBox(height: 18),
-              Container(height: 1, color: Colors.white.withValues(alpha: 0.15)),
-              const SizedBox(height: 14),
-              Row(children: [
-                Expanded(
-                  child: _heroStat(
-                    label: 'GASTOS',
-                    value: (hasUserFilter && !_filtTotalesLoaded) ? null : _cop(gastos),
-                    icon: Icons.arrow_upward_rounded,
-                    color: const Color(0xFFFCA5A5),
-                  ),
-                ),
-                Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.2)),
-                Expanded(
-                  child: _heroStat(
-                    label: 'INGRESOS',
-                    value: (hasUserFilter && !_filtTotalesLoaded) ? null : _cop(ingresos),
-                    icon: Icons.arrow_downward_rounded,
-                    color: const Color(0xFF6EE7B7),
-                    alignEnd: true,
-                  ),
-                ),
-              ]),
-            ]),
+            ),
           ),
           // ── Botones de acción ─────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
             child: Row(children: [
               Expanded(
                 child: GestureDetector(
                   onTap: () => _showRegistrarMovimientoDialog(),
                   child: Container(
-                    height: 46,
+                    height: 50,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [Color(0xFF059669), Color(0xFF10B981)]),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [BoxShadow(color: const Color(0xFF059669).withValues(alpha: 0.30), blurRadius: 10, offset: const Offset(0, 4))],
+                      gradient: const LinearGradient(
+                          colors: [Color(0xFF059669), Color(0xFF10B981)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [BoxShadow(
+                          color: const Color(0xFF059669).withValues(alpha: 0.35),
+                          blurRadius: 14, offset: const Offset(0, 5))],
                     ),
                     child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.add_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 6),
-                      Text('Nuevo Movimiento', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
+                      Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 20),
+                      SizedBox(width: 7),
+                      Text('Nuevo Movimiento',
+                          style: TextStyle(color: Colors.white,
+                              fontWeight: FontWeight.w700, fontSize: 13)),
                     ]),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _showTransferirDialog(),
-                  child: Container(
-                    height: 46,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFFBBF24)]),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [BoxShadow(color: const Color(0xFFF59E0B).withValues(alpha: 0.30), blurRadius: 10, offset: const Offset(0, 4))],
-                    ),
-                    child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                      Icon(Icons.swap_horiz_rounded, color: Colors.white, size: 20),
-                      SizedBox(width: 6),
-                      Text('Transferir', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-                    ]),
+              GestureDetector(
+                onTap: () => _showTransferirDialog(),
+                child: Container(
+                  width: 50, height: 50,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: [Color(0xFFF59E0B), Color(0xFFFBBF24)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [BoxShadow(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.40),
+                        blurRadius: 14, offset: const Offset(0, 5))],
                   ),
+                  child: const Icon(Icons.swap_horiz_rounded,
+                      color: Colors.white, size: 24),
                 ),
               ),
             ]),
           ),
           // ── Filtros ──────────────────────────────────────
           Container(
-            margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 12, offset: const Offset(0, 4))],
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                    color: const Color(0xFF4361EE).withValues(alpha: 0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4))
+              ],
             ),
             child: Column(children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(color: const Color(0xFFEEF2FF), borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.tune_rounded, size: 14, color: Color(0xFF4361EE)),
-                ),
-                const SizedBox(width: 8),
-                const Text('Filtros', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0D1B4B))),
-                const Spacer(),
-                if (hasUserFilter)
-                  GestureDetector(
-                    onTap: () => setState(() {
-                      _filterCuenta = '';
-                      _filterTipo = '';
-                      _filterDesde = null;
-                      _filterHasta = null;
-                      _filtTotalesLoaded = false;
-                    }),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(color: const Color(0xFFFEE2E2), borderRadius: BorderRadius.circular(20)),
-                      child: const Row(children: [
-                        Icon(Icons.close_rounded, size: 12, color: Color(0xFFDC2626)),
-                        SizedBox(width: 4),
-                        Text('Limpiar', style: TextStyle(fontSize: 11, color: Color(0xFFDC2626), fontWeight: FontWeight.w600)),
-                      ]),
-                    ),
+              // Gradient header bar
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF0D1B4B), Color(0xFF1A3170)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-              ]),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(17)),
+                ),
+                child: Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.tune_rounded,
+                        size: 14, color: Colors.white),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text('Filtros',
+                      style: TextStyle(fontSize: 13,
+                          fontWeight: FontWeight.w700, color: Colors.white)),
+                  if (hasUserFilter) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF6EE7B7).withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(10)),
+                      child: const Text('activo',
+                          style: TextStyle(fontSize: 9,
+                              color: Color(0xFF6EE7B7), fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                  const Spacer(),
+                  if (hasUserFilter)
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _filterCuenta = '';
+                        _filterTipo = '';
+                        _filterDesde = null;
+                        _filterHasta = null;
+                        _filtTotalesLoaded = false;
+                      }),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.2))),
+                        child: const Row(children: [
+                          Icon(Icons.close_rounded, size: 11, color: Colors.white70),
+                          SizedBox(width: 4),
+                          Text('Limpiar',
+                              style: TextStyle(fontSize: 10,
+                                  color: Colors.white, fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                    ),
+                ]),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+                child: Column(children: [
               const SizedBox(height: 10),
               Row(children: [
-                Expanded(child: _filterDropdown<String>(
+                Expanded(
+                    child: _filterDropdown<String>(
                   label: 'Cuenta',
                   value: _filterCuenta.isEmpty ? null : _filterCuenta,
                   items: [
                     const DropdownMenuItem(value: null, child: Text('Todas')),
                     ..._cuentas.map((c) => DropdownMenuItem(
                           value: (c['nombre'] ?? '').toString(),
-                          child: Text((c['nombre'] ?? '').toString(), overflow: TextOverflow.ellipsis),
+                          child: Text((c['nombre'] ?? '').toString(),
+                              overflow: TextOverflow.ellipsis),
                         )),
                   ],
-                  onChanged: (v) { setState(() { _filterCuenta = v ?? ''; _filtTotalesLoaded = false; }); unawaited(_fetchTotalesFiltrados()); },
+                  onChanged: (v) {
+                    setState(() {
+                      _filterCuenta = v ?? '';
+                      _filtTotalesLoaded = false;
+                    });
+                    unawaited(_fetchTotalesFiltrados());
+                  },
                 )),
                 const SizedBox(width: 10),
-                Expanded(child: _filterDropdown<String>(
+                Expanded(
+                    child: _filterDropdown<String>(
                   label: 'Tipo',
                   value: _filterTipo.isEmpty ? null : _filterTipo,
                   items: const [
@@ -5530,25 +6175,48 @@ class _HomeScreenState extends State<HomeScreen>
                     DropdownMenuItem(value: '2', child: Text('Gasto')),
                     DropdownMenuItem(value: '3', child: Text('Ingreso')),
                   ],
-                  onChanged: (v) { setState(() { _filterTipo = v ?? ''; _filtTotalesLoaded = false; }); unawaited(_fetchTotalesFiltrados()); },
+                  onChanged: (v) {
+                    setState(() {
+                      _filterTipo = v ?? '';
+                      _filtTotalesLoaded = false;
+                    });
+                    unawaited(_fetchTotalesFiltrados());
+                  },
                 )),
               ]),
               const SizedBox(height: 10),
               Row(children: [
-                Expanded(child: _filterDate(
+                Expanded(
+                    child: _filterDate(
                   label: 'Desde',
                   value: _filterDesde,
-                  onPick: (d) { setState(() { _filterDesde = d; _filtTotalesLoaded = false; }); unawaited(_fetchTotalesFiltrados()); },
+                  onPick: (d) {
+                    setState(() {
+                      _filterDesde = d;
+                      _filtTotalesLoaded = false;
+                    });
+                    unawaited(_fetchTotalesFiltrados());
+                  },
                 )),
                 const SizedBox(width: 10),
-                Expanded(child: _filterDate(
+                Expanded(
+                    child: _filterDate(
                   label: 'Hasta',
                   value: _filterHasta,
-                  onPick: (d) { setState(() { _filterHasta = d; _filtTotalesLoaded = false; }); unawaited(_fetchTotalesFiltrados()); },
+                  onPick: (d) {
+                    setState(() {
+                      _filterHasta = d;
+                      _filtTotalesLoaded = false;
+                    });
+                    unawaited(_fetchTotalesFiltrados());
+                  },
                 )),
               ]),
               const SizedBox(height: 4),
             ]),
+          ),
+          // closes outer Column + Container
+          ]),
           ),
           // ── Lista movimientos header ──────────────────────
           Padding(
@@ -5558,18 +6226,26 @@ class _HomeScreenState extends State<HomeScreen>
               children: [
                 Row(children: [
                   Container(
-                    width: 4, height: 18,
+                    width: 4,
+                    height: 18,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [Color(0xFF4361EE), Color(0xFF0EA5E9)], begin: Alignment.topCenter, end: Alignment.bottomCenter),
+                      gradient: const LinearGradient(
+                          colors: [Color(0xFF4361EE), Color(0xFF0EA5E9)],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                   const SizedBox(width: 8),
                   const Text('Movimientos',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0D1B4B))),
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0D1B4B))),
                 ]),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEEF2FF),
                     borderRadius: BorderRadius.circular(20),
@@ -5620,27 +6296,46 @@ class _HomeScreenState extends State<HomeScreen>
     required Color color,
     required VoidCallback onTap,
     IconData? icon,
-  }) =>
-      GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 42,
-          decoration: BoxDecoration(
-              color: color, borderRadius: BorderRadius.circular(10)),
-          alignment: Alignment.center,
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            if (icon != null) ...[
-              Icon(icon, color: Colors.white, size: 15),
-              const SizedBox(width: 6),
-            ],
-            Text(label,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700)),
-          ]),
+  }) {
+    final colorDark = Color.lerp(color, Colors.black, 0.22) ?? color;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 44,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+              colors: [color, colorDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+                color: colorDark.withValues(alpha: 0.45),
+                blurRadius: 12,
+                spreadRadius: 0,
+                offset: const Offset(0, 5)),
+            BoxShadow(
+                color: color.withValues(alpha: 0.15),
+                blurRadius: 4,
+                offset: const Offset(0, 1)),
+          ],
         ),
-      );
+        alignment: Alignment.center,
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          if (icon != null) ...[
+            Icon(icon, color: Colors.white, size: 15),
+            const SizedBox(width: 6),
+          ],
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3)),
+        ]),
+      ),
+    );
+  }
 
   Widget _filterDropdown<T>({
     required String label,
@@ -5797,10 +6492,11 @@ class _HomeScreenState extends State<HomeScreen>
         return Dialog(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-                maxWidth: 460,
+                maxWidth: min(460, MediaQuery.of(ctx).size.width - 40),
                 maxHeight: MediaQuery.of(ctx).size.height * 0.9),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -5837,8 +6533,10 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   const SizedBox(height: 8),
-                  _dRow('N° Documento',
-                      _dField(docCtrl, required: true, keyboard: TextInputType.number)),
+                  _dRow(
+                      'N° Documento',
+                      _dField(docCtrl,
+                          required: true, keyboard: TextInputType.number)),
                   const SizedBox(height: 8),
                   _dRow('Nombres', _dField(nombresCtrl, required: true)),
                   const SizedBox(height: 8),
@@ -5869,8 +6567,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 width: 16,
                                 height: 16,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white))
+                                    strokeWidth: 2, color: Colors.white))
                             : const Text('Grabar')),
                   ]),
                 ]),
@@ -5911,7 +6608,7 @@ class _HomeScreenState extends State<HomeScreen>
             child: ConstrainedBox(
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(dCtx).size.height * 0.75,
-                maxWidth: 480,
+                maxWidth: min(480, MediaQuery.of(dCtx).size.width - 32),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -5955,13 +6652,12 @@ class _HomeScreenState extends State<HomeScreen>
                     child: TextField(
                       autofocus: true,
                       onChanged: (v) => setD(() => query = v.trim()),
-                      style:
-                          const TextStyle(color: _navy, fontSize: 14),
+                      style: const TextStyle(color: _navy, fontSize: 14),
                       decoration: InputDecoration(
                         hintText:
                             'Nombre del deudor... (${_deudoresLista.length} registrados)',
-                        hintStyle:
-                            const TextStyle(color: Color(0xFFB0BBCC), fontSize: 13),
+                        hintStyle: const TextStyle(
+                            color: Color(0xFFB0BBCC), fontSize: 13),
                         prefixIcon: const Icon(Icons.search_rounded,
                             color: Color(0xFF8899BB), size: 20),
                         suffixIcon: query.isNotEmpty
@@ -6021,8 +6717,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     size: 40, color: Color(0xFFCBD5E1)),
                                 SizedBox(height: 10),
                                 Text('No se encontró ningún deudor',
-                                    style:
-                                        TextStyle(color: Color(0xFF8899BB))),
+                                    style: TextStyle(color: Color(0xFF8899BB))),
                               ],
                             ),
                           )
@@ -6061,8 +6756,8 @@ class _HomeScreenState extends State<HomeScreen>
                                           width: 36,
                                           height: 36,
                                           decoration: BoxDecoration(
-                                            color: _accent1
-                                                .withValues(alpha: 0.1),
+                                            color:
+                                                _accent1.withValues(alpha: 0.1),
                                             borderRadius:
                                                 BorderRadius.circular(10),
                                           ),
@@ -6090,10 +6785,8 @@ class _HomeScreenState extends State<HomeScreen>
                                             ),
                                           ),
                                         ),
-                                        const Icon(
-                                            Icons.chevron_right_rounded,
-                                            color: Color(0xFFCBD5E1),
-                                            size: 18),
+                                        const Icon(Icons.chevron_right_rounded,
+                                            color: Color(0xFFCBD5E1), size: 18),
                                       ],
                                     ),
                                   ),
@@ -6162,8 +6855,15 @@ class _HomeScreenState extends State<HomeScreen>
             .toList();
       }
       return [
-        'Davivienda', 'Bancolombia', 'Daviplata', 'Nequi',
-        'Efectivo', 'Préstamos', 'SAF Ahorros', 'Cámaras', 'Dínamo Jr',
+        'Davivienda',
+        'Bancolombia',
+        'Daviplata',
+        'Nequi',
+        'Efectivo',
+        'Préstamos',
+        'SAF Ahorros',
+        'Cámaras',
+        'Dínamo Jr',
       ];
     }
 
@@ -6175,8 +6875,12 @@ class _HomeScreenState extends State<HomeScreen>
       final tasaStr = (selectedTasa ?? '0').replaceAll('%', '').trim();
       final tasa = double.tryParse(tasaStr) ?? 0;
       final diasPorCuota = {
-        'Mensual': 30, 'Quincenal': 15, 'Semanal': 7, 'Diario': 1
-      }[selectedTiempoC ?? 'Mensual'] ?? 30;
+            'Mensual': 30,
+            'Quincenal': 15,
+            'Semanal': 7,
+            'Diario': 1
+          }[selectedTiempoC ?? 'Mensual'] ??
+          30;
       final totalDias = cuotas * diasPorCuota;
       final tasaDiaria = tasa / 100 / 30;
       final total = valor + (valor * tasaDiaria * totalDias);
@@ -6195,7 +6899,9 @@ class _HomeScreenState extends State<HomeScreen>
           Future(() async {
             // Mostrar datos locales de inmediato (sin red)
             _tryBuildDeudoresFromLocal();
-            if (ctx.mounted) setS(() => loadingDeudores = _deudoresLista.isEmpty);
+            if (ctx.mounted) {
+              setS(() => loadingDeudores = _deudoresLista.isEmpty);
+            }
 
             // Siempre refrescar desde API para obtener la lista completa
             await Future.wait([
@@ -6230,8 +6936,8 @@ class _HomeScreenState extends State<HomeScreen>
               'fuente_credito_reg': selectedFuente ?? '',
               'total_pagar': totalAPagar.toStringAsFixed(0),
             });
-            final ok = r.statusCode == 200 &&
-                r.body.toLowerCase().contains('creado');
+            final ok =
+                r.statusCode == 200 && r.body.toLowerCase().contains('creado');
             if (ctx.mounted) Navigator.pop(ctx);
             if (mounted) {
               showDialog(
@@ -6253,7 +6959,8 @@ class _HomeScreenState extends State<HomeScreen>
             if (ctx.mounted) {
               showDialog(
                   context: ctx,
-                  builder: (_) => _resultDialog('Error de conexión: $e', false));
+                  builder: (_) =>
+                      _resultDialog('Error de conexión: $e', false));
             }
           }
         }
@@ -6268,7 +6975,7 @@ class _HomeScreenState extends State<HomeScreen>
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-                maxWidth: 460,
+                maxWidth: min(460, MediaQuery.of(ctx).size.width - 40),
                 maxHeight: MediaQuery.of(ctx).size.height * 0.9),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
@@ -6429,8 +7136,8 @@ class _HomeScreenState extends State<HomeScreen>
                       value: selectedTiempoC,
                       hint: 'Seleccione',
                       items: tiempoOpciones
-                          .map((o) => DropdownMenuItem(
-                              value: o.$1, child: Text(o.$2)))
+                          .map((o) =>
+                              DropdownMenuItem(value: o.$1, child: Text(o.$2)))
                           .toList(),
                       onChanged: (v) {
                         setS(() => selectedTiempoC = v);
@@ -6461,8 +7168,8 @@ class _HomeScreenState extends State<HomeScreen>
                       value: selectedTipoInt,
                       hint: 'Seleccione',
                       items: tipoIntOpciones
-                          .map((o) => DropdownMenuItem(
-                              value: o.$1, child: Text(o.$2)))
+                          .map((o) =>
+                              DropdownMenuItem(value: o.$1, child: Text(o.$2)))
                           .toList(),
                       onChanged: (v) => setS(() => selectedTipoInt = v),
                     ),
@@ -6474,7 +7181,8 @@ class _HomeScreenState extends State<HomeScreen>
                     _dDropdown<String>(
                       value: tasas.contains(selectedTasa) ? selectedTasa : null,
                       items: tasas
-                          .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                          .map(
+                              (t) => DropdownMenuItem(value: t, child: Text(t)))
                           .toList(),
                       onChanged: (v) {
                         setS(() => selectedTasa = v);
@@ -6493,7 +7201,8 @@ class _HomeScreenState extends State<HomeScreen>
                           ? selectedFuente
                           : null,
                       items: fuentes
-                          .map((f) => DropdownMenuItem(value: f, child: Text(f)))
+                          .map(
+                              (f) => DropdownMenuItem(value: f, child: Text(f)))
                           .toList(),
                       onChanged: (v) => setS(() => selectedFuente = v),
                       validator: (v) =>
@@ -6556,15 +7265,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Diálogo de resultado (éxito / error) ─────────────────────────
   Widget _resultDialog(String msg, bool ok) => AlertDialog(
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(children: [
-          Icon(
-              ok ? Icons.check_circle_outline : Icons.error_outline,
+          Icon(ok ? Icons.check_circle_outline : Icons.error_outline,
               color: ok ? Colors.green : Colors.red),
           const SizedBox(width: 8),
           Text(ok ? 'Éxito' : 'Error',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         ]),
         content: Text(msg, style: const TextStyle(fontSize: 14)),
         actions: [
@@ -6610,10 +7318,8 @@ class _HomeScreenState extends State<HomeScreen>
         },
       );
 
-  static const _dTextStyle =
-      TextStyle(fontSize: 13, color: Color(0xFF374151));
-  static const _dHintStyle =
-      TextStyle(fontSize: 13, color: Color(0xFF9CA3AF));
+  static const _dTextStyle = TextStyle(fontSize: 13, color: Color(0xFF374151));
+  static const _dHintStyle = TextStyle(fontSize: 13, color: Color(0xFF9CA3AF));
 
   // Dropdown estilizado para los diálogos
   Widget _dDropdown<T>({
@@ -6653,15 +7359,13 @@ class _HomeScreenState extends State<HomeScreen>
             borderSide: const BorderSide(color: Color(0xFFDDE3EF))),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide:
-                const BorderSide(color: Color(0xFF4361EE), width: 1.5)),
+            borderSide: const BorderSide(color: Color(0xFF4361EE), width: 1.5)),
         errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: Color(0xFFEF4444))),
         focusedErrorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide:
-                const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+            borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
       );
 
   Widget _dField(
@@ -6715,11 +7419,31 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Colores predefinidos para el picker de cuenta ────────────────
   static const _presetColors = [
-    '#FF6B35', '#F7C59F', '#EFEFD0', '#004E89', '#1A936F',
-    '#EF233C', '#8D99AE', '#2B2D42', '#F72585', '#7209B7',
-    '#3A0CA3', '#4361EE', '#4CC9F0', '#06D6A0', '#FFD166',
-    '#EF476F', '#118AB2', '#073B4C', '#E76F51', '#264653',
-    '#2A9D8F', '#E9C46A', '#F4A261', '#D62828', '#023E8A',
+    '#FF6B35',
+    '#F7C59F',
+    '#EFEFD0',
+    '#004E89',
+    '#1A936F',
+    '#EF233C',
+    '#8D99AE',
+    '#2B2D42',
+    '#F72585',
+    '#7209B7',
+    '#3A0CA3',
+    '#4361EE',
+    '#4CC9F0',
+    '#06D6A0',
+    '#FFD166',
+    '#EF476F',
+    '#118AB2',
+    '#073B4C',
+    '#E76F51',
+    '#264653',
+    '#2A9D8F',
+    '#E9C46A',
+    '#F4A261',
+    '#D62828',
+    '#023E8A',
   ];
 
   Future<void> _showAjustarSaldoDialog(Map<String, dynamic> cuenta) async {
@@ -6731,8 +7455,9 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Saldo actual desde movimientos en memoria
     final saldoActual = _movimientos
-        .where((m) => (m['codigo_cuenta'] ?? m['cuenta_codigo'] ?? '')
-            .toString() == codigoCuenta)
+        .where((m) =>
+            (m['codigo_cuenta'] ?? m['cuenta_codigo'] ?? '').toString() ==
+            codigoCuenta)
         .fold<double>(0.0, (sum, m) {
       final t = (m['tipo_movimiento'] ?? '').toString();
       final v = _num(m['valor'] ?? 0);
@@ -6777,8 +7502,8 @@ class _HomeScreenState extends State<HomeScreen>
                 const SizedBox(height: 6),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 13),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF3F4F6),
                     border: Border.all(color: const Color(0xFFD1D5DB)),
@@ -6821,12 +7546,10 @@ class _HomeScreenState extends State<HomeScreen>
                     ],
                   ),
                   const SizedBox(height: 20),
-
                   readonlyField('Cuenta', nombreCuenta),
                   const SizedBox(height: 14),
                   readonlyField('Saldo Actual', _cop(saldoActual)),
                   const SizedBox(height: 14),
-
                   const Text('Nuevo Saldo',
                       style: TextStyle(
                           fontSize: 13,
@@ -6853,7 +7576,6 @@ class _HomeScreenState extends State<HomeScreen>
                         (v == null || v.trim().isEmpty) ? 'Requerido' : null,
                   ),
                   const SizedBox(height: 22),
-
                   Row(children: [
                     Expanded(
                       child: gradBtn(
@@ -6889,15 +7611,14 @@ class _HomeScreenState extends State<HomeScreen>
                                       n.toString().padLeft(2, '0');
                                   final fecha =
                                       '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
-                                  final r = await _api.post(
-                                      '/ajax/ajustar_saldo_cuenta.php', {
+                                  final r = await _api
+                                      .post('/ajax/ajustar_saldo_cuenta.php', {
                                     'codigo_cuenta': codigoCuenta,
                                     'saldo_actual':
                                         saldoActual.toStringAsFixed(2),
                                     'nuevo_saldo':
                                         nuevoSaldo.toStringAsFixed(2),
-                                    'diferencia':
-                                        diferencia.toStringAsFixed(2),
+                                    'diferencia': diferencia.toStringAsFixed(2),
                                     'fecha': fecha,
                                     'usuario': codigoUsuario,
                                   });
@@ -6958,17 +7679,15 @@ class _HomeScreenState extends State<HomeScreen>
     final descCtrl = TextEditingController();
     final now = DateTime.now();
     String pad2(int n) => n.toString().padLeft(2, '0');
-    String selectedFecha =
-        '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
+    String selectedFecha = '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
     String? origenCod;
     String? origenNom;
     String? destinoCod;
     String? destinoNom;
     bool saving = false;
 
-    final List<Map<String, dynamic>> cuentasOpts = _cuentas
-        .where((c) => (c['estado'] ?? '').toString() == '1')
-        .toList();
+    final List<Map<String, dynamic>> cuentasOpts =
+        _cuentas.where((c) => (c['estado'] ?? '').toString() == '1').toList();
 
     if (!mounted) return;
 
@@ -7034,25 +7753,25 @@ class _HomeScreenState extends State<HomeScreen>
                   if (picked != null) onPicked(picked);
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 13),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                   decoration: BoxDecoration(
                     border: Border.all(color: const Color(0xFFD1D5DB)),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(nombre ?? '[Seleccione]',
-                          style: TextStyle(
-                              color: nombre != null
-                                  ? const Color(0xFF0D1B4B)
-                                  : const Color(0xFF9CA3AF),
-                              fontSize: 14)),
-                      const Icon(Icons.keyboard_arrow_down_rounded,
-                          color: Color(0xFF6B7280)),
-                    ],
-                  ),
+                  child: Row(children: [
+                    Expanded(
+                        child: Text(nombre ?? '[Seleccione]',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: nombre != null
+                                    ? const Color(0xFF0D1B4B)
+                                    : const Color(0xFF9CA3AF),
+                                fontSize: 14))),
+                    const Icon(Icons.keyboard_arrow_down_rounded,
+                        color: Color(0xFF6B7280)),
+                  ]),
                 ),
               ),
             ]);
@@ -7071,23 +7790,22 @@ class _HomeScreenState extends State<HomeScreen>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Transferir entre Cuentas',
-                          style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0D1B4B))),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: const Icon(Icons.close_rounded,
-                            color: Color(0xFF6B7280)),
-                      ),
-                    ],
-                  ),
+                  Row(children: [
+                    const Expanded(
+                        child: Text('Transferir entre Cuentas',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF0D1B4B)))),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: const Icon(Icons.close_rounded,
+                          color: Color(0xFF6B7280)),
+                    ),
+                  ]),
                   const SizedBox(height: 20),
-
                   cuentaPicker(
                     label: 'Cuenta Origen',
                     nombre: origenNom,
@@ -7097,7 +7815,6 @@ class _HomeScreenState extends State<HomeScreen>
                     }),
                   ),
                   const SizedBox(height: 14),
-
                   cuentaPicker(
                     label: 'Cuenta Destino',
                     nombre: destinoNom,
@@ -7107,7 +7824,6 @@ class _HomeScreenState extends State<HomeScreen>
                     }),
                   ),
                   const SizedBox(height: 14),
-
                   const Text('Valor a Transferir',
                       style: TextStyle(
                           fontSize: 13,
@@ -7134,7 +7850,6 @@ class _HomeScreenState extends State<HomeScreen>
                         (v == null || v.trim().isEmpty) ? 'Requerido' : null,
                   ),
                   const SizedBox(height: 14),
-
                   const Text('Fecha de Transferencia',
                       style: TextStyle(
                           fontSize: 13,
@@ -7145,8 +7860,7 @@ class _HomeScreenState extends State<HomeScreen>
                     onTap: () async {
                       final picked = await showDatePicker(
                         context: ctx,
-                        initialDate:
-                            DateTime.tryParse(selectedFecha) ?? now,
+                        initialDate: DateTime.tryParse(selectedFecha) ?? now,
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2030),
                         builder: (c, w) => Theme(
@@ -7191,7 +7905,6 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   const SizedBox(height: 14),
-
                   const Text('Descripción (opcional)',
                       style: TextStyle(
                           fontSize: 13,
@@ -7216,14 +7929,10 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   const SizedBox(height: 22),
-
                   Row(children: [
                     Expanded(
                       child: gradBtn(
-                        colors: const [
-                          Color(0xFFDC2626),
-                          Color(0xFFEF4444)
-                        ],
+                        colors: const [Color(0xFFDC2626), Color(0xFFEF4444)],
                         onPressed: () => Navigator.pop(ctx),
                         child: const Text('Cancelar',
                             style: TextStyle(
@@ -7236,10 +7945,7 @@ class _HomeScreenState extends State<HomeScreen>
                       child: gradBtn(
                         colors: saving
                             ? [Colors.grey, Colors.grey]
-                            : const [
-                                Color(0xFF059669),
-                                Color(0xFF34D399)
-                              ],
+                            : const [Color(0xFF059669), Color(0xFF34D399)],
                         onPressed: saving
                             ? null
                             : () async {
@@ -7248,17 +7954,15 @@ class _HomeScreenState extends State<HomeScreen>
                                       const SnackBar(
                                           content:
                                               Text('Seleccione cuenta origen'),
-                                          backgroundColor:
-                                              Color(0xFFDC2626)));
+                                          backgroundColor: Color(0xFFDC2626)));
                                   return;
                                 }
                                 if (destinoCod == null) {
                                   ScaffoldMessenger.of(ctx).showSnackBar(
                                       const SnackBar(
-                                          content: Text(
-                                              'Seleccione cuenta destino'),
-                                          backgroundColor:
-                                              Color(0xFFDC2626)));
+                                          content:
+                                              Text('Seleccione cuenta destino'),
+                                          backgroundColor: Color(0xFFDC2626)));
                                   return;
                                 }
                                 if (origenCod == destinoCod) {
@@ -7266,15 +7970,14 @@ class _HomeScreenState extends State<HomeScreen>
                                       const SnackBar(
                                           content: Text(
                                               'Origen y destino no pueden ser iguales'),
-                                          backgroundColor:
-                                              Color(0xFFDC2626)));
+                                          backgroundColor: Color(0xFFDC2626)));
                                   return;
                                 }
                                 if (!formKey.currentState!.validate()) return;
                                 setS(() => saving = true);
                                 try {
-                                  final r = await _api.post(
-                                      '/ajax/transferir_cuentas.php', {
+                                  final r = await _api
+                                      .post('/ajax/transferir_cuentas.php', {
                                     'cuenta_origen': origenCod!,
                                     'cuenta_destino': destinoCod!,
                                     'valor': valorCtrl.text.trim(),
@@ -7339,8 +8042,7 @@ class _HomeScreenState extends State<HomeScreen>
     final descCtrl = TextEditingController();
     final now = DateTime.now();
     String pad2(int n) => n.toString().padLeft(2, '0');
-    String selectedFecha =
-        '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
+    String selectedFecha = '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
     String? selectedCuenta;
     String? selectedCuentaNombre;
     String? selectedTipo;
@@ -7348,9 +8050,8 @@ class _HomeScreenState extends State<HomeScreen>
     bool saving = false;
 
     // Cuentas activas disponibles desde el estado actual
-    final List<Map<String, dynamic>> cuentasOpts = _cuentas
-        .where((c) => (c['estado'] ?? '').toString() == '1')
-        .toList();
+    final List<Map<String, dynamic>> cuentasOpts =
+        _cuentas.where((c) => (c['estado'] ?? '').toString() == '1').toList();
 
     if (!mounted) return;
 
@@ -7441,8 +8142,7 @@ class _HomeScreenState extends State<HomeScreen>
                       );
                       if (picked != null) {
                         setS(() {
-                          selectedCuenta =
-                              (picked['codigo'] ?? '').toString();
+                          selectedCuenta = (picked['codigo'] ?? '').toString();
                           selectedCuentaNombre =
                               (picked['nombre'] ?? '').toString();
                         });
@@ -7458,8 +8158,7 @@ class _HomeScreenState extends State<HomeScreen>
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                              selectedCuentaNombre ?? '[Seleccione]',
+                          Text(selectedCuentaNombre ?? '[Seleccione]',
                               style: TextStyle(
                                   color: selectedCuenta != null
                                       ? const Color(0xFF0D1B4B)
@@ -7525,8 +8224,7 @@ class _HomeScreenState extends State<HomeScreen>
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                              selectedTipoNombre ?? '[Seleccione]',
+                          Text(selectedTipoNombre ?? '[Seleccione]',
                               style: TextStyle(
                                   color: selectedTipo != null
                                       ? const Color(0xFF0D1B4B)
@@ -7675,10 +8373,9 @@ class _HomeScreenState extends State<HomeScreen>
                                 if (selectedCuenta == null) {
                                   ScaffoldMessenger.of(ctx).showSnackBar(
                                       const SnackBar(
-                                          content: Text(
-                                              'Seleccione una cuenta'),
-                                          backgroundColor:
-                                              Color(0xFFDC2626)));
+                                          content:
+                                              Text('Seleccione una cuenta'),
+                                          backgroundColor: Color(0xFFDC2626)));
                                   return;
                                 }
                                 if (selectedTipo == null) {
@@ -7686,15 +8383,14 @@ class _HomeScreenState extends State<HomeScreen>
                                       const SnackBar(
                                           content: Text(
                                               'Seleccione el tipo de movimiento'),
-                                          backgroundColor:
-                                              Color(0xFFDC2626)));
+                                          backgroundColor: Color(0xFFDC2626)));
                                   return;
                                 }
                                 if (!formKey.currentState!.validate()) return;
                                 setS(() => saving = true);
                                 try {
-                                  final r = await _api.post(
-                                      '/ajax/guardar_movimiento.php', {
+                                  final r = await _api
+                                      .post('/ajax/guardar_movimiento.php', {
                                     'codigo_cuenta': selectedCuenta!,
                                     'tipo_movimiento': selectedTipo!,
                                     'valor': valorCtrl.text.trim(),
@@ -7707,7 +8403,8 @@ class _HomeScreenState extends State<HomeScreen>
                                     final ok = d['success'] == true ||
                                         d['resultado'] == 1;
                                     if (ctx.mounted) {
-                                      final messenger = ScaffoldMessenger.of(ctx);
+                                      final messenger =
+                                          ScaffoldMessenger.of(ctx);
                                       Navigator.pop(ctx);
                                       messenger.showSnackBar(SnackBar(
                                         content: Text(ok
@@ -7736,8 +8433,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white))
+                                    strokeWidth: 2, color: Colors.white))
                             : const Text('Guardar',
                                 style: TextStyle(
                                     color: Colors.white,
@@ -7942,8 +8638,7 @@ class _HomeScreenState extends State<HomeScreen>
                           backgroundColor: Colors.white,
                           title: const Text('Seleccionar Tipo',
                               style: TextStyle(
-                                  color: _navy,
-                                  fontWeight: FontWeight.w700)),
+                                  color: _navy, fontWeight: FontWeight.w700)),
                           children: tipos
                               .map((t) => SimpleDialogOption(
                                     onPressed: () => Navigator.pop(dCtx, t),
@@ -7961,8 +8656,7 @@ class _HomeScreenState extends State<HomeScreen>
                       );
                       if (picked != null) {
                         setS(() {
-                          selectedTipo =
-                              (picked['codigo'] ?? '').toString();
+                          selectedTipo = (picked['codigo'] ?? '').toString();
                           selectedTipoNombre =
                               (picked['nombre'] ?? '').toString();
                         });
@@ -7970,8 +8664,7 @@ class _HomeScreenState extends State<HomeScreen>
                     },
                     child: Container(
                       height: 48,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF5F7FB),
                         border: Border.all(
@@ -8015,7 +8708,10 @@ class _HomeScreenState extends State<HomeScreen>
                       child: gradBtn(
                         colors: saving
                             ? [Colors.grey, Colors.grey]
-                            : [const Color(0xFF10B981), const Color(0xFF059669)],
+                            : [
+                                const Color(0xFF10B981),
+                                const Color(0xFF059669)
+                              ],
                         onPressed: saving
                             ? null
                             : () async {
@@ -8023,16 +8719,16 @@ class _HomeScreenState extends State<HomeScreen>
                                   return;
                                 }
                                 if (selectedTipo == null) {
-                                  ScaffoldMessenger.of(ctx)
-                                      .showSnackBar(const SnackBar(
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                      const SnackBar(
                                           content: Text(
                                               'Selecciona el tipo de cuenta')));
                                   return;
                                 }
                                 setS(() => saving = true);
                                 try {
-                                  final r = await _api.post(
-                                      '/ajax/guardar_cuenta_gasto.php', {
+                                  final r = await _api
+                                      .post('/ajax/guardar_cuenta_gasto.php', {
                                     'nombre': nombreCtrl.text.trim(),
                                     'color': selectedHex,
                                     'tipo_cuenta': selectedTipo!,
@@ -8049,9 +8745,9 @@ class _HomeScreenState extends State<HomeScreen>
                                     if (ctx.mounted) {
                                       ScaffoldMessenger.of(ctx).showSnackBar(
                                           SnackBar(
-                                              content: Text(d['msg']
-                                                      ?.toString() ??
-                                                  'Error al guardar')));
+                                              content: Text(
+                                                  d['msg']?.toString() ??
+                                                      'Error al guardar')));
                                     }
                                   }
                                 } catch (e) {
@@ -8094,16 +8790,14 @@ class _HomeScreenState extends State<HomeScreen>
     if (selectedHex.length != 6) selectedHex = '4361EE';
     final colorCtrl = TextEditingController(text: selectedHex);
 
-    String? selectedTipoCod =
-        (c['codigo_tipo'] ?? c['tipo'] ?? '').toString();
+    String? selectedTipoCod = (c['codigo_tipo'] ?? c['tipo'] ?? '').toString();
     if (selectedTipoCod.isEmpty) selectedTipoCod = null;
     String selectedTipoNombre = (c['tipo_nombre'] ?? '').toString();
     bool tiposLoaded = false;
     bool loadingTipos = false;
     List<Map<String, dynamic>> tiposOpts = [];
 
-    String selectedEstado =
-        (c['estado']?.toString() == '1') ? '1' : '0';
+    String selectedEstado = (c['estado']?.toString() == '1') ? '1' : '0';
 
     // Movimientos tab
     int activeTab = 0;
@@ -8143,8 +8837,7 @@ class _HomeScreenState extends State<HomeScreen>
               backgroundColor: Colors.transparent,
               shadowColor: Colors.transparent,
               foregroundColor: Colors.white,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
             ),
@@ -8178,7 +8871,10 @@ class _HomeScreenState extends State<HomeScreen>
                 }
               }
             } catch (_) {}
-            setS(() { loadingTipos = false; tiposLoaded = true; });
+            setS(() {
+              loadingTipos = false;
+              tiposLoaded = true;
+            });
           });
         }
 
@@ -8187,8 +8883,7 @@ class _HomeScreenState extends State<HomeScreen>
           loadingMovs = true;
           Future.microtask(() async {
             try {
-              final r = await _api.post(
-                  '/ajax/listar_movimientos_cuenta.php', {
+              final r = await _api.post('/ajax/listar_movimientos_cuenta.php', {
                 'codigo_cuenta': codigo,
                 'pagina': '1',
                 'usuario': codigoUsuario,
@@ -8211,7 +8906,10 @@ class _HomeScreenState extends State<HomeScreen>
                 }
               }
             } catch (_) {}
-            setS(() { loadingMovs = false; movsLoaded = true; });
+            setS(() {
+              loadingMovs = false;
+              movsLoaded = true;
+            });
           });
         }
 
@@ -8226,7 +8924,7 @@ class _HomeScreenState extends State<HomeScreen>
               const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: 480,
+              maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
               maxHeight: MediaQuery.of(ctx).size.height * 0.88,
             ),
             child: Column(
@@ -8248,13 +8946,13 @@ class _HomeScreenState extends State<HomeScreen>
                   child: Column(children: [
                     Row(children: [
                       Container(
-                        width: 40, height: 40,
+                        width: 40,
+                        height: 40,
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(11),
                         ),
-                        child: const Icon(
-                            Icons.account_balance_wallet_rounded,
+                        child: const Icon(Icons.account_balance_wallet_rounded,
                             color: Colors.white, size: 20),
                       ),
                       const SizedBox(width: 12),
@@ -8269,14 +8967,12 @@ class _HomeScreenState extends State<HomeScreen>
                                     fontWeight: FontWeight.w800)),
                             Text('Modifica los datos de la cuenta',
                                 style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 11)),
+                                    color: Colors.white70, fontSize: 11)),
                           ],
                         ),
                       ),
                       IconButton(
-                        onPressed:
-                            saving ? null : () => Navigator.pop(ctx),
+                        onPressed: saving ? null : () => Navigator.pop(ctx),
                         icon: const Icon(Icons.close_rounded,
                             color: Colors.white60, size: 20),
                         padding: EdgeInsets.zero,
@@ -8306,10 +9002,9 @@ class _HomeScreenState extends State<HomeScreen>
                             ctrl: nombreCtrl,
                             label: 'Nombre',
                             icon: Icons.label_outline_rounded,
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty)
-                                    ? 'Ingrese el nombre'
-                                    : null,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Ingrese el nombre'
+                                : null,
                           ),
                           const SizedBox(height: 16),
                           _ahorrFieldLabel('Color'),
@@ -8319,27 +9014,28 @@ class _HomeScreenState extends State<HomeScreen>
                             decoration: BoxDecoration(
                               color: previewColor,
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                  color: const Color(0xFFDDE3EF)),
+                              border:
+                                  Border.all(color: const Color(0xFFDDE3EF)),
                             ),
                           ),
                           const SizedBox(height: 8),
                           Row(children: [
                             Container(
-                              width: 34, height: 34,
+                              width: 34,
+                              height: 34,
                               decoration: BoxDecoration(
                                 color: previewColor,
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                    color: const Color(0xFFDDE3EF)),
+                                border:
+                                    Border.all(color: const Color(0xFFDDE3EF)),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: TextFormField(
                                 controller: colorCtrl,
-                                style: const TextStyle(
-                                    color: _navy, fontSize: 14),
+                                style:
+                                    const TextStyle(color: _navy, fontSize: 14),
                                 decoration: InputDecoration(
                                   prefixText: '#',
                                   prefixStyle: const TextStyle(
@@ -8347,68 +9043,61 @@ class _HomeScreenState extends State<HomeScreen>
                                       fontWeight: FontWeight.bold),
                                   hintText: 'RRGGBB',
                                   hintStyle: const TextStyle(
-                                      color: Color(0xFF9CA3AF),
-                                      fontSize: 13),
+                                      color: Color(0xFF9CA3AF), fontSize: 13),
                                   filled: true,
                                   fillColor: const Color(0xFFF5F7FB),
-                                  contentPadding:
-                                      const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 10),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
                                   border: OutlineInputBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(10),
                                       borderSide: const BorderSide(
                                           color: Color(0xFFDDE3EF))),
                                   enabledBorder: OutlineInputBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(10),
                                       borderSide: const BorderSide(
                                           color: Color(0xFFDDE3EF))),
                                   focusedBorder: OutlineInputBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.circular(10),
                                       borderSide: const BorderSide(
                                           color: _accent1, width: 1.5)),
                                 ),
                                 maxLength: 6,
-                                buildCounter: (_, {required currentLength,
-                                    required isFocused, maxLength}) =>
+                                buildCounter: (_,
+                                        {required currentLength,
+                                        required isFocused,
+                                        maxLength}) =>
                                     const SizedBox.shrink(),
-                                onChanged: (v) =>
-                                    setS(() => selectedHex = v),
+                                onChanged: (v) => setS(() => selectedHex = v),
                               ),
                             ),
                           ]),
                           const SizedBox(height: 8),
                           Wrap(
-                            spacing: 8, runSpacing: 8,
+                            spacing: 8,
+                            runSpacing: 8,
                             children: _presetColors.map((hex) {
                               final col = parseHex(hex);
-                              final hx = hex
-                                  .replaceAll('#', '')
-                                  .toUpperCase();
-                              final active =
-                                  colorCtrl.text.toUpperCase() == hx;
+                              final hx = hex.replaceAll('#', '').toUpperCase();
+                              final active = colorCtrl.text.toUpperCase() == hx;
                               return GestureDetector(
                                 onTap: () {
                                   colorCtrl.text = hx;
                                   setS(() => selectedHex = hx);
                                 },
                                 child: Container(
-                                  width: 32, height: 32,
+                                  width: 32,
+                                  height: 32,
                                   decoration: BoxDecoration(
                                     color: col,
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: active
-                                          ? _navy
-                                          : Colors.transparent,
+                                      color:
+                                          active ? _navy : Colors.transparent,
                                       width: 2.5,
                                     ),
                                     boxShadow: [
                                       BoxShadow(
-                                          color: col.withValues(
-                                              alpha: 0.4),
+                                          color: col.withValues(alpha: 0.4),
                                           blurRadius: 4)
                                     ],
                                   ),
@@ -8427,37 +9116,28 @@ class _HomeScreenState extends State<HomeScreen>
                             onTap: !tiposLoaded
                                 ? null
                                 : () async {
-                                    final picked = await showDialog<
-                                        Map<String, dynamic>>(
+                                    final picked =
+                                        await showDialog<Map<String, dynamic>>(
                                       context: ctx,
                                       builder: (dCtx) => SimpleDialog(
                                         backgroundColor: Colors.white,
-                                        title: const Text(
-                                            'Seleccionar Tipo',
+                                        title: const Text('Seleccionar Tipo',
                                             style: TextStyle(
                                                 color: _navy,
-                                                fontWeight:
-                                                    FontWeight.w700)),
+                                                fontWeight: FontWeight.w700)),
                                         children: tiposOpts
-                                            .map((t) =>
-                                                SimpleDialogOption(
+                                            .map((t) => SimpleDialogOption(
                                                   onPressed: () =>
-                                                      Navigator.pop(
-                                                          dCtx, t),
+                                                      Navigator.pop(dCtx, t),
                                                   child: Padding(
-                                                    padding:
-                                                        const EdgeInsets
-                                                            .symmetric(
-                                                            vertical: 4),
+                                                    padding: const EdgeInsets
+                                                        .symmetric(vertical: 4),
                                                     child: Text(
-                                                      (t.values.last ??
-                                                              '')
+                                                      (t.values.last ?? '')
                                                           .toString(),
-                                                      style:
-                                                          const TextStyle(
-                                                              color: _navy,
-                                                              fontSize:
-                                                                  14),
+                                                      style: const TextStyle(
+                                                          color: _navy,
+                                                          fontSize: 14),
                                                     ),
                                                   ),
                                                 ))
@@ -8466,12 +9146,10 @@ class _HomeScreenState extends State<HomeScreen>
                                     );
                                     if (picked != null) {
                                       setS(() {
-                                        selectedTipoCod = picked
-                                            .values.first
-                                            .toString();
-                                        selectedTipoNombre = picked
-                                            .values.last
-                                            .toString();
+                                        selectedTipoCod =
+                                            picked.values.first.toString();
+                                        selectedTipoNombre =
+                                            picked.values.last.toString();
                                       });
                                     }
                                   },
@@ -8496,26 +9174,22 @@ class _HomeScreenState extends State<HomeScreen>
                                           fontWeight: FontWeight.w700)),
                                   children: [
                                     SimpleDialogOption(
-                                      onPressed: () =>
-                                          Navigator.pop(dCtx, '1'),
+                                      onPressed: () => Navigator.pop(dCtx, '1'),
                                       child: const Padding(
-                                          padding: EdgeInsets.symmetric(
-                                              vertical: 4),
+                                          padding:
+                                              EdgeInsets.symmetric(vertical: 4),
                                           child: Text('Activa',
                                               style: TextStyle(
-                                                  color: _navy,
-                                                  fontSize: 14))),
+                                                  color: _navy, fontSize: 14))),
                                     ),
                                     SimpleDialogOption(
-                                      onPressed: () =>
-                                          Navigator.pop(dCtx, '0'),
+                                      onPressed: () => Navigator.pop(dCtx, '0'),
                                       child: const Padding(
-                                          padding: EdgeInsets.symmetric(
-                                              vertical: 4),
+                                          padding:
+                                              EdgeInsets.symmetric(vertical: 4),
                                           child: Text('Inactiva',
                                               style: TextStyle(
-                                                  color: _navy,
-                                                  fontSize: 14))),
+                                                  color: _navy, fontSize: 14))),
                                     ),
                                   ],
                                 ),
@@ -8525,9 +9199,7 @@ class _HomeScreenState extends State<HomeScreen>
                               }
                             },
                             child: _dateContainer(
-                                selectedEstado == '1'
-                                    ? 'Activa'
-                                    : 'Inactiva',
+                                selectedEstado == '1' ? 'Activa' : 'Inactiva',
                                 'Activa'),
                           ),
                           const SizedBox(height: 8),
@@ -8544,13 +9216,11 @@ class _HomeScreenState extends State<HomeScreen>
                         onPressed: saving
                             ? null
                             : () async {
-                                final confirm =
-                                    await showDialog<bool>(
+                                final confirm = await showDialog<bool>(
                                   context: ctx,
                                   builder: (c2) => AlertDialog(
                                     backgroundColor: Colors.white,
-                                    title: const Text(
-                                        '¿Desactivar cuenta?',
+                                    title: const Text('¿Desactivar cuenta?',
                                         style: TextStyle(color: _navy)),
                                     content: const Text(
                                         'La cuenta quedará inactiva.'),
@@ -8565,8 +9235,7 @@ class _HomeScreenState extends State<HomeScreen>
                                             Navigator.pop(c2, true),
                                         child: const Text('Desactivar',
                                             style: TextStyle(
-                                                color:
-                                                    Color(0xFFDC2626))),
+                                                color: Color(0xFFDC2626))),
                                       ),
                                     ],
                                   ),
@@ -8577,8 +9246,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     '/ajax/editar_cuenta_gasto.php',
                                     {
                                       'codigo': codigo,
-                                      'nombre':
-                                          nombreCtrl.text.trim(),
+                                      'nombre': nombreCtrl.text.trim(),
                                       'color':
                                           '#${colorCtrl.text.trim().toUpperCase()}',
                                       'tipo': selectedTipoCod ?? '',
@@ -8589,9 +9257,8 @@ class _HomeScreenState extends State<HomeScreen>
                                   if (mounted) {
                                     bool ok = false;
                                     try {
-                                      ok = jsonDecode(r.body)[
-                                              'success'] ==
-                                          true;
+                                      ok =
+                                          jsonDecode(r.body)['success'] == true;
                                     } catch (_) {}
                                     showDialog(
                                       context: context,
@@ -8617,10 +9284,7 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                       const Spacer(),
                       gradBtn(
-                        colors: const [
-                          Color(0xFF16A34A),
-                          Color(0xFF15803D)
-                        ],
+                        colors: const [Color(0xFF16A34A), Color(0xFF15803D)],
                         onPressed: saving
                             ? null
                             : () async {
@@ -8639,8 +9303,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     '/ajax/editar_cuenta_gasto.php',
                                     {
                                       'codigo': codigo,
-                                      'nombre':
-                                          nombreCtrl.text.trim(),
+                                      'nombre': nombreCtrl.text.trim(),
                                       'color':
                                           '#${colorCtrl.text.trim().toUpperCase()}',
                                       'tipo': selectedTipoCod ?? '',
@@ -8650,21 +9313,16 @@ class _HomeScreenState extends State<HomeScreen>
                                   bool ok = false;
                                   String msg = 'No se pudo guardar';
                                   try {
-                                    final j =
-                                        jsonDecode(r.body.trim());
+                                    final j = jsonDecode(r.body.trim());
                                     ok = j['success'] == true;
-                                    msg =
-                                        (j['msg'] ?? msg).toString();
+                                    msg = (j['msg'] ?? msg).toString();
                                   } catch (_) {}
                                   if (ctx.mounted) Navigator.pop(ctx);
                                   if (mounted) {
                                     showDialog(
                                       context: context,
                                       builder: (_) => _resultDialog(
-                                          ok
-                                              ? 'Cambios guardados'
-                                              : msg,
-                                          ok),
+                                          ok ? 'Cambios guardados' : msg, ok),
                                     );
                                     if (ok) unawaited(_fetchCuentas('1'));
                                   }
@@ -8674,8 +9332,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     ScaffoldMessenger.of(ctx)
                                         .showSnackBar(SnackBar(
                                       content: Text('Error: $e'),
-                                      backgroundColor:
-                                          const Color(0xFFDC2626),
+                                      backgroundColor: const Color(0xFFDC2626),
                                     ));
                                   }
                                 }
@@ -8685,16 +9342,14 @@ class _HomeScreenState extends State<HomeScreen>
                           children: [
                             if (saving)
                               const SizedBox(
-                                  width: 14, height: 14,
+                                  width: 14,
+                                  height: 14,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white))
+                                      strokeWidth: 2, color: Colors.white))
                             else
                               const Icon(Icons.save_rounded, size: 16),
                             const SizedBox(width: 6),
-                            Text(saving
-                                ? 'Guardando...'
-                                : 'Guardar Cambios'),
+                            Text(saving ? 'Guardando...' : 'Guardar Cambios'),
                           ],
                         ),
                       ),
@@ -8707,8 +9362,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ? const Center(
                             child: Padding(
                               padding: EdgeInsets.all(32),
-                              child: CircularProgressIndicator(
-                                  color: _accent1),
+                              child: CircularProgressIndicator(color: _accent1),
                             ),
                           )
                         : movsList.isEmpty
@@ -8764,21 +9418,16 @@ class _HomeScreenState extends State<HomeScreen>
                                               m['fecha_movimiento'] ??
                                               '')
                                           .toString();
-                                      final tipo = (m['tipo'] ?? '')
-                                          .toString();
-                                      final valor = _num(
-                                          m['valor'] ??
-                                              m['monto'] ??
-                                              0);
+                                      final tipo = (m['tipo'] ?? '').toString();
+                                      final valor =
+                                          _num(m['valor'] ?? m['monto'] ?? 0);
                                       final desc = (m['descripcion'] ??
                                               m['descripción'] ??
                                               '')
                                           .toString();
                                       return Padding(
-                                        padding: const EdgeInsets
-                                            .symmetric(
-                                            horizontal: 16,
-                                            vertical: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 16, vertical: 8),
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
@@ -8787,9 +9436,7 @@ class _HomeScreenState extends State<HomeScreen>
                                               Expanded(
                                                   flex: 3,
                                                   child: Text(
-                                                      fecha
-                                                          .split(' ')
-                                                          .first,
+                                                      fecha.split(' ').first,
                                                       style: const TextStyle(
                                                           fontSize: 12,
                                                           color: _navy))),
@@ -8802,8 +9449,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                               0xFF8899BB)))),
                                               Expanded(
                                                   flex: 2,
-                                                  child: Text(
-                                                      _cop(valor),
+                                                  child: Text(_cop(valor),
                                                       textAlign:
                                                           TextAlign.right,
                                                       style: TextStyle(
@@ -8818,14 +9464,13 @@ class _HomeScreenState extends State<HomeScreen>
                                             ]),
                                             if (desc.isNotEmpty)
                                               Padding(
-                                                padding:
-                                                    const EdgeInsets.only(
-                                                        top: 2),
+                                                padding: const EdgeInsets.only(
+                                                    top: 2),
                                                 child: Text(desc,
                                                     style: const TextStyle(
                                                         fontSize: 11,
-                                                        color: Color(
-                                                            0xFF8899BB))),
+                                                        color:
+                                                            Color(0xFF8899BB))),
                                               ),
                                           ],
                                         ),
@@ -8840,10 +9485,7 @@ class _HomeScreenState extends State<HomeScreen>
                     child: SizedBox(
                       width: double.infinity,
                       child: gradBtn(
-                        colors: const [
-                          Color(0xFF0D1B4B),
-                          Color(0xFF1E3A8A)
-                        ],
+                        colors: const [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
                         onPressed: () => Navigator.pop(ctx),
                         child: const Text('Cerrar'),
                       ),
@@ -8863,8 +9505,7 @@ class _HomeScreenState extends State<HomeScreen>
     });
   }
 
-  Widget _editTab(
-      String label, int index, int active, VoidCallback onTap) =>
+  Widget _editTab(String label, int index, int active, VoidCallback onTap) =>
       GestureDetector(
         onTap: onTap,
         child: Container(
@@ -8872,9 +9513,7 @@ class _HomeScreenState extends State<HomeScreen>
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: active == index
-                    ? Colors.white
-                    : Colors.transparent,
+                color: active == index ? Colors.white : Colors.transparent,
                 width: 2,
               ),
             ),
@@ -8882,13 +9521,9 @@ class _HomeScreenState extends State<HomeScreen>
           child: Text(
             label,
             style: TextStyle(
-              color: active == index
-                  ? Colors.white
-                  : Colors.white54,
+              color: active == index ? Colors.white : Colors.white54,
               fontSize: 13,
-              fontWeight: active == index
-                  ? FontWeight.w700
-                  : FontWeight.w400,
+              fontWeight: active == index ? FontWeight.w700 : FontWeight.w400,
             ),
           ),
         ),
@@ -8926,11 +9561,14 @@ class _HomeScreenState extends State<HomeScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(nombre,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                       fontWeight: FontWeight.w700, fontSize: 14, color: _navy)),
               const SizedBox(height: 2),
               Row(children: [
-                Container(
+                Flexible(
+                    child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
@@ -8938,11 +9576,13 @@ class _HomeScreenState extends State<HomeScreen>
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(tipo,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           color: color,
                           fontSize: 10,
                           fontWeight: FontWeight.w600)),
-                ),
+                )),
                 const SizedBox(width: 6),
                 Text(estado ? 'Activa' : 'Inactiva',
                     style: TextStyle(
@@ -9122,36 +9762,50 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               ),
               const SizedBox(height: 5),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: isIngreso
-                        ? [const Color(0xFFD1FAE5), const Color(0xFFA7F3D0)]
-                        : [const Color(0xFFFFE4E6), const Color(0xFFFCA5A5)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isIngreso
+                          ? [const Color(0xFFD1FAE5), const Color(0xFFA7F3D0)]
+                          : [const Color(0xFFFFE4E6), const Color(0xFFFCA5A5)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isIngreso
+                          ? const Color(0xFF6EE7B7)
+                          : const Color(0xFFFCA5A5),
+                      width: 0.8,
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isIngreso
-                        ? const Color(0xFF6EE7B7)
-                        : const Color(0xFFFCA5A5),
-                    width: 0.8,
+                  child: Text(
+                    isIngreso ? 'Ingreso' : 'Gasto',
+                    style: TextStyle(
+                      color: isIngreso
+                          ? const Color(0xFF059669)
+                          : const Color(0xFFDC2626),
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-                child: Text(
-                  isIngreso ? 'Ingreso' : 'Gasto',
-                  style: TextStyle(
-                    color: isIngreso
-                        ? const Color(0xFF059669)
-                        : const Color(0xFFDC2626),
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w800,
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: () => _confirmEliminarMovimiento(m),
+                  child: Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEE2E2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded,
+                        size: 14, color: Color(0xFFDC2626)),
                   ),
                 ),
-              ),
+              ]),
             ],
           ),
         ]),
@@ -9166,55 +9820,207 @@ class _HomeScreenState extends State<HomeScreen>
     ]);
   }
 
+  Future<void> _confirmEliminarMovimiento(Map<String, dynamic> m) async {
+    final ctx = context;
+    final desc = (m['descripcion'] ?? 'este movimiento').toString();
+    // PK field is 'codigo' as returned by listar_movimientos_cuenta.php
+    final cod = (m['codigo'] ??
+            m['codigo_movimiento'] ??
+            m['id'] ??
+            '')
+        .toString()
+        .trim();
+
+    final confirmed = await showDialog<bool>(
+      context: ctx,
+      builder: (dCtx) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.delete_outline_rounded,
+                  color: Colors.white, size: 28),
+            ),
+            const SizedBox(height: 16),
+            const Text('¿Eliminar movimiento?',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
+                    color: Color(0xFF0D1B4B))),
+            const SizedBox(height: 8),
+            Text(
+              desc,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            ),
+            const SizedBox(height: 6),
+            const Text('Esta acción no se puede deshacer.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
+            const SizedBox(height: 22),
+            Row(children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(dCtx, false),
+                  child: Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Center(
+                      child: Text('Cancelar',
+                          style: TextStyle(fontWeight: FontWeight.w700,
+                              color: Color(0xFF374151))),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(dCtx, true),
+                  child: Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                          colors: [Color(0xFFDC2626), Color(0xFFEF4444)]),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [BoxShadow(
+                          color: const Color(0xFFDC2626).withValues(alpha: 0.35),
+                          blurRadius: 10, offset: const Offset(0, 4))],
+                    ),
+                    child: const Center(
+                      child: Text('Eliminar',
+                          style: TextStyle(fontWeight: FontWeight.w700,
+                              color: Colors.white)),
+                    ),
+                  ),
+                ),
+              ),
+            ]),
+          ]),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return;
+    debugPrint('[SAF] eliminar movimiento keys: ${m.keys.toList()} cod=$cod');
+    if (cod.isEmpty) {
+      debugPrint('[SAF] No se encontró el código del movimiento');
+      return;
+    }
+    try {
+      await _api.post('/ajax/actualizar_registro.php', {
+        'tabla': 'tbl_movimientos',
+        'filtro': 'codigo_movimiento=$cod',
+        'modo': 'eliminar',
+      });
+      if (mounted) {
+        setState(() {
+          _movimientos.removeWhere(
+              (x) => (x['codigo'] ?? x['codigo_movimiento'] ?? x['id'] ?? '')
+                      .toString()
+                      .trim() ==
+                  cod);
+        });
+      }
+    } catch (e) {
+      debugPrint('[SAF] eliminar movimiento: $e');
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════
   //  ESTADÍSTICA TAB
   // ══════════════════════════════════════════════════════════════
   // Definición de las 8 sub-pestañas: (título, codigo_consulta, columnas)
   // Cada columna: (encabezado, clave en el JSON, alineadoDerecha)
-  static const List<
-      (String, String, List<(String, String, bool)>)> _estTabs = [
-    ('Pagan Puntual', 'json_est_pagan_puntual', [
-      ('Cliente', 'cliente', false),
-      ('Créditos', 'cantidad', true),
-      ('A tiempo', 'puntuales', true),
-      ('% Puntual', 'porcentaje', true),
-    ]),
-    ('Más Créditos', 'json_est_mas_creditos', [
-      ('Cliente', 'cliente', false),
-      ('Cantidad', 'cantidad', true),
-      ('Monto Total', 'monto', true),
-    ]),
-    ('Mayor Monto', 'json_est_mayor_monto', [
-      ('Cliente', 'cliente', false),
-      ('Créditos', 'cantidad', true),
-      ('Monto Total', 'monto', true),
-    ]),
-    ('Mayor Antigüedad', 'json_est_mayor_antiguedad', [
-      ('Cliente', 'cliente', false),
-      ('Primer Crédito', 'fecha', false),
-      ('Antigüedad', 'antiguedad', true),
-    ]),
-    ('Más Retrasos', 'json_est_mas_retrasos', [
-      ('Cliente', 'cliente', false),
-      ('Créditos', 'cantidad', true),
-      ('Retrasos', 'retrasos', true),
-    ]),
-    ('Nuevos Clientes', 'json_est_nuevos_clientes', [
-      ('Cliente', 'cliente', false),
-      ('Fecha Ingreso', 'fecha', false),
-      ('Primer Monto', 'monto', true),
-    ]),
-    ('Mejor Scoring', 'listado_mejor_scoring', [
-      ('Cliente', 'cliente', false),
-      ('Cantidad de Créditos', 'cantidad_creditos', true),
-      ('Puntaje Total', 'puntaje_total', true),
-      ('Índice Promedio', 'indice_promedio', true),
-    ]),
-    ('Pagos Anticipados', 'json_est_pagos_anticipados', [
-      ('Cliente', 'cliente', false),
-      ('Créditos', 'cantidad', true),
-      ('Anticipados', 'anticipados', true),
-    ]),
+  static const List<(String, String, List<(String, String, bool)>)> _estTabs = [
+    (
+      'Pagan Puntual',
+      'json_est_pagan_puntual',
+      [
+        ('Cliente', 'cliente', false),
+        ('Créditos', 'cantidad', true),
+        ('A tiempo', 'puntuales', true),
+        ('% Puntual', 'porcentaje', true),
+      ]
+    ),
+    (
+      'Más Créditos',
+      'json_est_mas_creditos',
+      [
+        ('Cliente', 'cliente', false),
+        ('Cantidad', 'cantidad', true),
+        ('Monto Total', 'monto', true),
+      ]
+    ),
+    (
+      'Mayor Monto',
+      'json_est_mayor_monto',
+      [
+        ('Cliente', 'cliente', false),
+        ('Créditos', 'cantidad', true),
+        ('Monto Total', 'monto', true),
+      ]
+    ),
+    (
+      'Mayor Antigüedad',
+      'json_est_mayor_antiguedad',
+      [
+        ('Cliente', 'cliente', false),
+        ('Primer Crédito', 'fecha', false),
+        ('Antigüedad', 'antiguedad', true),
+      ]
+    ),
+    (
+      'Más Retrasos',
+      'json_est_mas_retrasos',
+      [
+        ('Cliente', 'cliente', false),
+        ('Créditos', 'cantidad', true),
+        ('Retrasos', 'retrasos', true),
+      ]
+    ),
+    (
+      'Nuevos Clientes',
+      'json_est_nuevos_clientes',
+      [
+        ('Cliente', 'cliente', false),
+        ('Fecha Ingreso', 'fecha', false),
+        ('Primer Monto', 'monto', true),
+      ]
+    ),
+    (
+      'Mejor Scoring',
+      'listado_mejor_scoring',
+      [
+        ('Cliente', 'cliente', false),
+        ('Cantidad de Créditos', 'cantidad_creditos', true),
+        ('Puntaje Total', 'puntaje_total', true),
+        ('Índice Promedio', 'indice_promedio', true),
+      ]
+    ),
+    (
+      'Pagos Anticipados',
+      'json_est_pagos_anticipados',
+      [
+        ('Cliente', 'cliente', false),
+        ('Créditos', 'cantidad', true),
+        ('Anticipados', 'anticipados', true),
+      ]
+    ),
   ];
 
   Widget _estadisticaTab() {
@@ -9366,9 +10172,8 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _estFiltroInput((String, String, bool) col) {
     const navy = Color(0xFF0D1B4B);
     final esCliente = col.$2 == 'cliente';
-    final hint = esCliente
-        ? 'Buscar cliente'
-        : 'Filtrar ${col.$1.toLowerCase()}';
+    final hint =
+        esCliente ? 'Buscar cliente' : 'Filtrar ${col.$1.toLowerCase()}';
     return TextField(
       // El key incluye la pestaña: al cambiar de sub-pestaña el campo se
       // recrea vacío (sin necesidad de un controller que haya que liberar).
@@ -9483,7 +10288,12 @@ class _HomeScreenState extends State<HomeScreen>
                 borderRadius: BorderRadius.circular(9),
               ),
               child: rank <= 3
-                  ? Text(rank == 1 ? '🥇' : rank == 2 ? '🥈' : '🥉',
+                  ? Text(
+                      rank == 1
+                          ? '🥇'
+                          : rank == 2
+                              ? '🥈'
+                              : '🥉',
                       style: const TextStyle(fontSize: 16))
                   : Text('$rank',
                       style: const TextStyle(
@@ -9495,9 +10305,7 @@ class _HomeScreenState extends State<HomeScreen>
             Expanded(
               child: Text(cliente,
                   style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: navy)),
+                      fontSize: 14, fontWeight: FontWeight.w700, color: navy)),
             ),
           ]),
           const SizedBox(height: 12),
@@ -9537,7 +10345,8 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Ventana de páginas a mostrar (máx 5 números alrededor de la actual)
     final List<int> numeros = [];
-    int desde = (pagina - 2).clamp(0, (totalPaginas - 5).clamp(0, totalPaginas));
+    int desde =
+        (pagina - 2).clamp(0, (totalPaginas - 5).clamp(0, totalPaginas));
     int hasta = (desde + 5).clamp(0, totalPaginas);
     for (var p = desde; p < hasta; p++) {
       numeros.add(p);
@@ -9782,9 +10591,9 @@ class _HomeScreenState extends State<HomeScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
+                  Expanded(
+                      child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(greeting,
@@ -9794,13 +10603,15 @@ class _HomeScreenState extends State<HomeScreen>
                           )),
                       const SizedBox(height: 2),
                       Text(name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
                           )),
                     ],
-                  ),
+                  )),
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -9942,94 +10753,94 @@ class _HomeScreenState extends State<HomeScreen>
   }) {
     final grad = gradient ?? [_accent1, _accent2];
     return Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: grad,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: grad,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: grad.first.withValues(alpha: 0.30),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: grad.first.withValues(alpha: 0.30),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Icon(icon, color: Colors.white, size: 19),
+            ],
           ),
-          const SizedBox(width: 11),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: _navy,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Color(0xFF8899BB),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (action != null && onAction != null)
-            GestureDetector(
-              onTap: onAction,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_accent1, _accent2],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _accent1.withValues(alpha: 0.28),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      action,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.arrow_forward_rounded,
-                        size: 13, color: Colors.white),
-                  ],
+          child: Icon(icon, color: Colors.white, size: 19),
+        ),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: _navy,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
                 ),
               ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: Color(0xFF8899BB),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (action != null && onAction != null)
+          GestureDetector(
+            onTap: onAction,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [_accent1, _accent2],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: _accent1.withValues(alpha: 0.28),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    action,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.arrow_forward_rounded,
+                      size: 13, color: Colors.white),
+                ],
+              ),
             ),
-        ],
-      );
+          ),
+      ],
+    );
   }
 
   Widget _summaryCard({
@@ -10038,155 +10849,145 @@ class _HomeScreenState extends State<HomeScreen>
     required String value,
     required Color color,
     required Color bgColor,
-    required String badge,
+    String? badge,
     Color? valueColor,
-  }) =>
-      TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0.0, end: 1.0),
-        duration: const Duration(milliseconds: 650),
-        curve: Curves.easeOutBack,
-        builder: (context, t, child) => Transform.scale(
-          scale: 0.90 + 0.10 * t,
-          child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
-        ),
-        child: Container(
-          width: double.infinity,
-          height: 128,
-          clipBehavior: Clip.hardEdge,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Color.lerp(Colors.white, bgColor, 0.15)!,
-                Color.lerp(Colors.white, bgColor, 0.65)!,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: color.withValues(alpha: 0.20)),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.20),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
+  }) {
+    final c1 = color;
+    final c2 = Color.lerp(color, Colors.black, 0.18)!;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutBack,
+      builder: (_, t, child) => Transform.scale(
+        scale: 0.88 + 0.12 * t,
+        child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
+      ),
+      child: Container(
+        width: double.infinity,
+        height: 130,
+        clipBehavior: Clip.hardEdge,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [c1, c2],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          child: Stack(
-            children: [
-              // Círculo grande esquina inferior derecha
-              Positioned(
-                right: -22,
-                bottom: -22,
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: color.withValues(alpha: 0.14),
-                  ),
-                ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: c1.withValues(alpha: 0.35),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Stack(children: [
+          // Large arc — top-right corner anchor
+          Positioned(
+            right: -45,
+            top: -45,
+            child: Container(
+              width: 130,
+              height: 130,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.10),
               ),
-              // Círculo mediano superior derecha
-              Positioned(
-                right: 18,
-                top: -16,
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: color.withValues(alpha: 0.09),
-                  ),
-                ),
+            ),
+          ),
+          // Inner arc — inset from top-right
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.08),
               ),
-              // Círculo pequeño medio
-              Positioned(
-                right: 48,
-                bottom: 18,
-                child: Container(
-                  width: 22,
-                  height: 22,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: color.withValues(alpha: 0.07),
-                  ),
-                ),
+            ),
+          ),
+          // Small dot — bottom left accent
+          Positioned(
+            left: -16,
+            bottom: -16,
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.07),
               ),
-              // Contenido
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.max,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(10),
-                          boxShadow: [
-                            BoxShadow(
-                              color: color.withValues(alpha: 0.40),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Icon(icon, color: Colors.white, size: 17),
+            ),
+          ),
+          // Content
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 13, 14, 13),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(11),
                       ),
+                      child: Icon(icon, color: Colors.white, size: 18),
+                    ),
+                    if (badge != null)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
+                            horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.65),
+                          color: Colors.white.withValues(alpha: 0.20),
                           borderRadius: BorderRadius.circular(20),
-                          border:
-                              Border.all(color: color.withValues(alpha: 0.20)),
                         ),
                         child: Text(
                           badge,
-                          style: TextStyle(
-                            color: color,
+                          style: const TextStyle(
+                            color: Colors.white,
                             fontSize: 9,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                    ],
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
-                  const Spacer(),
-                  Text(
-                    label,
+                ),
+                const SizedBox(height: 3),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
                     style: TextStyle(
-                      color: color.withValues(alpha: 0.68),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                      color: valueColor ?? Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      value,
-                      style: TextStyle(
-                        color: valueColor ?? color,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
-        ),
-      );
+        ]),
+      ),
+    );
+  }
 
   static const _cuentaPalette = [
     (Color(0xFF4361EE), Color(0xFF93C5FD)), // indigo → blue
@@ -10204,7 +11005,9 @@ class _HomeScreenState extends State<HomeScreen>
     final tipo = (c['tipo'] ?? c['type'] ?? '').toString().toLowerCase();
     final saldo = _num(c['saldo_actual'] ?? c['saldo'] ?? 0);
     final hexColor = (c['color'] ?? '').toString();
-    final color = hexColor.isNotEmpty ? _hexColor(hexColor) : _cuentaPalette[index % _cuentaPalette.length].$1;
+    final color = hexColor.isNotEmpty
+        ? _hexColor(hexColor)
+        : _cuentaPalette[index % _cuentaPalette.length].$1;
     final gradEnd = Color.lerp(color, Colors.white, 0.45)!;
 
     return Container(
@@ -10262,7 +11065,8 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                       ],
                     ),
-                    child: Icon(_cuentaIcon(tipo), color: Colors.white, size: 17),
+                    child:
+                        Icon(_cuentaIcon(tipo), color: Colors.white, size: 17),
                   ),
                   const Spacer(),
                   Container(
@@ -10313,8 +11117,8 @@ class _HomeScreenState extends State<HomeScreen>
     final cod = c['cod']?.toString() ?? '';
     final asesor = (() {
       final nombre = (c['asesor'] ?? '').toString().trim();
-      final cod    = (c['asesor_cod'] ?? '').toString().trim();
-      return nombre.isNotEmpty ? nombre : cod;
+      final aCod = (c['asesor_cod'] ?? '').toString().trim();
+      return nombre.isNotEmpty ? nombre : aCod;
     })();
     final nombre = (c['cliente'] ?? 'Cliente').toString();
     final monto = _num(c['valor_prestamo'] ?? 0);
@@ -10328,124 +11132,414 @@ class _HomeScreenState extends State<HomeScreen>
     final estado = (c['estado'] ?? 'Activo').toString();
     final activo = estado.toLowerCase().contains('activ');
 
-    // Determinar si está vencido: activo y proxima_fecha < hoy
     bool vencido = false;
     if (activo && proxima.isNotEmpty) {
       try {
-        final fechaProx = DateTime.parse(proxima);
-        vencido = fechaProx.isBefore(DateTime.now());
+        vencido = DateTime.parse(proxima).isBefore(DateTime.now());
       } catch (_) {}
     }
 
-    // Color de fondo: pagado=verde, activo vencido=rojo, activo al día=blanco
-    final cardBg = !activo
-        ? const Color(0xFFC8E6C9)   // pagado → verde
+    final cardKey = cod.isNotEmpty ? cod : nombre;
+    final expanded = _expandedCreditos.contains(cardKey);
+
+    final Color accent = !activo
+        ? const Color(0xFF16A34A)
         : vencido
-            ? const Color(0xFFFFCDD2) // activo vencido → rojo
-            : Colors.white;           // activo al día → blanco
-    final cardBorder = !activo
-        ? const Color(0xFFA5D6A7)
+            ? const Color(0xFFDC2626)
+            : _navy;
+
+    final Color cardBg = !activo
+        ? const Color(0xFFF0FDF4)
         : vencido
-            ? const Color(0xFFEF9A9A)
+            ? const Color(0xFFFFF5F5)
+            : Colors.white;
+
+    final Color borderColor = !activo
+        ? const Color(0xFF86EFAC)
+        : vencido
+            ? const Color(0xFFFCA5A5)
             : const Color(0xFFE2E8F0);
 
-    final estadoColor = !activo
+    final Color estadoColor = !activo
         ? const Color(0xFF16A34A)
         : vencido
             ? const Color(0xFFB71C1C)
-            : const Color(0xFF0D1B4B);
-    final estadoBg = !activo
-        ? const Color(0xFFD1FAE5)
+            : _navy;
+
+    final Color estadoBg = !activo
+        ? const Color(0xFFDCFCE7)
         : vencido
             ? const Color(0xFFFFEBEE)
             : const Color(0xFFF3F4F6);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cardBorder, width: 1),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 3))],
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Fila superior: nombre + estado
-        Row(children: [
-          Expanded(child: Text(nombre,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _navy))),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: estadoBg, borderRadius: BorderRadius.circular(8)),
-            child: Text(estado, style: TextStyle(color: estadoColor, fontSize: 11, fontWeight: FontWeight.w700)),
+    final initials = nombre
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .take(2)
+        .map((w) => w[0])
+        .join()
+        .toUpperCase();
+
+    final progress =
+        totalPagar > 0 ? (pagado / totalPagar).clamp(0.0, 1.0) : 0.0;
+
+    return GestureDetector(
+      onTap: () => setState(() => expanded
+          ? _expandedCreditos.remove(cardKey)
+          : _expandedCreditos.add(cardKey)),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: accent.withValues(alpha: expanded ? 0.12 : 0.05),
+              blurRadius: expanded ? 16 : 8,
+              offset: const Offset(0, 4),
+            )
+          ],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // ── Header (siempre visible) ──────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            child: Row(children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                    child: Text(initials,
+                        style: TextStyle(
+                            color: accent,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(nombre,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: _navy)),
+                    const SizedBox(height: 2),
+                    Row(children: [
+                      if (cod.isNotEmpty)
+                        Text('#$cod',
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF8899BB),
+                                fontWeight: FontWeight.w600)),
+                      if (cod.isNotEmpty && asesor.isNotEmpty)
+                        const SizedBox(width: 6),
+                      if (asesor.isNotEmpty)
+                        Flexible(
+                            child: Text('· $asesor',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 11, color: Color(0xFF8899BB)))),
+                    ]),
+                  ])),
+              const SizedBox(width: 8),
+              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                      color: estadoBg, borderRadius: BorderRadius.circular(8)),
+                  child: Text(estado,
+                      style: TextStyle(
+                          color: estadoColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(height: 6),
+                Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: const Color(0xFF8899BB),
+                    size: 18),
+              ]),
+            ]),
+          ),
+
+          // ── Pendiente + Próxima cuota ─────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+            child: Row(children: [
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    const Text('PENDIENTE',
+                        style: TextStyle(
+                            fontSize: 9,
+                            color: Color(0xFF8899BB),
+                            fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 2),
+                    Text(_cop(pendiente),
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: pendiente > 0
+                                ? const Color(0xFFDC2626)
+                                : const Color(0xFF16A34A))),
+                  ])),
+              if (proxima.isNotEmpty)
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  const Text('PRÓX. CUOTA',
+                      style: TextStyle(
+                          fontSize: 9,
+                          color: Color(0xFF8899BB),
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(proxima,
+                      style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: vencido ? const Color(0xFFDC2626) : _navy)),
+                ]),
+            ]),
+          ),
+
+          // ── Barra de progreso ─────────────────────────────────
+          if (totalPagar > 0)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('${(progress * 100).toStringAsFixed(0)}% pagado',
+                              style: const TextStyle(
+                                  fontSize: 9, color: Color(0xFF8899BB))),
+                          if (numCuotas.isNotEmpty || tipo.isNotEmpty)
+                            Text(
+                                [
+                                  if (numCuotas.isNotEmpty) '$numCuotas cuotas',
+                                  if (tipo.isNotEmpty) tipo
+                                ].join(' · '),
+                                style: const TextStyle(
+                                    fontSize: 9, color: Color(0xFF8899BB))),
+                        ]),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 5,
+                        backgroundColor: const Color(0xFFE2E8F0),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            progress >= 1.0 ? const Color(0xFF16A34A) : accent),
+                      ),
+                    ),
+                  ]),
+            ),
+
+          // ── Detalle expandido ─────────────────────────────────
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 14),
+                child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                child: Row(children: [
+                  Expanded(child: _statMini('Crédito', _cop(monto), _navy)),
+                  Expanded(
+                      child: _statMini('A Pagar', _cop(totalPagar), _navy)),
+                  Expanded(
+                      child: _statMini(
+                          'Pagado', _cop(pagado), const Color(0xFF16A34A))),
+                  Expanded(
+                      child: _statMini('Pendiente', _cop(pendiente),
+                          const Color(0xFFDC2626))),
+                ]),
+              ),
+              if (fecha.isNotEmpty || tipo.isNotEmpty || numCuotas.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                  child: Wrap(spacing: 6, runSpacing: 6, children: [
+                    if (fecha.isNotEmpty)
+                      _infoBadge(Icons.calendar_today_rounded, fecha),
+                    if (tipo.isNotEmpty) _infoBadge(Icons.repeat_rounded, tipo),
+                    if (numCuotas.isNotEmpty)
+                      _infoBadge(Icons.format_list_numbered_rounded,
+                          '$numCuotas cuotas'),
+                  ]),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                child: Row(children: [
+                  Expanded(
+                      child: _miniActionBtn(Icons.list_alt_rounded, 'Cuotas',
+                          _navy, () => _showCuotasDialog(c))),
+                  const SizedBox(width: 6),
+                  _whatsAppBtn(() => _enviarRecordatorioWhatsApp(c)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                      child: _miniActionBtn(
+                          Icons.verified_outlined,
+                          'Paz y Salvo',
+                          const Color(0xFF2563EB),
+                          () => _showPazYSalvoDialog(c))),
+                  const SizedBox(width: 6),
+                  _miniIconBtn(
+                      Icons.delete_outline_rounded,
+                      const Color(0xFFDC2626),
+                      () => _confirmarEliminarCredito(c)),
+                ]),
+              ),
+            ]),
+            crossFadeState:
+                expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
           ),
         ]),
-        const SizedBox(height: 6),
-        // Cod · Asesor · Fecha · Tipo · Cuotas
-        Wrap(spacing: 12, runSpacing: 2, children: [
-          if (cod.isNotEmpty) _cTag('Cód', '#$cod'),
-          if (asesor.isNotEmpty) _cTag('Asesor', asesor),
-          if (fecha.isNotEmpty) _cTag('Fecha', fecha),
-          if (tipo.isNotEmpty) _cTag('Tipo', tipo),
-          if (numCuotas.isNotEmpty) _cTag('Cuotas', numCuotas),
-        ]),
-        const SizedBox(height: 8),
-        const Divider(height: 1, color: Color(0xFFE2E8F0)),
-        const SizedBox(height: 8),
-        // Montos
-        Row(children: [
-          Expanded(child: _cMonto('Crédito', monto, _navy)),
-          Expanded(child: _cMonto('A pagar', totalPagar, _navy)),
-          Expanded(child: _cMonto('Pagado', pagado, const Color(0xFF16A34A))),
-          Expanded(child: _cMonto('Pendiente', pendiente, const Color(0xFFDC2626))),
-        ]),
-        if (proxima.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text('Próx. cuota: $proxima',
-              style: const TextStyle(fontSize: 10, color: Color(0xFF8899BB))),
-        ],
-        const SizedBox(height: 8),
-        const Divider(height: 1, color: Color(0xFFD1D5DB)),
-        const SizedBox(height: 8),
-        // Botones de acción
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          _accionBtn(Icons.list_alt_rounded, 'Cuotas', const Color(0xFF3B3B8A),
-              () => _showCuotasDialog(c)),
-          _whatsAppBtn(() => _enviarRecordatorioWhatsApp(c)),
-          _accionBtn(Icons.cancel_outlined, 'Eliminar', const Color(0xFFDC2626),
-              () => _confirmarEliminarCredito(c)),
-          _accionBtn(Icons.verified_outlined, 'Paz y Salvo', const Color(0xFF2563EB),
-              () => _showPazYSalvoDialog(c)),
-        ]),
-      ]),
+      ),
     );
   }
 
+  Widget _statMini(String label, String value, Color color) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 9,
+                color: Color(0xFF8899BB),
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 2),
+        Text(value,
+            style: TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w800, color: color)),
+      ]);
+
+  Widget _infoBadge(IconData icon, String text) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+          color: const Color(0xFFF0F2FA),
+          borderRadius: BorderRadius.circular(8)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 10, color: const Color(0xFF8899BB)),
+        const SizedBox(width: 4),
+        Text(text,
+            style: const TextStyle(
+                fontSize: 10, color: _navy, fontWeight: FontWeight.w600)),
+      ]));
+
+  Widget _miniActionBtn(
+      IconData icon, String label, Color color, VoidCallback onTap) {
+    final colorDark = Color.lerp(color, Colors.black, 0.22) ?? color;
+    return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 34,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+                colors: [color, colorDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                  color: colorDark.withValues(alpha: 0.45),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4))
+            ],
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, size: 13, color: Colors.white),
+            const SizedBox(width: 5),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white)),
+          ]),
+        ));
+  }
+
+  Widget _miniIconBtn(IconData icon, Color color, VoidCallback onTap) {
+    final colorDark = Color.lerp(color, Colors.black, 0.22) ?? color;
+    return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+                colors: [color, colorDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                  color: colorDark.withValues(alpha: 0.45),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4))
+            ],
+          ),
+          child: Icon(icon, size: 16, color: Colors.white),
+        ));
+  }
+
   Widget _pendienteCard(Map<String, dynamic> p) {
-    final cod         = (p['codigo_solicitud'] ?? p['cod'] ?? '').toString();
-    final solicitante = ([p['nombres'], p['apellidos']].where((x) => x != null && x.toString().isNotEmpty).join(' ')).trim();
-    final doc         = (p['num_documento'] ?? p['documento'] ?? '').toString();
-    final email       = (p['email'] ?? p['correo'] ?? '').toString();
-    final tel         = (p['telefono'] ?? '').toString();
-    final valor       = _num(p['valor_solicitado'] ?? p['valor_prestamo'] ?? 0);
-    final numCuotas   = (p['num_cuotas'] ?? '').toString();
-    final tiempoRaw   = (p['tiempo_cuota'] ?? p['tipo_cuota'] ?? '').toString();
-    final tipo = tiempoRaw == '1' ? 'Mensual' : tiempoRaw == '2' ? 'Quincenal'
-               : tiempoRaw == '4' ? 'Semanal'  : tiempoRaw == '30' ? 'Diario' : tiempoRaw;
-    final interes     = (p['tasa_interes'] ?? p['interes'] ?? '').toString();
+    final cod = (p['codigo_solicitud'] ?? p['cod'] ?? '').toString();
+    final solicitante = ([p['nombres'], p['apellidos']]
+            .where((x) => x != null && x.toString().isNotEmpty)
+            .join(' '))
+        .trim();
+    final doc = (p['num_documento'] ?? p['documento'] ?? '').toString();
+    final email = (p['email'] ?? p['correo'] ?? '').toString();
+    final tel = (p['telefono'] ?? '').toString();
+    final valor = _num(p['valor_solicitado'] ?? p['valor_prestamo'] ?? 0);
+    final numCuotas = (p['num_cuotas'] ?? '').toString();
+    final tiempoRaw = (p['tiempo_cuota'] ?? p['tipo_cuota'] ?? '').toString();
+    final tipo = tiempoRaw == '1'
+        ? 'Mensual'
+        : tiempoRaw == '2'
+            ? 'Quincenal'
+            : tiempoRaw == '4'
+                ? 'Semanal'
+                : tiempoRaw == '30'
+                    ? 'Diario'
+                    : tiempoRaw;
+    final interes = (p['tasa_interes'] ?? p['interes'] ?? '').toString();
     final codigoAsesor = (p['codigo_asesor'] ?? '').toString().trim();
     final nombreAsesor = (p['nombre_asesor'] ?? codigoAsesor).toString().trim();
-    final estadoCod   = int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0;
+    final estadoCod = int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0;
 
     // Verde = asesor asignado, Rojo = rechazado (estado 3), Blanco = pendiente
     final tieneAsesor = codigoAsesor.isNotEmpty;
-    final rechazado   = estadoCod == 3;
-    final cardBg = rechazado   ? const Color(0xFFFFCDD2)
-                 : tieneAsesor ? const Color(0xFFC8E6C9)
-                 : Colors.white;
-    final cardBorder = rechazado   ? const Color(0xFFEF9A9A)
-                     : tieneAsesor ? const Color(0xFFA5D6A7)
-                     : const Color(0xFFE2E8F0);
+    final rechazado = estadoCod == 3;
+    final cardBg = rechazado
+        ? const Color(0xFFFFCDD2)
+        : tieneAsesor
+            ? const Color(0xFFC8E6C9)
+            : Colors.white;
+    final cardBorder = rechazado
+        ? const Color(0xFFEF9A9A)
+        : tieneAsesor
+            ? const Color(0xFFA5D6A7)
+            : const Color(0xFFE2E8F0);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -10454,64 +11548,526 @@ class _HomeScreenState extends State<HomeScreen>
         color: cardBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: cardBorder, width: 1),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 3))
+        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Nombre + cod
         Row(children: [
-          Expanded(child: Text(solicitante.isNotEmpty ? solicitante : 'Sin nombre',
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _navy))),
+          Expanded(
+              child: Text(solicitante.isNotEmpty ? solicitante : 'Sin nombre',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: _navy))),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(8)),
-            child: Text('#$cod', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w700)),
+            decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8)),
+            child: Text('#$cod',
+                style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700)),
           ),
         ]),
         const SizedBox(height: 6),
         Wrap(spacing: 12, runSpacing: 2, children: [
-          if (doc.isNotEmpty)    _cTag('Doc', doc),
-          if (tel.isNotEmpty)    _cTag('Tel', tel),
-          if (tipo.isNotEmpty)   _cTag('Tipo', tipo),
+          if (doc.isNotEmpty) _cTag('Doc', doc),
+          if (tel.isNotEmpty) _cTag('Tel', tel),
+          if (tipo.isNotEmpty) _cTag('Tipo', tipo),
           if (numCuotas.isNotEmpty) _cTag('Cuotas', numCuotas),
           if (interes.isNotEmpty) _cTag('Interés', '$interes%'),
           if (nombreAsesor.isNotEmpty) _cTag('Asesor', nombreAsesor),
         ]),
         if (email.isNotEmpty) ...[
           const SizedBox(height: 4),
-          Text(email, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+          Text(email,
+              style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
         ],
         const SizedBox(height: 8),
         const Divider(height: 1, color: Color(0xFFD1D5DB)),
         const SizedBox(height: 8),
         // Valor + botones según estado
         Row(children: [
-          Text(_cop(valor),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _navy)),
-          const Spacer(),
+          Expanded(
+              child: Text(_cop(valor),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: _navy))),
+          // Lápiz editar (siempre visible)
+          _miniIconBtn(
+              Icons.edit_rounded, _navy, () => _showEditarSolicitudDialog(p)),
+          const SizedBox(width: 8),
           // Aprobado (verde): solo Rechazar
           if (tieneAsesor && !rechazado)
-            _accionBtn(Icons.cancel_outlined, 'Rechazar', const Color(0xFFDC2626),
-                () => _rechazarSolicitud(p))
+            _accionBtn(Icons.cancel_outlined, 'Rechazar',
+                const Color(0xFFDC2626), () => _rechazarSolicitud(p))
           // Rechazado (rojo): solo Aprobar
           else if (rechazado)
-            _accionBtn(Icons.check_circle_outline_rounded, 'Aprobar', const Color(0xFF16A34A),
-                () => _aprobarSolicitud(p))
+            _accionBtn(Icons.check_circle_outline_rounded, 'Aprobar',
+                const Color(0xFF16A34A), () => _aprobarSolicitud(p))
           // Pendiente (blanco): Aprobar + Rechazar
           else ...[
-            _accionBtn(Icons.check_circle_outline_rounded, 'Aprobar', const Color(0xFF16A34A),
-                () => _aprobarSolicitud(p)),
+            _accionBtn(Icons.check_circle_outline_rounded, 'Aprobar',
+                const Color(0xFF16A34A), () => _aprobarSolicitud(p)),
             const SizedBox(width: 8),
-            _accionBtn(Icons.cancel_outlined, 'Rechazar', const Color(0xFFDC2626),
-                () => _rechazarSolicitud(p)),
+            _accionBtn(Icons.cancel_outlined, 'Rechazar',
+                const Color(0xFFDC2626), () => _rechazarSolicitud(p)),
           ],
         ]),
       ]),
     );
   }
 
+  void _showEditarSolicitudDialog(Map<String, dynamic> p) {
+    final formKey = GlobalKey<FormState>();
+    final cod = (p['codigo_solicitud'] ?? '').toString();
+    final docCtrl = TextEditingController(
+        text: (p['num_documento'] ?? p['documento'] ?? '').toString());
+    final nombresCtrl =
+        TextEditingController(text: (p['nombres'] ?? '').toString().trim());
+    final apellidosCtrl =
+        TextEditingController(text: (p['apellidos'] ?? '').toString().trim());
+    final dirCtrl =
+        TextEditingController(text: (p['direccion'] ?? '').toString());
+    final emailCtrl = TextEditingController(
+        text: (p['email'] ?? p['correo'] ?? '').toString());
+    final telCtrl =
+        TextEditingController(text: (p['telefono'] ?? '').toString());
+    final valorCtrl = TextEditingController(
+        text: (p['valor_solicitado'] ?? p['valor_prestamo'] ?? '').toString());
+    final cuotasCtrl =
+        TextEditingController(text: (p['num_cuotas'] ?? '').toString());
+
+    // Asesor
+    final asesorRaw = (p['codigo_asesor'] ?? '').toString().trim();
+    String? selectedAsesor = asesorRaw.isEmpty ? null : asesorRaw;
+
+    // Tiempo cuota: código → label
+    final tiempoRaw = (p['tiempo_cuota'] ?? p['tipo_cuota'] ?? '').toString();
+    String? selectedTiempo = tiempoRaw == '1'
+        ? 'Mensual'
+        : tiempoRaw == '2'
+            ? 'Quincenal'
+            : tiempoRaw == '4'
+                ? 'Semanal'
+                : tiempoRaw == '30'
+                    ? 'Diario'
+                    : tiempoRaw.isNotEmpty
+                        ? tiempoRaw
+                        : null;
+    const tiempoOpciones = ['Mensual', 'Quincenal', 'Semanal', 'Diario'];
+    const tiempoMap = {
+      'Mensual': '1',
+      'Quincenal': '2',
+      'Semanal': '4',
+      'Diario': '30'
+    };
+
+    // Fuente
+    final fuenteRaw =
+        (p['codigo_fuente'] ?? p['fuente'] ?? '').toString().trim();
+    String? selectedFuente = fuenteRaw.isEmpty ? null : fuenteRaw;
+
+    bool saving = false;
+    bool listsLoaded = _fuentesLista.isNotEmpty;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        if (!listsLoaded) {
+          listsLoaded = true;
+          Future(() async {
+            await Future.wait([
+              if (_fuentesLista.isEmpty) _fetchFuentes(),
+              if (_asesoresLista.isEmpty) _fetchAsesores(),
+            ]);
+            if (ctx.mounted) setS(() {});
+          });
+        }
+
+        List<String> fuenteOpciones() {
+          if (_fuentesLista.isNotEmpty) {
+            return _fuentesLista
+                .map((f) => (f['fuente'] ?? f['nombre'] ?? '').toString())
+                .where((f) => f.isNotEmpty)
+                .toList();
+          }
+          return [
+            'Davivienda',
+            'Bancolombia',
+            'Daviplata',
+            'Nequi',
+            'Efectivo',
+            'Préstamos',
+            'SAF Ahorros'
+          ];
+        }
+
+        Future<void> grabar() async {
+          if (!formKey.currentState!.validate()) return;
+          setS(() => saving = true);
+          try {
+            final tiempoCod = tiempoMap[selectedTiempo] ?? selectedTiempo ?? '';
+            final r = await _api.post('/ajax/actualizar_registro.php', {
+              'tabla': 'tbl_solicitudes_credito',
+              'filtro': 'codigo_solicitud=$cod',
+              'modo': 'editar',
+              'codigo_asesor': selectedAsesor ?? '',
+              'num_documento': docCtrl.text.trim(),
+              'nombres': nombresCtrl.text.trim(),
+              'apellidos': apellidosCtrl.text.trim(),
+              'direccion': dirCtrl.text.trim(),
+              'email': emailCtrl.text.trim(),
+              'telefono': telCtrl.text.trim(),
+              'fuente': selectedFuente ?? '',
+              'valor_solicitado': valorCtrl.text.trim(),
+              'tiempo_cuota': tiempoCod,
+              'num_cuotas': cuotasCtrl.text.trim(),
+            });
+            final ok =
+                r.statusCode == 200 && !r.body.toLowerCase().contains('error');
+            if (ctx.mounted) Navigator.pop(ctx);
+            if (mounted) {
+              showDialog(
+                  context: context,
+                  builder: (_) => _resultDialog(
+                      ok
+                          ? 'Solicitud actualizada correctamente'
+                          : r.body.trim(),
+                      ok));
+              if (ok) {
+                await _fetchPendientes();
+                if (mounted) setState(() {});
+              }
+            }
+          } catch (e) {
+            setS(() => saving = false);
+            if (ctx.mounted) {
+              showDialog(
+                  context: ctx,
+                  builder: (_) => _resultDialog('Error: $e', false));
+            }
+          }
+        }
+
+        // Helpers de estilo
+        const indigo = Color(0xFF0D1B4B);
+        const accentBlue = Color(0xFF1A3170);
+        const borderCol = Color(0xFFE2E8F0);
+        const hintCol = Color(0xFF94A3B8);
+        const bgField = Color(0xFFF8F9FC);
+
+        InputDecoration fieldDeco(String label, IconData icon) =>
+            InputDecoration(
+              labelText: label,
+              labelStyle: const TextStyle(fontSize: 12, color: hintCol),
+              prefixIcon: Icon(icon, size: 16, color: hintCol),
+              filled: true,
+              fillColor: bgField,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: borderCol)),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: borderCol)),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: accentBlue, width: 1.5)),
+              errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFEF4444))),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              isDense: true,
+            );
+
+        Widget field(String label, TextEditingController ctrl, IconData icon,
+                {TextInputType? kb, bool required = false}) =>
+            Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: TextFormField(
+                  controller: ctrl,
+                  keyboardType: kb,
+                  decoration: fieldDeco(label, icon),
+                  style: const TextStyle(fontSize: 13, color: _navy),
+                  validator: required
+                      ? (v) =>
+                          (v == null || v.trim().isEmpty) ? 'Requerido' : null
+                      : null,
+                ));
+
+        Widget dropdown<T>(String label, IconData icon, T? val,
+                List<DropdownMenuItem<T>> items, ValueChanged<T?> onChange) =>
+            Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: DropdownButtonFormField<T>(
+                  initialValue: val,
+                  items: items,
+                  onChanged: onChange,
+                  decoration: fieldDeco(label, icon),
+                  dropdownColor: Colors.white,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                      size: 18, color: hintCol),
+                  style: const TextStyle(fontSize: 13, color: _navy),
+                ));
+
+        Widget sectionLabel(String text) => Padding(
+            padding: const EdgeInsets.only(top: 6, bottom: 10),
+            child: Row(children: [
+              Container(
+                  width: 3,
+                  height: 14,
+                  decoration: BoxDecoration(
+                      color: indigo, borderRadius: BorderRadius.circular(2))),
+              const SizedBox(width: 7),
+              Text(text.toUpperCase(),
+                  style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: hintCol,
+                      letterSpacing: 0.8)),
+            ]));
+
+        Widget rowFields(Widget a, Widget b) =>
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(child: a),
+              const SizedBox(width: 10),
+              Expanded(child: b)
+            ]);
+
+        return Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+                maxWidth: min(440, MediaQuery.of(ctx).size.width - 32),
+                maxHeight: MediaQuery.of(ctx).size.height * 0.92),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                // ── Gradient header ──
+                Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                        colors: [Color(0xFF0D1B4B), Color(0xFF1A3170)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                  child: Row(children: [
+                    Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.edit_rounded,
+                            color: Colors.white, size: 18)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          const Text('Edición de Solicitud',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white)),
+                          Text('Solicitud #$cod',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.white.withValues(alpha: 0.75))),
+                        ])),
+                    GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8)),
+                            child: const Icon(Icons.close,
+                                size: 16, color: Colors.white))),
+                  ]),
+                ),
+
+                // ── Body ──
+                Flexible(
+                    child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                  child: Form(
+                    key: formKey,
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Asesor
+                          sectionLabel('Asignación'),
+                          dropdown<String>(
+                              'Asesor',
+                              Icons.person_outline_rounded,
+                              selectedAsesor,
+                              [
+                                const DropdownMenuItem(
+                                    value: null, child: Text('[Sin asignar]')),
+                                ..._asesoresLista.map((a) {
+                                  final sigla =
+                                      (a['sigla'] ?? a['codigo_asesor'] ?? '')
+                                          .toString();
+                                  final nombre = ([a['nombres'], a['apellidos']]
+                                          .where((x) =>
+                                              x != null &&
+                                              x.toString().isNotEmpty)
+                                          .join(' '))
+                                      .trim();
+                                  return DropdownMenuItem(
+                                      value: sigla,
+                                      child: Text(
+                                          nombre.isNotEmpty ? nombre : sigla,
+                                          overflow: TextOverflow.ellipsis));
+                                }),
+                              ],
+                              (v) => setS(() => selectedAsesor = v)),
+
+                          // Datos personales
+                          sectionLabel('Datos personales'),
+                          field('N° Documento', docCtrl, Icons.badge_outlined,
+                              kb: TextInputType.number),
+                          rowFields(
+                            field('Nombres', nombresCtrl,
+                                Icons.drive_file_rename_outline_rounded,
+                                required: true),
+                            field('Apellidos', apellidosCtrl,
+                                Icons.drive_file_rename_outline_rounded,
+                                required: true),
+                          ),
+                          field(
+                              'Dirección', dirCtrl, Icons.location_on_outlined),
+
+                          // Contacto
+                          sectionLabel('Contacto'),
+                          rowFields(
+                            field('Email', emailCtrl, Icons.email_outlined,
+                                kb: TextInputType.emailAddress),
+                            field('Teléfono', telCtrl, Icons.phone_outlined,
+                                kb: TextInputType.phone),
+                          ),
+
+                          // Crédito
+                          sectionLabel('Crédito'),
+                          dropdown<String>(
+                              'Fuente',
+                              Icons.account_balance_outlined,
+                              selectedFuente,
+                              [
+                                const DropdownMenuItem(
+                                    value: null, child: Text('[Seleccione]')),
+                                ...fuenteOpciones().map((f) =>
+                                    DropdownMenuItem(value: f, child: Text(f))),
+                              ],
+                              (v) => setS(() => selectedFuente = v)),
+
+                          field('Valor Solicitado', valorCtrl,
+                              Icons.attach_money_rounded,
+                              kb: TextInputType.number, required: true),
+                          rowFields(
+                            dropdown<String>(
+                                'Tiempo Cuotas',
+                                Icons.schedule_rounded,
+                                selectedTiempo,
+                                tiempoOpciones
+                                    .map((t) => DropdownMenuItem(
+                                        value: t, child: Text(t)))
+                                    .toList(),
+                                (v) => setS(() => selectedTiempo = v)),
+                            field('N° Cuotas', cuotasCtrl,
+                                Icons.format_list_numbered_rounded,
+                                kb: TextInputType.number),
+                          ),
+
+                          const SizedBox(height: 16),
+                          // ── Botones ──
+                          Row(children: [
+                            Expanded(
+                                child: OutlinedButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: borderCol),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 13),
+                              ),
+                              child: const Text('Cerrar',
+                                  style: TextStyle(
+                                      color: hintCol,
+                                      fontWeight: FontWeight.w600)),
+                            )),
+                            const SizedBox(width: 10),
+                            Expanded(
+                                child: GestureDetector(
+                              onTap: saving ? null : grabar,
+                              child: Container(
+                                height: 46,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                      colors: [accentBlue, indigo],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight),
+                                  borderRadius: BorderRadius.circular(12),
+                                  boxShadow: [
+                                    BoxShadow(
+                                        color: indigo.withValues(alpha: 0.45),
+                                        blurRadius: 12,
+                                        offset: const Offset(0, 4))
+                                  ],
+                                ),
+                                child: Center(
+                                    child: saving
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                valueColor:
+                                                    AlwaysStoppedAnimation(
+                                                        Colors.white)))
+                                        : const Text('Grabar',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 14))),
+                              ),
+                            )),
+                          ]),
+                        ]),
+                  ),
+                )),
+              ]),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
   Future<void> _aprobarSolicitud(Map<String, dynamic> p) async {
-    final cod    = (p['codigo_solicitud'] ?? '').toString();
-    String? asesorSel = _creditoFiltroAsesor.isNotEmpty ? _creditoFiltroAsesor : null;
+    final cod = (p['codigo_solicitud'] ?? '').toString();
+    String? asesorSel =
+        _creditoFiltroAsesor.isNotEmpty ? _creditoFiltroAsesor : null;
 
     // Si no hay asesor preseleccionado, pedir al usuario
     if (asesorSel == null && _asesoresLista.isNotEmpty) {
@@ -10519,36 +12075,56 @@ class _HomeScreenState extends State<HomeScreen>
         context: context,
         builder: (ctx) {
           String? tmp = _asesoresLista.first['sigla']?.toString() ?? '';
-          return StatefulBuilder(builder: (ctx, setS) => AlertDialog(
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('Asignar asesor', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0D1B4B))),
-            content: InputDecorator(
-              decoration: const InputDecoration(labelText: 'Asesor', border: OutlineInputBorder()),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: tmp,
-                  dropdownColor: Colors.white,
-                  isExpanded: true,
-                  items: _asesoresLista.map((a) {
-                    final sigla  = (a['sigla'] ?? a['codigo_asesor'] ?? '').toString();
-                    final nombre = ([a['nombres'], a['apellidos']].where((x) => x != null && x.toString().isNotEmpty).join(' ')).trim();
-                    return DropdownMenuItem(value: sigla, child: Text(nombre.isNotEmpty ? nombre : sigla));
-                  }).toList(),
-                  onChanged: (v) => setS(() => tmp = v),
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF16A34A), foregroundColor: Colors.white),
-                onPressed: () => Navigator.pop(ctx, tmp),
-                child: const Text('Aprobar'),
-              ),
-            ],
-          ));
+          return StatefulBuilder(
+              builder: (ctx, setS) => AlertDialog(
+                    backgroundColor: Colors.white,
+                    surfaceTintColor: Colors.transparent,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    title: const Text('Asignar asesor',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0D1B4B))),
+                    content: InputDecorator(
+                      decoration: const InputDecoration(
+                          labelText: 'Asesor', border: OutlineInputBorder()),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: tmp,
+                          dropdownColor: Colors.white,
+                          isExpanded: true,
+                          items: _asesoresLista.map((a) {
+                            final sigla =
+                                (a['sigla'] ?? a['codigo_asesor'] ?? '')
+                                    .toString();
+                            final nombre = ([a['nombres'], a['apellidos']]
+                                    .where((x) =>
+                                        x != null && x.toString().isNotEmpty)
+                                    .join(' '))
+                                .trim();
+                            return DropdownMenuItem(
+                                value: sigla,
+                                child:
+                                    Text(nombre.isNotEmpty ? nombre : sigla));
+                          }).toList(),
+                          onChanged: (v) => setS(() => tmp = v),
+                        ),
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, null),
+                          child: const Text('Cancelar')),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF16A34A),
+                            foregroundColor: Colors.white),
+                        onPressed: () => Navigator.pop(ctx, tmp),
+                        child: const Text('Aprobar'),
+                      ),
+                    ],
+                  ));
         },
       );
       if (asesorSel == null || !mounted) return;
@@ -10559,17 +12135,25 @@ class _HomeScreenState extends State<HomeScreen>
       'codigo_asesor': asesorSel ?? '',
     });
     if (!mounted) return;
-    final exito = r.statusCode == 200 && r.body.toLowerCase().contains('aprobado');
+    final exito =
+        r.statusCode == 200 && r.body.toLowerCase().contains('aprobado');
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(exito ? 'Solicitud #$cod aprobada' : 'Error: ${r.body}'),
-      backgroundColor: exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+      backgroundColor:
+          exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
     ));
-    if (exito) { await _fetchPendientes(); if (mounted) setState(() {}); }
+    if (exito) {
+      await _fetchPendientes();
+      if (mounted) setState(() {});
+    }
   }
 
   Future<void> _rechazarSolicitud(Map<String, dynamic> p) async {
-    final cod    = (p['codigo_solicitud'] ?? '').toString();
-    final nombre = ([p['nombres'], p['apellidos']].where((x) => x != null && x.toString().isNotEmpty).join(' ')).trim();
+    final cod = (p['codigo_solicitud'] ?? '').toString();
+    final nombre = ([p['nombres'], p['apellidos']]
+            .where((x) => x != null && x.toString().isNotEmpty)
+            .join(' '))
+        .trim();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -10579,14 +12163,22 @@ class _HomeScreenState extends State<HomeScreen>
         title: const Row(children: [
           Icon(Icons.cancel_outlined, color: Color(0xFFDC2626)),
           SizedBox(width: 8),
-          Text('Rechazar solicitud', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0D1B4B))),
+          Text('Rechazar solicitud',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0D1B4B))),
         ]),
         content: Text('¿Rechazar la solicitud #$cod de $nombre?',
             style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('No')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Rechazar'),
           ),
@@ -10594,35 +12186,41 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
     if (ok != true || !mounted) return;
-    final r = await _api.post('/ajax/rechazar_solicitud.php', {'codigo_solicitud': cod});
+    final r = await _api
+        .post('/ajax/rechazar_solicitud.php', {'codigo_solicitud': cod});
     if (!mounted) return;
-    final exito = r.statusCode == 200 && r.body.toLowerCase().contains('rechazado');
+    final exito =
+        r.statusCode == 200 && r.body.toLowerCase().contains('rechazado');
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(exito ? 'Solicitud #$cod rechazada' : 'Error: ${r.body}'),
-      backgroundColor: exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+      backgroundColor:
+          exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
     ));
-    if (exito) { await _fetchPendientes(); if (mounted) setState(() {}); }
+    if (exito) {
+      await _fetchPendientes();
+      if (mounted) setState(() {});
+    }
   }
 
-  Widget _accionBtn(IconData icon, String label, Color color, VoidCallback onTap) {
-    final colorLight = Color.lerp(color, Colors.white, 0.28) ?? color;
+  Widget _accionBtn(
+      IconData icon, String label, Color color, VoidCallback onTap) {
+    final colorDark = Color.lerp(color, Colors.black, 0.22) ?? color;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [colorLight, color],
+            colors: [color, colorDark],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(10),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.35),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
+                color: colorDark.withValues(alpha: 0.45),
+                blurRadius: 10,
+                offset: const Offset(0, 4)),
           ],
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -10630,7 +12228,9 @@ class _HomeScreenState extends State<HomeScreen>
           const SizedBox(width: 5),
           Text(label,
               style: const TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white)),
         ]),
       ),
     );
@@ -10675,7 +12275,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Cuotas dialog ───────────────────────────────────────────────
   Future<void> _showCuotasDialog(Map<String, dynamic> credito) async {
-    final cod     = credito['cod']?.toString() ?? '';
+    final cod = credito['cod']?.toString() ?? '';
     final cliente = (credito['cliente'] ?? '').toString();
     List<Map<String, dynamic>> cuotas = [];
     bool loading = true;
@@ -10687,12 +12287,16 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
         if (loading && !requestStarted) {
           requestStarted = true;
-          _api.post('/ajax/get_cuotas_credito.php', {'codigo_credito': cod}).then((r) {
+          _api.post('/ajax/get_cuotas_credito.php',
+              {'codigo_credito': cod}).then((r) {
             if (r.statusCode == 200) {
               try {
                 final decoded = jsonDecode(r.body);
                 if (decoded is List) {
-                  cuotas = decoded.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+                  cuotas = decoded
+                      .whereType<Map>()
+                      .map((e) => Map<String, dynamic>.from(e))
+                      .toList();
                 }
               } catch (_) {}
             }
@@ -10705,7 +12309,7 @@ class _HomeScreenState extends State<HomeScreen>
           final pagadoFlag = (q['pagado'] ?? '').toString().toLowerCase();
           final pagada = pagadoFlag == 'si' ||
               (_num(q['valor_pagado'] ?? 0) >= _num(q['valor_pago'] ?? 1) &&
-               _num(q['valor_pagado'] ?? 0) > 0);
+                  _num(q['valor_pagado'] ?? 0) > 0);
           if (pagada) return const Color(0xFFC8E6C9);
           try {
             final fp = DateTime.parse((q['fecha_pago'] ?? '').toString());
@@ -10724,7 +12328,8 @@ class _HomeScreenState extends State<HomeScreen>
         return Dialog(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             // Header morado
@@ -10735,20 +12340,30 @@ class _HomeScreenState extends State<HomeScreen>
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Row(children: [
-                const Icon(Icons.list_alt_rounded, color: Colors.white, size: 18),
+                const Icon(Icons.list_alt_rounded,
+                    color: Colors.white, size: 18),
                 const SizedBox(width: 8),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Listado de cuotas', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
-                  Text(
-                    '$cliente · Cód #$cod',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white70, fontSize: 11),
-                  ),
-                ])),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      const Text('Listado de cuotas',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14)),
+                      Text(
+                        '$cliente · Cód #$cod',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Colors.white70, fontSize: 11),
+                      ),
+                    ])),
                 IconButton(
                   onPressed: () => Navigator.pop(ctx),
-                  icon: const Icon(Icons.close, color: Colors.white70, size: 18),
+                  icon:
+                      const Icon(Icons.close, color: Colors.white70, size: 18),
                   padding: EdgeInsets.zero,
                   constraints:
                       const BoxConstraints.tightFor(width: 36, height: 36),
@@ -10760,102 +12375,188 @@ class _HomeScreenState extends State<HomeScreen>
               color: const Color(0xFF4A4A9A),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: const Row(children: [
-                SizedBox(width: 24, child: Text('No.', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
-                Expanded(flex: 3, child: Text('Fecha pago', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
-                Expanded(flex: 3, child: Text('V. Pagar', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
-                Expanded(flex: 3, child: Text('V. Pagado', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
+                SizedBox(
+                    width: 24,
+                    child: Text('No.',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700))),
+                Expanded(
+                    flex: 3,
+                    child: Text('Fecha pago',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700))),
+                Expanded(
+                    flex: 3,
+                    child: Text('V. Pagar',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700))),
+                Expanded(
+                    flex: 3,
+                    child: Text('V. Pagado',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700))),
                 SizedBox(
                   width: 28,
                   child: Center(
-                    child: Text('Pag.', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                    child: Text('Pag.',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700)),
                   ),
                 ),
                 SizedBox(
                   width: 48,
                   child: Center(
-                    child: Text('Acc.', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                    child: Text('Acc.',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700)),
                   ),
                 ),
               ]),
             ),
             // Filas de cuotas
             if (loading)
-              const Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator())
+              const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator())
             else if (cuotas.isEmpty)
-              const Padding(padding: EdgeInsets.all(32), child: Text('Sin cuotas registradas', style: TextStyle(color: Color(0xFF8899BB))))
+              const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text('Sin cuotas registradas',
+                      style: TextStyle(color: Color(0xFF8899BB))))
             else
               ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
+                constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(ctx).size.height * 0.5),
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: cuotas.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
                   itemBuilder: (_, i) {
                     final q = cuotas[i];
-                    final bg   = cuotaColor(q);
-                    final txt  = cuotaTextColor(q);
-                    final valorPago   = _num(q['valor_pago']   ?? 0);
+                    final bg = cuotaColor(q);
+                    final txt = cuotaTextColor(q);
+                    final valorPago = _num(q['valor_pago'] ?? 0);
                     final valorPagado = _num(q['valor_pagado'] ?? 0);
-                    final pagadoFlag  = (q['pagado'] ?? '').toString();
-                    final pagadoSi    = pagadoFlag.toLowerCase() == 'si' ||
+                    final pagadoFlag = (q['pagado'] ?? '').toString();
+                    final pagadoSi = pagadoFlag.toLowerCase() == 'si' ||
                         (valorPagado >= valorPago && valorPagado > 0);
-                    final fechaPago   = (q['fecha_pago'] ?? '').toString();
+                    final fechaPago = (q['fecha_pago'] ?? '').toString();
                     return Container(
                       color: bg,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       child: Row(children: [
-                        SizedBox(width: 24,
+                        SizedBox(
+                          width: 24,
                           child: Text('${q['numero_cuota'] ?? i + 1}',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: txt)),
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: txt)),
                         ),
-                        Expanded(flex: 3, child: Text(fechaPago,
-                          style: TextStyle(fontSize: 10, color: txt))),
-                        Expanded(flex: 3, child: Text(_cop(valorPago),
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: txt))),
-                        Expanded(flex: 3, child: Text(valorPagado > 0 ? _cop(valorPagado) : '',
-                          style: TextStyle(fontSize: 10, color: txt))),
-                        SizedBox(width: 28,
-                          child: Center(
-                            child: Text(pagadoSi ? 'Si' : 'No',
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
-                                color: pagadoSi ? const Color(0xFF1B5E20) : const Color(0xFFB71C1C))),
-                          )),
-                        SizedBox(width: 48, child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                          GestureDetector(
-                            onTap: () => _showRegistroPagoDialog(ctx, q, () {
-                              _api.post('/ajax/get_cuotas_credito.php', {'codigo_credito': cod}).then((r) {
-                                if (r.statusCode == 200) {
-                                  try {
-                                    final d = jsonDecode(r.body);
-                                    if (d is List) cuotas = d.whereType<Map>().map((e) => Map<String,dynamic>.from(e)).toList();
-                                  } catch (_) {}
-                                }
-                                if (ctx.mounted) setS(() {});
-                              });
-                            }),
-                            child: const Padding(
-                              padding: EdgeInsets.all(3),
-                              child: Icon(Icons.assignment_turned_in_outlined, size: 15, color: Color(0xFF3B3B8A)),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => _showEditarCuotaDialog(ctx, q, () {
-                              _api.post('/ajax/get_cuotas_credito.php', {'codigo_credito': cod}).then((r) {
-                                if (r.statusCode == 200) {
-                                  try {
-                                    final d = jsonDecode(r.body);
-                                    if (d is List) cuotas = d.whereType<Map>().map((e) => Map<String,dynamic>.from(e)).toList();
-                                  } catch (_) {}
-                                }
-                                if (ctx.mounted) setS(() {});
-                              });
-                            }),
-                            child: const Padding(
-                              padding: EdgeInsets.all(3),
-                              child: Icon(Icons.edit_outlined, size: 15, color: Color(0xFF3B3B8A)),
-                            ),
-                          ),
-                        ])),
+                        Expanded(
+                            flex: 3,
+                            child: Text(fechaPago,
+                                style: TextStyle(fontSize: 10, color: txt))),
+                        Expanded(
+                            flex: 3,
+                            child: Text(_cop(valorPago),
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: txt))),
+                        Expanded(
+                            flex: 3,
+                            child: Text(
+                                valorPagado > 0 ? _cop(valorPagado) : '',
+                                style: TextStyle(fontSize: 10, color: txt))),
+                        SizedBox(
+                            width: 28,
+                            child: Center(
+                              child: Text(pagadoSi ? 'Si' : 'No',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: pagadoSi
+                                          ? const Color(0xFF1B5E20)
+                                          : const Color(0xFFB71C1C))),
+                            )),
+                        SizedBox(
+                            width: 48,
+                            child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  GestureDetector(
+                                    onTap: () =>
+                                        _showRegistroPagoDialog(ctx, q, () {
+                                      _api.post('/ajax/get_cuotas_credito.php',
+                                          {'codigo_credito': cod}).then((r) {
+                                        if (r.statusCode == 200) {
+                                          try {
+                                            final d = jsonDecode(r.body);
+                                            if (d is List) {
+                                              cuotas = d
+                                                  .whereType<Map>()
+                                                  .map((e) =>
+                                                      Map<String, dynamic>.from(
+                                                          e))
+                                                  .toList();
+                                            }
+                                          } catch (_) {}
+                                        }
+                                        if (ctx.mounted) setS(() {});
+                                      });
+                                    }),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(3),
+                                      child: Icon(
+                                          Icons.assignment_turned_in_outlined,
+                                          size: 15,
+                                          color: Color(0xFF3B3B8A)),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: () =>
+                                        _showEditarCuotaDialog(ctx, q, () {
+                                      _api.post('/ajax/get_cuotas_credito.php',
+                                          {'codigo_credito': cod}).then((r) {
+                                        if (r.statusCode == 200) {
+                                          try {
+                                            final d = jsonDecode(r.body);
+                                            if (d is List) {
+                                              cuotas = d
+                                                  .whereType<Map>()
+                                                  .map((e) =>
+                                                      Map<String, dynamic>.from(
+                                                          e))
+                                                  .toList();
+                                            }
+                                          } catch (_) {}
+                                        }
+                                        if (ctx.mounted) setS(() {});
+                                      });
+                                    }),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(3),
+                                      child: Icon(Icons.edit_outlined,
+                                          size: 15, color: Color(0xFF3B3B8A)),
+                                    ),
+                                  ),
+                                ])),
                       ]),
                     );
                   },
@@ -10870,7 +12571,8 @@ class _HomeScreenState extends State<HomeScreen>
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF4A4A9A),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text('Cerrar'),
@@ -10884,13 +12586,15 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ── Registro de pago de cuota ────────────────────────────────────
-  Future<void> _showRegistroPagoDialog(
-      BuildContext parentCtx, Map<String, dynamic> cuota, VoidCallback onSaved) async {
+  Future<void> _showRegistroPagoDialog(BuildContext parentCtx,
+      Map<String, dynamic> cuota, VoidCallback onSaved) async {
     final codigoCuota = cuota['codigo_cuota']?.toString() ?? '';
     String interes = '1'; // 1=No interés, 2=Con interés
     String fuente = '';
     final valorCtrl = TextEditingController(
-        text: (cuota['valor_pago'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), ''));
+        text: (cuota['valor_pago'] ?? '')
+            .toString()
+            .replaceAll(RegExp(r'[^0-9.]'), ''));
     final comentCtrl = TextEditingController();
     DateTime fechaPago = DateTime.now();
     double moraVal = 0;
@@ -10902,12 +12606,15 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
         if (loadingMora && codigoCuota.isNotEmpty) {
           loadingMora = false;
-          _api.post('/ajax/consultar_datos_cuota.php', {'codigo_cuota': codigoCuota}).then((r) {
+          _api.post('/ajax/consultar_datos_cuota.php',
+              {'codigo_cuota': codigoCuota}).then((r) {
             if (r.statusCode == 200) {
               try {
                 final d = jsonDecode(r.body);
                 if (d is Map && d['success'] == true) {
-                  final inc = double.tryParse(d['valor_incremento']?.toString() ?? '0') ?? 0;
+                  final inc = double.tryParse(
+                          d['valor_incremento']?.toString() ?? '0') ??
+                      0;
                   if (ctx.mounted) setS(() => moraVal = inc);
                 }
               } catch (_) {}
@@ -10922,16 +12629,26 @@ class _HomeScreenState extends State<HomeScreen>
         return AlertDialog(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Registro de pago',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0D1B4B))),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0D1B4B))),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               // Interés
               Row(children: [
-                const SizedBox(width: 80,
-                    child: Text('Interés', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0D1B4B)))),
-                Expanded(child: Container(
+                const SizedBox(
+                    width: 80,
+                    child: Text('Interés',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF0D1B4B)))),
+                Expanded(
+                    child: Container(
                   height: 40,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
@@ -10939,7 +12656,8 @@ class _HomeScreenState extends State<HomeScreen>
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: const Color(0xFFD3D7EB)),
                   ),
-                  child: DropdownButtonHideUnderline(child: DropdownButton<String>(
+                  child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
                     value: interes,
                     isExpanded: true,
                     dropdownColor: Colors.white,
@@ -10995,16 +12713,20 @@ class _HomeScreenState extends State<HomeScreen>
                       width: 1.5,
                     ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
               const SizedBox(height: 10),
               // Mora calculada (read-only)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: moraVal > 0 ? const Color(0xFFFFD7DB) : const Color(0xFFDDF2E1),
+                  color: moraVal > 0
+                      ? const Color(0xFFFFD7DB)
+                      : const Color(0xFFDDF2E1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: moraVal > 0
@@ -11013,11 +12735,15 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
                 child: Text(
-                  moraVal > 0 ? 'Incremento por mora: ${_cop(moraVal)}' : 'Sin incremento por mora',
+                  moraVal > 0
+                      ? 'Incremento por mora: ${_cop(moraVal)}'
+                      : 'Sin incremento por mora',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: moraVal > 0 ? const Color(0xFFB71C1C) : const Color(0xFF1B5E20),
+                    color: moraVal > 0
+                        ? const Color(0xFFB71C1C)
+                        : const Color(0xFF1B5E20),
                   ),
                 ),
               ),
@@ -11060,7 +12786,8 @@ class _HomeScreenState extends State<HomeScreen>
                       width: 1.5,
                     ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
                 items: [
                   const DropdownMenuItem(
@@ -11071,16 +12798,12 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ),
                   ..._fuentesLista.map((f) {
-                    final label = (f['fuente'] ??
-                            f['nombre'] ??
-                            f['name'] ??
-                            '')
-                        .toString();
-                    final codigo = (f['valor'] ??
-                            f['codigo'] ??
-                            f['id'] ??
-                            label)
-                        .toString();
+                    final label =
+                        (f['fuente'] ?? f['nombre'] ?? f['name'] ?? '')
+                            .toString();
+                    final codigo =
+                        (f['valor'] ?? f['codigo'] ?? f['id'] ?? label)
+                            .toString();
                     return DropdownMenuItem(
                       value: codigo,
                       child: Text(label, overflow: TextOverflow.ellipsis),
@@ -11103,18 +12826,21 @@ class _HomeScreenState extends State<HomeScreen>
                 },
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE7E9F5),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: const Color(0xFFD3D7EB)),
                   ),
                   child: Row(children: [
-                    const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF3B3B8A)),
+                    const Icon(Icons.calendar_today_outlined,
+                        size: 14, color: Color(0xFF3B3B8A)),
                     const SizedBox(width: 8),
                     Text(
-                      '${fechaPago.day.toString().padLeft(2,'0')}/${fechaPago.month.toString().padLeft(2,'0')}/${fechaPago.year}',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF0D1B4B)),
+                      '${fechaPago.day.toString().padLeft(2, '0')}/${fechaPago.month.toString().padLeft(2, '0')}/${fechaPago.year}',
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF0D1B4B)),
                     ),
                   ]),
                 ),
@@ -11153,7 +12879,8 @@ class _HomeScreenState extends State<HomeScreen>
                       width: 1.5,
                     ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
             ]),
@@ -11161,43 +12888,61 @@ class _HomeScreenState extends State<HomeScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cerrar', style: TextStyle(color: Color(0xFF8899BB))),
+              child: const Text('Cerrar',
+                  style: TextStyle(color: Color(0xFF8899BB))),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B3B8A),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
-              onPressed: saving ? null : () async {
-                final val = double.tryParse(valorCtrl.text.trim()) ?? 0;
-                if (val <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Ingresa el valor pagado'), backgroundColor: Color(0xFFDC2626)));
-                  return;
-                }
-                setS(() => saving = true);
-                final messenger = ScaffoldMessenger.of(context);
-                final r = await _api.post('/ajax/registrar_cuota_credito.php', {
-                  'codigo_cuota':        codigoCuota,
-                  'interes':             interes,
-                  'valor_pagado':        valorCtrl.text.trim(),
-                  'fuente_cuota':        fuente,
-                  'fecha_registro_pago': fechaStr(),
-                  'comentarios':         comentCtrl.text.trim(),
-                });
-                setS(() => saving = false);
-                if (!ctx.mounted) return;
-                final ok = r.statusCode == 200 && r.body.contains('Pago Registrado');
-                messenger.showSnackBar(SnackBar(
-                  content: Text(ok ? 'Pago registrado correctamente' : 'Error: ${r.body}'),
-                  backgroundColor: ok ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-                ));
-                if (ok) { Navigator.pop(ctx); onSaved(); }
-              },
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final val = double.tryParse(valorCtrl.text.trim()) ?? 0;
+                      if (val <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Ingresa el valor pagado'),
+                                backgroundColor: Color(0xFFDC2626)));
+                        return;
+                      }
+                      setS(() => saving = true);
+                      final messenger = ScaffoldMessenger.of(context);
+                      final r =
+                          await _api.post('/ajax/registrar_cuota_credito.php', {
+                        'codigo_cuota': codigoCuota,
+                        'interes': interes,
+                        'valor_pagado': valorCtrl.text.trim(),
+                        'fuente_cuota': fuente,
+                        'fecha_registro_pago': fechaStr(),
+                        'comentarios': comentCtrl.text.trim(),
+                      });
+                      setS(() => saving = false);
+                      if (!ctx.mounted) return;
+                      final ok = r.statusCode == 200 &&
+                          r.body.contains('Pago Registrado');
+                      messenger.showSnackBar(SnackBar(
+                        content: Text(ok
+                            ? 'Pago registrado correctamente'
+                            : 'Error: ${r.body}'),
+                        backgroundColor: ok
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFDC2626),
+                      ));
+                      if (ok) {
+                        Navigator.pop(ctx);
+                        onSaved();
+                      }
+                    },
               child: saving
-                  ? const SizedBox(width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Text('Grabar'),
             ),
           ],
@@ -11207,15 +12952,19 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ── Editar cuota ─────────────────────────────────────────────────
-  Future<void> _showEditarCuotaDialog(
-      BuildContext parentCtx, Map<String, dynamic> cuota, VoidCallback onSaved) async {
+  Future<void> _showEditarCuotaDialog(BuildContext parentCtx,
+      Map<String, dynamic> cuota, VoidCallback onSaved) async {
     final codigoCuota = cuota['codigo_cuota']?.toString() ?? '';
     final valorCtrl = TextEditingController(
-        text: (cuota['valor_pago'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), ''));
-    final obsCtrl = TextEditingController(
-        text: (cuota['observaciones'] ?? '').toString());
+        text: (cuota['valor_pago'] ?? '')
+            .toString()
+            .replaceAll(RegExp(r'[^0-9.]'), ''));
+    final obsCtrl =
+        TextEditingController(text: (cuota['observaciones'] ?? '').toString());
     DateTime? fechaPago;
-    try { fechaPago = DateTime.parse((cuota['fecha_pago'] ?? '').toString()); } catch (_) {}
+    try {
+      fechaPago = DateTime.parse((cuota['fecha_pago'] ?? '').toString());
+    } catch (_) {}
     bool saving = false;
 
     await showDialog(
@@ -11223,15 +12972,19 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
         String fechaStr() {
           if (fechaPago == null) return '';
-          return '${fechaPago!.year}-${fechaPago!.month.toString().padLeft(2,'0')}-${fechaPago!.day.toString().padLeft(2,'0')}';
+          return '${fechaPago!.year}-${fechaPago!.month.toString().padLeft(2, '0')}-${fechaPago!.day.toString().padLeft(2, '0')}';
         }
 
         return AlertDialog(
           backgroundColor: Colors.white,
           surfaceTintColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Editar Cuota',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0D1B4B))),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0D1B4B))),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(
@@ -11270,7 +13023,8 @@ class _HomeScreenState extends State<HomeScreen>
                       width: 1.5,
                     ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
               const SizedBox(height: 10),
@@ -11286,22 +13040,26 @@ class _HomeScreenState extends State<HomeScreen>
                 },
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE7E9F5),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: const Color(0xFFD3D7EB)),
                   ),
                   child: Row(children: [
-                    const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF3B3B8A)),
+                    const Icon(Icons.calendar_today_outlined,
+                        size: 14, color: Color(0xFF3B3B8A)),
                     const SizedBox(width: 8),
                     Text(
                       fechaPago != null
-                          ? '${fechaPago!.day.toString().padLeft(2,'0')}/${fechaPago!.month.toString().padLeft(2,'0')}/${fechaPago!.year}'
+                          ? '${fechaPago!.day.toString().padLeft(2, '0')}/${fechaPago!.month.toString().padLeft(2, '0')}/${fechaPago!.year}'
                           : 'Fecha de pago',
                       style: TextStyle(
                         fontSize: 12,
-                        color: fechaPago != null ? const Color(0xFF0D1B4B) : const Color(0xFF8899BB),
+                        color: fechaPago != null
+                            ? const Color(0xFF0D1B4B)
+                            : const Color(0xFF8899BB),
                       ),
                     ),
                   ]),
@@ -11340,7 +13098,8 @@ class _HomeScreenState extends State<HomeScreen>
                       width: 1.5,
                     ),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
             ]),
@@ -11348,40 +13107,54 @@ class _HomeScreenState extends State<HomeScreen>
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8899BB))),
+              child: const Text('Cancelar',
+                  style: TextStyle(color: Color(0xFF8899BB))),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B3B8A),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
               ),
-              onPressed: saving ? null : () async {
-                setS(() => saving = true);
-                final messenger = ScaffoldMessenger.of(context);
-                final r = await _api.post('/ajax/editar_cuota.php', {
-                  'codigo_cuota': codigoCuota,
-                  'valor_pago':   valorCtrl.text.trim(),
-                  'fecha_pago':   fechaStr(),
-                });
-                setS(() => saving = false);
-                if (!ctx.mounted) return;
-                bool ok = false;
-                try {
-                  final d = jsonDecode(r.body);
-                  ok = r.statusCode == 200 && (d['resultado'] == 1 || d['resultado'] == '1');
-                } catch (_) {
-                  ok = false;
-                }
-                messenger.showSnackBar(SnackBar(
-                  content: Text(ok ? 'Cuota actualizada' : 'Error: ${r.body}'),
-                  backgroundColor: ok ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-                ));
-                if (ok) { Navigator.pop(ctx); onSaved(); }
-              },
+              onPressed: saving
+                  ? null
+                  : () async {
+                      setS(() => saving = true);
+                      final messenger = ScaffoldMessenger.of(context);
+                      final r = await _api.post('/ajax/editar_cuota.php', {
+                        'codigo_cuota': codigoCuota,
+                        'valor_pago': valorCtrl.text.trim(),
+                        'fecha_pago': fechaStr(),
+                      });
+                      setS(() => saving = false);
+                      if (!ctx.mounted) return;
+                      bool ok = false;
+                      try {
+                        final d = jsonDecode(r.body);
+                        ok = r.statusCode == 200 &&
+                            (d['resultado'] == 1 || d['resultado'] == '1');
+                      } catch (_) {
+                        ok = false;
+                      }
+                      messenger.showSnackBar(SnackBar(
+                        content:
+                            Text(ok ? 'Cuota actualizada' : 'Error: ${r.body}'),
+                        backgroundColor: ok
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFDC2626),
+                      ));
+                      if (ok) {
+                        Navigator.pop(ctx);
+                        onSaved();
+                      }
+                    },
               child: saving
-                  ? const SizedBox(width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
                   : const Text('Guardar cambios'),
             ),
           ],
@@ -11391,8 +13164,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ── Recordatorio por WhatsApp ────────────────────────────────────
-  Future<void> _enviarRecordatorioWhatsApp(
-      Map<String, dynamic> credito) async {
+  Future<void> _enviarRecordatorioWhatsApp(Map<String, dynamic> credito) async {
     final cliente = (credito['cliente'] ?? 'cliente').toString().trim();
     final cod = credito['cod']?.toString() ?? '';
     final proxima = (credito['proxima_fecha'] ?? '').toString().trim();
@@ -11512,7 +13284,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Confirmar eliminar ───────────────────────────────────────────
   Future<void> _confirmarEliminarCredito(Map<String, dynamic> credito) async {
-    final cod     = credito['cod']?.toString() ?? '';
+    final cod = credito['cod']?.toString() ?? '';
     final cliente = (credito['cliente'] ?? '').toString();
     final ok = await showDialog<bool>(
       context: context,
@@ -11523,14 +13295,23 @@ class _HomeScreenState extends State<HomeScreen>
         title: const Row(children: [
           Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
           SizedBox(width: 8),
-          Text('Eliminar crédito', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0D1B4B))),
+          Text('Eliminar crédito',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0D1B4B))),
         ]),
-        content: Text('¿Desea eliminar el crédito #$cod de $cliente? Esta acción no se puede deshacer.',
+        content: Text(
+            '¿Desea eliminar el crédito #$cod de $cliente? Esta acción no se puede deshacer.',
             style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Eliminar'),
           ),
@@ -11538,12 +13319,17 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
     if (ok != true || !mounted) return;
-    final r = await _api.post('/ajax/eliminar_credito.php', {'codigo_credito': cod});
+    final r =
+        await _api.post('/ajax/eliminar_credito.php', {'codigo_credito': cod});
     if (!mounted) return;
-    final exito = r.statusCode == 200 && r.body.toLowerCase().contains('eliminado');
+    final exito =
+        r.statusCode == 200 && r.body.toLowerCase().contains('eliminado');
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(exito ? 'Crédito #$cod eliminado' : 'No se pudo eliminar. Verifique el servidor.'),
-      backgroundColor: exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+      content: Text(exito
+          ? 'Crédito #$cod eliminado'
+          : 'No se pudo eliminar. Verifique el servidor.'),
+      backgroundColor:
+          exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
     ));
     if (exito) {
       _api.invalidateCache('/ajax/get_creditos_lista.php');
@@ -11554,14 +13340,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   // ── Paz y Salvo dialog ───────────────────────────────────────────
   void _showPazYSalvoDialog(Map<String, dynamic> credito) {
-    final cliente        = (credito['cliente'] ?? '').toString();
-    final numDoc         = (credito['num_documento'] ?? '').toString();
-    final cod            = credito['cod']?.toString() ?? '';
-    final fechaPrestamo  = (credito['fecha_prestamo'] ?? '').toString();
-    final valorPrestamo  = _num(credito['valor_prestamo'] ?? 0);
-    final ultimaPago     = (credito['ultima_fecha_pago'] ?? '').toString();
-    final hoy            = DateTime.now();
-    final fechaFirma     = '${hoy.day}/${hoy.month}/${hoy.year}';
+    final cliente = (credito['cliente'] ?? '').toString();
+    final numDoc = (credito['num_documento'] ?? '').toString();
+    final cod = credito['cod']?.toString() ?? '';
+    final fechaPrestamo = (credito['fecha_prestamo'] ?? '').toString();
+    final valorPrestamo = _num(credito['valor_prestamo'] ?? 0);
+    final ultimaPago = (credito['ultima_fecha_pago'] ?? '').toString();
+    final hoy = DateTime.now();
+    final fechaFirma = '${hoy.day}/${hoy.month}/${hoy.year}';
 
     showDialog(
       context: context,
@@ -11573,25 +13359,41 @@ class _HomeScreenState extends State<HomeScreen>
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(24),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // Header empresa
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Container(
-                  width: 48, height: 48,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF0D1B4B), width: 2),
+                    border:
+                        Border.all(color: const Color(0xFF0D1B4B), width: 2),
                   ),
-                  child: const Icon(Icons.savings_rounded, color: Color(0xFF0D1B4B), size: 24),
+                  child: const Icon(Icons.savings_rounded,
+                      color: Color(0xFF0D1B4B), size: 24),
                 ),
                 const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('SAF', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF0D1B4B))),
-                  const Text('Dirección · Tel: (316) 270-5951', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
-                ])),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      const Text('SAF',
+                          style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 18,
+                              color: Color(0xFF0D1B4B))),
+                      const Text('Dirección · Tel: (316) 270-5951',
+                          style: TextStyle(
+                              fontSize: 10, color: Color(0xFF64748B))),
+                    ])),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text(fechaFirma, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                  const Text('Paz y salvo', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                  Text(fechaFirma,
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF64748B))),
+                  const Text('Paz y salvo',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                 ]),
               ]),
               const SizedBox(height: 12),
@@ -11600,73 +13402,124 @@ class _HomeScreenState extends State<HomeScreen>
               // Título
               const Center(
                 child: Text('CERTIFICADO DE PAZ Y SALVO',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF0D1B4B), letterSpacing: 0.5)),
+                    style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        color: Color(0xFF0D1B4B),
+                        letterSpacing: 0.5)),
               ),
               const SizedBox(height: 20),
               // Cuerpo
-              RichText(text: TextSpan(style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B), height: 1.6), children: [
-                const TextSpan(text: 'La presente certifica que el(la) señor(a) '),
-                TextSpan(text: cliente, style: const TextStyle(fontWeight: FontWeight.w700)),
-                const TextSpan(text: ' identificado(a) con cédula de ciudadanía No. '),
-                TextSpan(text: numDoc, style: const TextStyle(fontWeight: FontWeight.w700)),
-                const TextSpan(text: ' ha cancelado en su totalidad las obligaciones relacionadas con el crédito identificado con número '),
-                TextSpan(text: cod, style: const TextStyle(fontWeight: FontWeight.w700)),
-                const TextSpan(text: ', realizado el dia '),
-                TextSpan(text: fechaPrestamo, style: const TextStyle(fontWeight: FontWeight.w700)),
-                const TextSpan(text: ', por valor de '),
-                TextSpan(text: _cop(valorPrestamo), style: const TextStyle(fontWeight: FontWeight.w700)),
-                const TextSpan(text: '.'),
-              ])),
+              RichText(
+                  text: TextSpan(
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF1E293B), height: 1.6),
+                      children: [
+                    const TextSpan(
+                        text: 'La presente certifica que el(la) señor(a) '),
+                    TextSpan(
+                        text: cliente,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const TextSpan(
+                        text: ' identificado(a) con cédula de ciudadanía No. '),
+                    TextSpan(
+                        text: numDoc,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const TextSpan(
+                        text:
+                            ' ha cancelado en su totalidad las obligaciones relacionadas con el crédito identificado con número '),
+                    TextSpan(
+                        text: cod,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const TextSpan(text: ', realizado el dia '),
+                    TextSpan(
+                        text: fechaPrestamo,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const TextSpan(text: ', por valor de '),
+                    TextSpan(
+                        text: _cop(valorPrestamo),
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    const TextSpan(text: '.'),
+                  ])),
               const SizedBox(height: 12),
               if (ultimaPago.isNotEmpty)
-                RichText(text: TextSpan(style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B), height: 1.6), children: [
-                  const TextSpan(text: 'Ultima Fecha de Pago: ', style: TextStyle(fontWeight: FontWeight.w700)),
-                  TextSpan(text: '$ultimaPago.'),
-                ])),
+                RichText(
+                    text: TextSpan(
+                        style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF1E293B),
+                            height: 1.6),
+                        children: [
+                      const TextSpan(
+                          text: 'Ultima Fecha de Pago: ',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      TextSpan(text: '$ultimaPago.'),
+                    ])),
               const SizedBox(height: 12),
               const Text(
                 'Este certificado se expide a solicitud del interesado para los fines que estime convenientes.',
-                style: TextStyle(fontSize: 12, color: Color(0xFF1E293B), height: 1.6),
+                style: TextStyle(
+                    fontSize: 12, color: Color(0xFF1E293B), height: 1.6),
               ),
               const SizedBox(height: 12),
               Text(
                 'En constancia de lo anterior, se firma a los $fechaFirma.',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B), height: 1.6),
+                style: const TextStyle(
+                    fontSize: 12, color: Color(0xFF1E293B), height: 1.6),
               ),
               const SizedBox(height: 24),
               // Sello
               Center(
                 child: Container(
-                  width: 90, height: 90,
+                  width: 90,
+                  height: 90,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFF1565C0), width: 2),
+                    border:
+                        Border.all(color: const Color(0xFF1565C0), width: 2),
                   ),
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Icon(Icons.savings_rounded, color: Color(0xFF1565C0), size: 22),
-                    const Text('SAF', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF1565C0))),
-                    const Text('PAZ Y SALVO', style: TextStyle(fontSize: 7, fontWeight: FontWeight.w700, color: Color(0xFF1565C0))),
-                  ]),
+                  child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.savings_rounded,
+                            color: Color(0xFF1565C0), size: 22),
+                        const Text('SAF',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF1565C0))),
+                        const Text('PAZ Y SALVO',
+                            style: TextStyle(
+                                fontSize: 7,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1565C0))),
+                      ]),
                 ),
               ),
               const SizedBox(height: 24),
               // Firmas
               Row(children: [
-                Expanded(child: Column(children: [
+                Expanded(
+                    child: Column(children: [
                   const Divider(color: Color(0xFF0D1B4B)),
-                  const Text('Asesor', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                  const Text('Asesor',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                 ])),
                 const SizedBox(width: 32),
-                Expanded(child: Column(children: [
+                Expanded(
+                    child: Column(children: [
                   const Divider(color: Color(0xFF0D1B4B)),
-                  const Text('Deudor', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                  const Text('Deudor',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                 ])),
               ]),
               const SizedBox(height: 12),
               // Botón cerrar
-              Center(child: TextButton(
+              Center(
+                  child: TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cerrar', style: TextStyle(color: Color(0xFF3B3B8A))),
+                child: const Text('Cerrar',
+                    style: TextStyle(color: Color(0xFF3B3B8A))),
               )),
             ]),
           ),
@@ -11675,33 +13528,35 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _pgBtn(IconData icon, bool enabled, VoidCallback onTap) => GestureDetector(
-    onTap: enabled ? onTap : null,
-    child: Container(
-      width: 36, height: 36,
-      decoration: BoxDecoration(
-        color: enabled ? _navy : const Color(0xFFE2E8F0),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(icon, color: enabled ? Colors.white : const Color(0xFF9CA3AF), size: 20),
-    ),
-  );
+  Widget _pgBtn(IconData icon, bool enabled, VoidCallback onTap) =>
+      GestureDetector(
+        onTap: enabled ? onTap : null,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: enabled ? _navy : const Color(0xFFE2E8F0),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon,
+              color: enabled ? Colors.white : const Color(0xFF9CA3AF),
+              size: 20),
+        ),
+      );
 
-  Widget _cTag(String label, String value) => RichText(text: TextSpan(
-    style: const TextStyle(fontSize: 11),
-    children: [
-      TextSpan(text: '$label: ', style: const TextStyle(color: Color(0xFF8899BB))),
-      TextSpan(text: value, style: const TextStyle(color: Color(0xFF0D1B4B), fontWeight: FontWeight.w600)),
-    ],
-  ));
-
-  Widget _cMonto(String label, double value, Color color) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(label, style: const TextStyle(fontSize: 9, color: Color(0xFF8899BB))),
-      Text(_cop(value), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-    ],
-  );
+  Widget _cTag(String label, String value) => RichText(
+          text: TextSpan(
+        style: const TextStyle(fontSize: 11),
+        children: [
+          TextSpan(
+              text: '$label: ',
+              style: const TextStyle(color: Color(0xFF8899BB))),
+          TextSpan(
+              text: value,
+              style: const TextStyle(
+                  color: Color(0xFF0D1B4B), fontWeight: FontWeight.w600)),
+        ],
+      ));
 
   Widget _ahoradorCard(Map<String, dynamic> a) =>
       _AhoradorExpandable(data: a, cop: _cop, num: _num);
@@ -11714,29 +13569,45 @@ class _HomeScreenState extends State<HomeScreen>
     bool alignEnd = false,
   }) =>
       Padding(
-        padding: EdgeInsets.only(left: alignEnd ? 16 : 0, right: alignEnd ? 0 : 16),
+        padding:
+            EdgeInsets.only(left: alignEnd ? 16 : 0, right: alignEnd ? 0 : 16),
         child: Column(
-          crossAxisAlignment: alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+              mainAxisAlignment:
+                  alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
               children: [
                 if (!alignEnd) Icon(icon, color: color, size: 13),
                 if (!alignEnd) const SizedBox(width: 4),
-                Text(label, style: TextStyle(color: color.withValues(alpha: 0.80), fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                Text(label,
+                    style: TextStyle(
+                        color: color.withValues(alpha: 0.80),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5)),
                 if (alignEnd) const SizedBox(width: 4),
                 if (alignEnd) Icon(icon, color: color, size: 13),
               ],
             ),
             const SizedBox(height: 5),
             value == null
-                ? Container(width: 90, height: 14, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)))
-                : Text(value, style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w800), overflow: TextOverflow.ellipsis),
+                ? Container(
+                    width: 90,
+                    height: 14,
+                    decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4)))
+                : Text(value,
+                    style: TextStyle(
+                        color: color,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800),
+                    overflow: TextOverflow.ellipsis),
           ],
         ),
       );
-
-
 
   Widget _emptyActivity() => Container(
         width: double.infinity,
@@ -11810,8 +13681,7 @@ class _HomeScreenState extends State<HomeScreen>
                     color: Colors.white.withValues(alpha: 0.72),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: const Color(0xFFE2E8F0)
-                          .withValues(alpha: 0.65),
+                      color: const Color(0xFFE2E8F0).withValues(alpha: 0.65),
                     ),
                   ),
                   child: Column(
@@ -11837,8 +13707,7 @@ class _HomeScreenState extends State<HomeScreen>
                       const SizedBox(height: 12),
                       Divider(
                         height: 1,
-                        color:
-                            const Color(0xFFE2E8F0).withValues(alpha: 0.55),
+                        color: const Color(0xFFE2E8F0).withValues(alpha: 0.55),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -11957,14 +13826,6 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       );
 
-  Widget _sectionTitle(String text) => Text(text,
-      style: const TextStyle(
-        color: _navy,
-        fontSize: 16,
-        fontWeight: FontWeight.w800,
-        letterSpacing: -0.2,
-      ));
-
   Widget _profileSheet(String email) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
@@ -12030,8 +13891,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 _photoUrl,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) =>
-                                    _avatarFallback(
-                                        _fullName.split(' ').first),
+                                    _avatarFallback(_fullName.split(' ').first),
                               )
                             : _avatarFallback(_fullName.split(' ').first),
                       ),
@@ -12121,8 +13981,7 @@ class _HomeScreenState extends State<HomeScreen>
                               const SizedBox(width: 14),
                               const Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       'Gestión de usuarios',
@@ -12174,7 +14033,8 @@ class _HomeScreenState extends State<HomeScreen>
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFE53935).withValues(alpha: 0.45),
+                          color:
+                              const Color(0xFFE53935).withValues(alpha: 0.45),
                           blurRadius: 18,
                           spreadRadius: 0,
                           offset: const Offset(0, 6),
@@ -12202,7 +14062,8 @@ class _HomeScreenState extends State<HomeScreen>
                               contentPadding: EdgeInsets.zero,
                               titlePadding: EdgeInsets.zero,
                               title: Padding(
-                                padding: const EdgeInsets.fromLTRB(24, 32, 24, 8),
+                                padding:
+                                    const EdgeInsets.fromLTRB(24, 32, 24, 8),
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -12293,16 +14154,19 @@ class _HomeScreenState extends State<HomeScreen>
                                       child: Material(
                                         color: Colors.transparent,
                                         child: InkWell(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius:
+                                              BorderRadius.circular(14),
                                           onTap: () => Navigator.pop(ctx, true),
                                           child: const Padding(
-                                            padding: EdgeInsets.symmetric(vertical: 15),
+                                            padding: EdgeInsets.symmetric(
+                                                vertical: 15),
                                             child: Row(
                                               mainAxisAlignment:
                                                   MainAxisAlignment.center,
                                               children: [
                                                 Icon(Icons.logout_rounded,
-                                                    color: Colors.white, size: 18),
+                                                    color: Colors.white,
+                                                    size: 18),
                                                 SizedBox(width: 8),
                                                 Text(
                                                   'Sí, cerrar sesión',
@@ -12323,15 +14187,19 @@ class _HomeScreenState extends State<HomeScreen>
                                     SizedBox(
                                       width: double.infinity,
                                       child: TextButton(
-                                        onPressed: () => Navigator.pop(ctx, false),
+                                        onPressed: () =>
+                                            Navigator.pop(ctx, false),
                                         style: TextButton.styleFrom(
-                                          foregroundColor: const Color(0xFF8899BB),
+                                          foregroundColor:
+                                              const Color(0xFF8899BB),
                                           padding: const EdgeInsets.symmetric(
                                               vertical: 13),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(14),
+                                            borderRadius:
+                                                BorderRadius.circular(14),
                                             side: const BorderSide(
-                                                color: Color(0xFFE2E8F0), width: 1.5),
+                                                color: Color(0xFFE2E8F0),
+                                                width: 1.5),
                                           ),
                                         ),
                                         child: const Text(
@@ -12396,11 +14264,6 @@ class _HomeScreenState extends State<HomeScreen>
       ? 0.0
       : (v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0.0);
 
-  static String _tipoOf(Map<String, dynamic> m) =>
-      (m['tipo'] ?? m['type'] ?? m['movimiento'] ?? '')
-          .toString()
-          .toLowerCase();
-
   static Map<String, dynamic> _json(String body) {
     try {
       final d = jsonDecode(body);
@@ -12420,7 +14283,6 @@ class _HomeScreenState extends State<HomeScreen>
     }
     return '${neg ? '-' : ''}\$ ${buf.toString()}';
   }
-
 
   static IconData _cuentaIcon(String tipo) {
     switch (tipo) {
@@ -12480,22 +14342,24 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
   }
 
   static const _purple = Color(0xFF4361EE);
-  static const _navy   = Color(0xFF0D1B4B);
+  static const _navy = Color(0xFF0D1B4B);
 
   @override
   Widget build(BuildContext context) {
-    final a        = widget.data;
-    final nombre   = (a['ahorrador'] ?? a['nombre'] ?? 'Ahorrador').toString();
-    final asesor   = (a['asesor'] ?? '').toString();
-    final total    = widget.num(a['total_ahorrado'] ?? a['valor_pactado'] ?? 0);
-    final pactado  = widget.num(a['valor_pactado'] ?? 0);
-    final neto     = widget.num(a['neto_pagar'] ?? a['neto'] ?? 0);
-    final rend     = widget.num(a['porcentaje'] ?? 0);
-    final fecha    = (a['Fecha_ingreso'] ?? a['fecha_ingreso'] ?? '').toString();
-    final cuotas   = a['ahorros'];
+    final a = widget.data;
+    final nombre = (a['ahorrador'] ?? a['nombre'] ?? 'Ahorrador').toString();
+    final asesor = (a['asesor'] ?? '').toString();
+    final total = widget.num(a['total_ahorrado'] ?? a['valor_pactado'] ?? 0);
+    final pactado = widget.num(a['valor_pactado'] ?? 0);
+    final neto = widget.num(a['neto_pagar'] ?? a['neto'] ?? 0);
+    final rend = widget.num(a['porcentaje'] ?? 0);
+    final fecha = (a['Fecha_ingreso'] ?? a['fecha_ingreso'] ?? '').toString();
+    final cuotas = a['ahorros'];
     final List<Map<String, dynamic>> meses = cuotas is List
-        ? cuotas.whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e)).toList()
+        ? cuotas
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList()
         : [];
 
     // En mora sólo si una cuota YA VENCIDA (fecha ≤ hoy en Colombia) no está
@@ -12510,7 +14374,14 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
       return !DateTime(fc.year, fc.month, fc.day).isAfter(hoy); // fc ≤ hoy
     });
 
-    final initial = nombre.isNotEmpty ? nombre[0].toUpperCase() : 'A';
+    final parts = nombre.trim().split(RegExp(r'\s+'));
+    final i1 = parts.isNotEmpty && parts[0].isNotEmpty
+        ? parts[0][0].toUpperCase()
+        : 'A';
+    final i2 = parts.length > 1
+        ? parts[parts.length >= 3 ? 2 : 1][0].toUpperCase()
+        : '';
+    final initials = '$i1$i2';
 
     return GestureDetector(
       onTap: _toggle,
@@ -12518,19 +14389,19 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
         duration: const Duration(milliseconds: 260),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: _expanded
-                ? _purple.withValues(alpha: 0.3)
-                : Colors.transparent,
+                ? _purple.withValues(alpha: 0.25)
+                : const Color(0xFFE8ECF4),
             width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
               color: _expanded
-                  ? _purple.withValues(alpha: 0.12)
-                  : Colors.black.withValues(alpha: 0.05),
-              blurRadius: _expanded ? 16 : 8,
+                  ? _purple.withValues(alpha: 0.10)
+                  : Colors.black.withValues(alpha: 0.04),
+              blurRadius: _expanded ? 20 : 8,
               offset: const Offset(0, 4),
             ),
           ],
@@ -12538,146 +14409,273 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Accent top bar ──────────────────────────────────
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(17)),
+              child: Container(
+                height: 4,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: enMora
+                        ? [const Color(0xFFDC2626), const Color(0xFFF87171)]
+                        : [const Color(0xFF4361EE), const Color(0xFF6366F1)],
+                  ),
+                ),
+              ),
+            ),
+
             // ── Cabecera ────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(children: [
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // Avatar
                 Container(
-                  width: 44, height: 44,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                        colors: [Color(0xFF4361EE), Color(0xFFA855F7)]),
-                    borderRadius: BorderRadius.circular(13),
+                      colors: [Color(0xFF4361EE), Color(0xFF6366F1)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF4361EE).withValues(alpha: 0.30),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Center(
-                    child: Text(initial,
+                    child: Text(initials,
                         style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
-                            fontSize: 18)),
+                            fontSize: 14,
+                            letterSpacing: 0.5)),
                   ),
                 ),
-                const SizedBox(width: 13),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(nombre,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: _navy)),
-                    const SizedBox(height: 3),
-                    Row(children: [
-                      if (asesor.isNotEmpty) ...[
+                const SizedBox(width: 11),
+                // Nombre + badges
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(nombre,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: _navy,
+                              height: 1.25,
+                              letterSpacing: -0.2)),
+                      const SizedBox(height: 6),
+                      Wrap(spacing: 6, runSpacing: 4, children: [
+                        if (asesor.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _purple.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.person_outline_rounded,
+                                  size: 10,
+                                  color: _purple.withValues(alpha: 0.8)),
+                              const SizedBox(width: 3),
+                              Text(asesor,
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: _purple.withValues(alpha: 0.9))),
+                            ]),
+                          ),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                              horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
-                            color: _purple.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(4),
+                            color: enMora
+                                ? const Color(0xFFFEE2E2)
+                                : const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(6),
                           ),
-                          child: Text('Asesor: $asesor',
-                              style: const TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: _purple)),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      if (enMora)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFEE2E2),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text('En mora',
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(
+                              enMora
+                                  ? Icons.warning_amber_rounded
+                                  : Icons.check_circle_rounded,
+                              size: 10,
+                              color: enMora
+                                  ? const Color(0xFFDC2626)
+                                  : const Color(0xFF16A34A),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              enMora ? 'En mora' : 'Al día',
                               style: TextStyle(
                                   fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFFDC2626))),
-                        )
-                      else
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFDCFCE7),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text('Al día',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF16A34A))),
+                                  fontWeight: FontWeight.w700,
+                                  color: enMora
+                                      ? const Color(0xFFDC2626)
+                                      : const Color(0xFF16A34A)),
+                            ),
+                          ]),
                         ),
-                    ]),
-                  ],
-                )),
-                // Total + chevron
-                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text(widget.cop(total),
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          color: _purple)),
-                  const Text('ahorrado',
-                      style: TextStyle(fontSize: 10, color: Color(0xFF8899BB))),
-                  const SizedBox(height: 4),
-                  RotationTransition(
-                    turns: Tween(begin: 0.0, end: 0.5).animate(_anim),
-                    child: const Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 20, color: Color(0xFF8899BB)),
+                      ]),
+                    ],
                   ),
-                ]),
+                ),
+                const SizedBox(width: 10),
+                // Monto + chevron — columna derecha
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    RotationTransition(
+                      turns: Tween(begin: 0.0, end: 0.5).animate(_anim),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0F2FA),
+                          borderRadius: BorderRadius.circular(7),
+                        ),
+                        child: const Icon(Icons.keyboard_arrow_down_rounded,
+                            size: 15, color: Color(0xFF8899BB)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF4361EE), Color(0xFF6366F1)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(widget.cop(total),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                  color: Colors.white)),
+                          Text('ahorrado',
+                              style: TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.white.withValues(alpha: 0.75))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ]),
             ),
 
             // ── Detalle expandible ───────────────────────────────
             SizeTransition(
               sizeFactor: _anim,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Divider(height: 1, color: Colors.grey.withValues(alpha: 0.12)),
-
-                  // Ficha de datos
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: Wrap(spacing: 12, runSpacing: 10, children: [
-                      _detailChip('Fecha ingreso', fecha.length >= 10
-                          ? fecha.substring(0, 10) : fecha),
-                      _detailChip('Valor pactado', widget.cop(pactado)),
-                      _detailChip('Rendimiento', '${rend.toStringAsFixed(1)}%'),
-                      _detailChip('Neto a pagar', widget.cop(neto)),
-                    ]),
-                  ),
-
-                  // Cuotas mensuales — scroll horizontal
-                  if (meses.isNotEmpty) ...[
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
-                      child: Text('Cuotas mensuales',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: _navy)),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFF),
+                  borderRadius:
+                      const BorderRadius.vertical(bottom: Radius.circular(17)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 1,
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      color: const Color(0xFFE8ECF4),
                     ),
-                    SizedBox(
-                      height: 82,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                        itemCount: meses.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (_, i) => _mesChip(meses[i]),
+                    const SizedBox(height: 14),
+
+                    // 2×2 data grid
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Row(children: [
+                        Expanded(
+                            child: _detailChip(
+                                Icons.calendar_today_outlined,
+                                'Fecha ingreso',
+                                fecha.length >= 10 ? fecha.substring(0, 10) : fecha,
+                                const Color(0xFF4361EE), const Color(0xFF818CF8))),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: _detailChip(
+                                Icons.savings_outlined,
+                                'Valor pactado',
+                                widget.cop(pactado),
+                                const Color(0xFF7C3AED), const Color(0xFFA78BFA))),
+                      ]),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Row(children: [
+                        Expanded(
+                            child: _detailChip(
+                                Icons.trending_up_rounded,
+                                'Rendimiento',
+                                '${rend.toStringAsFixed(1)}%',
+                                const Color(0xFF059669), const Color(0xFF34D399))),
+                        const SizedBox(width: 8),
+                        Expanded(
+                            child: _detailChip(
+                                Icons.account_balance_wallet_outlined,
+                                'Neto a pagar',
+                                widget.cop(neto),
+                                const Color(0xFFD97706), const Color(0xFFFBBF24))),
+                      ]),
+                    ),
+
+                    // Cuotas mensuales — scroll horizontal
+                    if (meses.isNotEmpty) ...[
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        child: Row(children: [
+                          Container(
+                            width: 3,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF4361EE), Color(0xFF6366F1)],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          const Text('Cuotas mensuales',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _navy)),
+                        ]),
                       ),
-                    ),
+                      SizedBox(
+                        height: 90,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                          itemCount: meses.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (_, i) => _mesChip(meses[i]),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
                   ],
-                  const SizedBox(height: 14),
-                ],
+                ),
               ),
             ),
           ],
@@ -12686,24 +14684,41 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
     );
   }
 
-  Widget _detailChip(String label, String value) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  Widget _detailChip(IconData icon, String label, String value,
+          Color c1, Color c2) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F3FF),
-          borderRadius: BorderRadius.circular(10),
+          gradient: LinearGradient(
+            colors: [c1.withValues(alpha: 0.08), c2.withValues(alpha: 0.15)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: c1.withValues(alpha: 0.20)),
+          boxShadow: [
+            BoxShadow(
+                color: c1.withValues(alpha: 0.08),
+                blurRadius: 6,
+                offset: const Offset(0, 2)),
+          ],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 10,
-                  color: Color(0xFF8899BB),
-                  fontWeight: FontWeight.w500)),
-          const SizedBox(height: 3),
+          Row(children: [
+            Icon(icon, size: 12, color: c1),
+            const SizedBox(width: 4),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 10,
+                    color: c1.withValues(alpha: 0.8),
+                    fontWeight: FontWeight.w600)),
+          ]),
+          const SizedBox(height: 5),
           Text(value,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _purple)),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w700, color: c1.withValues(alpha: 0.9))),
         ]),
       );
 
@@ -12714,11 +14729,11 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
   }
 
   Widget _mesChip(Map<String, dynamic> m) {
-    final mes        = (m['nombre_mes'] ?? '').toString();
+    final mes = (m['nombre_mes'] ?? '').toString();
     final estadoPago = (m['estado_pago'] ?? '').toString();
-    final valor      = widget.num(m['valor_pagado'] ?? m['valor'] ?? 0);
-    final fc         = DateTime.tryParse((m['fecha_cuota'] ?? '').toString());
-    final vencida    = fc != null &&
+    final valor = widget.num(m['valor_pagado'] ?? m['valor'] ?? 0);
+    final fc = DateTime.tryParse((m['fecha_cuota'] ?? '').toString());
+    final vencida = fc != null &&
         !DateTime(fc.year, fc.month, fc.day).isAfter(_hoyColombia());
 
     final esPagado = estadoPago.toLowerCase().contains('pagado');
@@ -12726,11 +14741,6 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
     final esNoPago = !esPagado && vencida;
     final esFuturo = !esPagado && !vencida;
 
-    final bgColor = esPagado
-        ? const Color(0xFFDCFCE7)
-        : esNoPago
-            ? const Color(0xFFFEE2E2)
-            : const Color(0xFFF0F2FA);
     final textColor = esPagado
         ? const Color(0xFF16A34A)
         : esNoPago
@@ -12742,33 +14752,130 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
             ? Icons.cancel_rounded
             : Icons.radio_button_unchecked_rounded;
 
+    final gradColors = esPagado
+        ? [const Color(0xFFDCFCE7), const Color(0xFFBBF7D0)]
+        : esNoPago
+            ? [const Color(0xFFFEE2E2), const Color(0xFFFECDD3)]
+            : [const Color(0xFFF0F2FA), const Color(0xFFE8ECF4)];
+
     return Container(
-      width: 82,
-      padding: const EdgeInsets.all(8),
+      width: 84,
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
       decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: gradColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: textColor.withValues(alpha: 0.18),
+          width: 1,
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: textColor, size: 18),
-          const SizedBox(height: 4),
+          Icon(icon, color: textColor, size: 20),
+          const SizedBox(height: 5),
           Text(mes,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontSize: 9,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
-                  color: textColor)),
-          const SizedBox(height: 2),
+                  color: textColor,
+                  letterSpacing: -0.2)),
+          const SizedBox(height: 3),
           Text(
-            esFuturo ? '\$ 0' : widget.cop(valor),
+            esFuturo ? '—' : widget.cop(valor),
+            textAlign: TextAlign.center,
             style: TextStyle(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
-                color: textColor),
+                color: textColor.withValues(alpha: 0.8)),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Animated SAF logo for the AppBar ────────────────────────────────────────
+class _AnimatedSafLogo extends StatefulWidget {
+  const _AnimatedSafLogo();
+  @override
+  State<_AnimatedSafLogo> createState() => _AnimatedSafLogoState();
+}
+
+class _AnimatedSafLogoState extends State<_AnimatedSafLogo>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _rotate;
+  late final Animation<double> _glowAlpha;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 9),
+    )..repeat();
+    _rotate = _ctrl;
+    _glowAlpha = TweenSequence([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 0.18), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 0.18, end: 0.0), weight: 50),
+    ]).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => SizedBox(
+        width: 42,
+        height: 42,
+        child: Stack(alignment: Alignment.center, children: [
+          // Pulsing outer glow ring
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: _glowAlpha.value),
+                  blurRadius: 10,
+                  spreadRadius: 0,
+                ),
+              ],
+            ),
+          ),
+          // Rotating logo inside frosted circle
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.12),
+              border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.22), width: 1),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Transform.rotate(
+                angle: _rotate.value * 2 * pi,
+                child: const CustomPaint(
+                    painter: SafLogoPainter(Colors.white)),
+              ),
+            ),
+          ),
+        ]),
       ),
     );
   }
