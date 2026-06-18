@@ -1670,17 +1670,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         } catch (e) {
                                           if (ctx.mounted) {
                                             setS(() => loadingOrigenes = false);
-                                            ScaffoldMessenger.of(ctx)
-                                                .showSnackBar(
-                                              SnackBar(
-                                                content: Text(e
-                                                    .toString()
-                                                    .replaceFirst(
-                                                        'Exception: ', '')),
-                                                backgroundColor:
-                                                    const Color(0xFFDC2626),
-                                              ),
-                                            );
+                                            _showResult(false, _friendlyError(e));
                                           }
                                         }
                                       },
@@ -2015,13 +2005,7 @@ class _HomeScreenState extends State<HomeScreen>
                                     perfil.isEmpty ||
                                     tipo.isEmpty ||
                                     origen.isEmpty) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(
-                                      content:
-                                          Text('Complete todos los campos.'),
-                                      backgroundColor: Color(0xFFDC2626),
-                                    ),
-                                  );
+                                  _showResult(false, 'Complete todos los campos antes de guardar');
                                   return;
                                 }
                                 setS(() => saving = true);
@@ -2038,18 +2022,8 @@ class _HomeScreenState extends State<HomeScreen>
                                     Navigator.pop(ctx, true);
                                   }
                                 } catch (e) {
-                                  if (ctx.mounted) {
-                                    setS(() => saving = false);
-                                    ScaffoldMessenger.of(ctx).showSnackBar(
-                                      SnackBar(
-                                        content: Text(e
-                                            .toString()
-                                            .replaceFirst('Exception: ', '')),
-                                        backgroundColor:
-                                            const Color(0xFFDC2626),
-                                      ),
-                                    );
-                                  }
+                                  if (ctx.mounted) setS(() => saving = false);
+                                  _showResult(false, _friendlyError(e));
                                 }
                               },
                         icon: saving
@@ -3992,32 +3966,18 @@ class _HomeScreenState extends State<HomeScreen>
                                 ? null
                                 : () async {
                                     if (fechaInicio == null) {
-                                      ScaffoldMessenger.of(ctx)
-                                          .showSnackBar(const SnackBar(
-                                        content:
-                                            Text('Seleccione la fecha inicio'),
-                                        backgroundColor: Color(0xFFDC2626),
-                                      ));
+                                      _showResult(false, 'Seleccione la fecha de inicio');
                                       return;
                                     }
                                     if (fechaFinal == null) {
-                                      ScaffoldMessenger.of(ctx)
-                                          .showSnackBar(const SnackBar(
-                                        content:
-                                            Text('Seleccione la fecha final'),
-                                        backgroundColor: Color(0xFFDC2626),
-                                      ));
+                                      _showResult(false, 'Seleccione la fecha final');
                                       return;
                                     }
                                     if (!formKey.currentState!.validate()) {
                                       return;
                                     }
                                     if (selectedTipo == null) {
-                                      ScaffoldMessenger.of(ctx)
-                                          .showSnackBar(const SnackBar(
-                                        content: Text('Seleccione el tipo'),
-                                        backgroundColor: Color(0xFFDC2626),
-                                      ));
+                                      _showResult(false, 'Seleccione el tipo de configuración');
                                       return;
                                     }
                                     setS(() => saving = true);
@@ -4051,15 +4011,8 @@ class _HomeScreenState extends State<HomeScreen>
                                         );
                                       }
                                     } catch (e) {
-                                      if (ctx.mounted) {
-                                        setS(() => saving = false);
-                                        ScaffoldMessenger.of(ctx)
-                                            .showSnackBar(SnackBar(
-                                          content: Text('Error: $e'),
-                                          backgroundColor:
-                                              const Color(0xFFDC2626),
-                                        ));
-                                      }
+                                      if (ctx.mounted) setS(() => saving = false);
+                                      _showResult(false, _friendlyError(e));
                                     }
                                   },
                             icon: saving
@@ -4544,23 +4497,11 @@ class _HomeScreenState extends State<HomeScreen>
                                 ? null
                                 : () async {
                                     if (selectedAhorrador == null) {
-                                      ScaffoldMessenger.of(ctx).showSnackBar(
-                                        const SnackBar(
-                                          content:
-                                              Text('Seleccione un ahorrador'),
-                                          backgroundColor: Color(0xFFDC2626),
-                                        ),
-                                      );
+                                      _showResult(false, 'Seleccione un ahorrador para continuar');
                                       return;
                                     }
                                     if (fechaIngreso == null) {
-                                      ScaffoldMessenger.of(ctx).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'Seleccione la fecha de ingreso'),
-                                          backgroundColor: Color(0xFFDC2626),
-                                        ),
-                                      );
+                                      _showResult(false, 'Seleccione la fecha de ingreso');
                                       return;
                                     }
                                     if (!formKey.currentState!.validate()) {
@@ -4611,16 +4552,8 @@ class _HomeScreenState extends State<HomeScreen>
                                         );
                                       }
                                     } catch (e) {
-                                      if (ctx.mounted) {
-                                        setS(() => saving = false);
-                                        ScaffoldMessenger.of(ctx).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Error: $e'),
-                                            backgroundColor:
-                                                const Color(0xFFDC2626),
-                                          ),
-                                        );
-                                      }
+                                      if (ctx.mounted) setS(() => saving = false);
+                                      _showResult(false, _friendlyError(e));
                                     }
                                   },
                             icon: saving
@@ -5175,12 +5108,7 @@ class _HomeScreenState extends State<HomeScreen>
                                 ? null
                                 : () async {
                                     if (selectedAsesor == null) {
-                                      ScaffoldMessenger.of(ctx).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('Seleccione un asesor'),
-                                          backgroundColor: Color(0xFFDC2626),
-                                        ),
-                                      );
+                                      _showResult(false, 'Seleccione un asesor para continuar');
                                       return;
                                     }
                                     if (!formKey.currentState!.validate()) {
@@ -5228,16 +5156,8 @@ class _HomeScreenState extends State<HomeScreen>
                                         );
                                       }
                                     } catch (e) {
-                                      if (ctx.mounted) {
-                                        setS(() => saving = false);
-                                        ScaffoldMessenger.of(ctx).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Error: $e'),
-                                            backgroundColor:
-                                                const Color(0xFFDC2626),
-                                          ),
-                                        );
-                                      }
+                                      if (ctx.mounted) setS(() => saving = false);
+                                      _showResult(false, _friendlyError(e));
                                     }
                                   },
                             icon: saving
@@ -7264,28 +7184,105 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   // ── Diálogo de resultado (éxito / error) ─────────────────────────
-  Widget _resultDialog(String msg, bool ok) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          Icon(ok ? Icons.check_circle_outline : Icons.error_outline,
-              color: ok ? Colors.green : Colors.red),
-          const SizedBox(width: 8),
-          Text(ok ? 'Éxito' : 'Error',
-              style:
-                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        ]),
-        content: Text(msg, style: const TextStyle(fontSize: 14)),
-        actions: [
-          ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D1B4B),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8))),
-              child: const Text('Aceptar')),
-        ],
+  Widget _resultDialog(String msg, bool ok) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: ok
+                      ? [const Color(0xFF059669), const Color(0xFF34D399)]
+                      : [const Color(0xFFDC2626), const Color(0xFFEF4444)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                ok ? Icons.check_rounded : Icons.error_outline_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              ok ? '¡Operación exitosa!' : 'Algo salió mal',
+              style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0D1B4B)),
+            ),
+            const SizedBox(height: 8),
+            Text(msg,
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+            const SizedBox(height: 22),
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                width: double.infinity,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: ok
+                        ? [const Color(0xFF059669), const Color(0xFF34D399)]
+                        : [const Color(0xFFDC2626), const Color(0xFFEF4444)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (ok
+                              ? const Color(0xFF059669)
+                              : const Color(0xFFDC2626))
+                          .withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text('Aceptar',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15)),
+                ),
+              ),
+            ),
+          ]),
+        ),
       );
+
+  String _friendlyError(dynamic e) {
+    final raw = e.toString().replaceFirst('Exception: ', '').trim();
+    if (RegExp(r'\b(400|401|403|404|500|502|503|504)\b').hasMatch(raw)) {
+      return 'No se pudo completar la operación. Por favor intenta de nuevo.';
+    }
+    if (raw.toLowerCase().contains('socket') ||
+        raw.toLowerCase().contains('connection') ||
+        raw.toLowerCase().contains('network')) {
+      return 'Sin conexión a internet. Verifica tu red e intenta de nuevo.';
+    }
+    if (raw.toLowerCase().contains('timeout')) {
+      return 'La operación tardó demasiado. Por favor intenta de nuevo.';
+    }
+    if (raw.isEmpty || raw.length > 300) {
+      return 'Ocurrió un error inesperado. Por favor intenta de nuevo.';
+    }
+    return raw;
+  }
+
+  void _showResult(bool ok, String msg) {
+    if (!mounted) return;
+    showDialog(context: context, builder: (_) => _resultDialog(msg, ok));
+  }
 
   // ── Helpers de formulario ────────────────────────────────────────
   Widget _dRow(String label, Widget input) => LayoutBuilder(
@@ -7384,9 +7381,6 @@ class _HomeScreenState extends State<HomeScreen>
             ? (v) => (v == null || v.trim().isEmpty) ? 'Campo requerido' : null
             : null,
       );
-
-  void _snack(String msg) => ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)));
 
   Widget _subTab(int index, String label) => Expanded(
         child: GestureDetector(
@@ -7626,23 +7620,11 @@ class _HomeScreenState extends State<HomeScreen>
                                     final d = _json(r.body);
                                     final ok = d['success'] == true ||
                                         d['resultado'] == 1;
-                                    if (ctx.mounted) {
-                                      final messenger =
-                                          ScaffoldMessenger.of(ctx);
-                                      Navigator.pop(ctx);
-                                      messenger.showSnackBar(SnackBar(
-                                        content: Text(ok
-                                            ? 'Saldo ajustado correctamente.'
-                                            : (d['msg'] ??
-                                                    d['mensaje'] ??
-                                                    'Error al ajustar')
-                                                .toString()),
-                                        backgroundColor: ok
-                                            ? const Color(0xFF059669)
-                                            : const Color(0xFFDC2626),
-                                      ));
-                                      if (ok) unawaited(_loadData());
-                                    }
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                    _showResult(ok, ok
+                                        ? 'Saldo ajustado correctamente.'
+                                        : _friendlyError(d['msg'] ?? d['mensaje'] ?? 'No se pudo ajustar el saldo'));
+                                    if (ok) unawaited(_loadData());
                                   }
                                 } catch (e) {
                                   debugPrint('[SAF] ajustar saldo: $e');
@@ -7950,27 +7932,15 @@ class _HomeScreenState extends State<HomeScreen>
                             ? null
                             : () async {
                                 if (origenCod == null) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                      const SnackBar(
-                                          content:
-                                              Text('Seleccione cuenta origen'),
-                                          backgroundColor: Color(0xFFDC2626)));
+                                  _showResult(false, 'Seleccione la cuenta de origen');
                                   return;
                                 }
                                 if (destinoCod == null) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                      const SnackBar(
-                                          content:
-                                              Text('Seleccione cuenta destino'),
-                                          backgroundColor: Color(0xFFDC2626)));
+                                  _showResult(false, 'Seleccione la cuenta de destino');
                                   return;
                                 }
                                 if (origenCod == destinoCod) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Origen y destino no pueden ser iguales'),
-                                          backgroundColor: Color(0xFFDC2626)));
+                                  _showResult(false, 'La cuenta de origen y destino no pueden ser la misma');
                                   return;
                                 }
                                 if (!formKey.currentState!.validate()) return;
@@ -7989,23 +7959,11 @@ class _HomeScreenState extends State<HomeScreen>
                                     final d = _json(r.body);
                                     final ok = d['success'] == true ||
                                         d['resultado'] == 1;
-                                    if (ctx.mounted) {
-                                      final messenger =
-                                          ScaffoldMessenger.of(ctx);
-                                      Navigator.pop(ctx);
-                                      messenger.showSnackBar(SnackBar(
-                                        content: Text(ok
-                                            ? 'Transferencia realizada correctamente.'
-                                            : (d['msg'] ??
-                                                    d['mensaje'] ??
-                                                    'Error al transferir')
-                                                .toString()),
-                                        backgroundColor: ok
-                                            ? const Color(0xFF059669)
-                                            : const Color(0xFFDC2626),
-                                      ));
-                                      if (ok) unawaited(_loadData());
-                                    }
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                    _showResult(ok, ok
+                                        ? 'Transferencia realizada correctamente.'
+                                        : _friendlyError(d['msg'] ?? d['mensaje'] ?? 'No se pudo completar la transferencia'));
+                                    if (ok) unawaited(_loadData());
                                   }
                                 } catch (e) {
                                   debugPrint('[SAF] transferir: $e');
@@ -8371,19 +8329,11 @@ class _HomeScreenState extends State<HomeScreen>
                             ? null
                             : () async {
                                 if (selectedCuenta == null) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                      const SnackBar(
-                                          content:
-                                              Text('Seleccione una cuenta'),
-                                          backgroundColor: Color(0xFFDC2626)));
+                                  _showResult(false, 'Seleccione una cuenta para continuar');
                                   return;
                                 }
                                 if (selectedTipo == null) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Seleccione el tipo de movimiento'),
-                                          backgroundColor: Color(0xFFDC2626)));
+                                  _showResult(false, 'Seleccione el tipo de movimiento');
                                   return;
                                 }
                                 if (!formKey.currentState!.validate()) return;
@@ -8402,25 +8352,11 @@ class _HomeScreenState extends State<HomeScreen>
                                     final d = _json(r.body);
                                     final ok = d['success'] == true ||
                                         d['resultado'] == 1;
-                                    if (ctx.mounted) {
-                                      final messenger =
-                                          ScaffoldMessenger.of(ctx);
-                                      Navigator.pop(ctx);
-                                      messenger.showSnackBar(SnackBar(
-                                        content: Text(ok
-                                            ? 'Movimiento registrado correctamente.'
-                                            : (d['msg'] ??
-                                                    d['mensaje'] ??
-                                                    'Error al guardar')
-                                                .toString()),
-                                        backgroundColor: ok
-                                            ? const Color(0xFF059669)
-                                            : const Color(0xFFDC2626),
-                                      ));
-                                      if (ok) {
-                                        unawaited(_loadData());
-                                      }
-                                    }
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                    _showResult(ok, ok
+                                        ? 'Movimiento registrado correctamente.'
+                                        : _friendlyError(d['msg'] ?? d['mensaje'] ?? 'No se pudo guardar el movimiento'));
+                                    if (ok) unawaited(_loadData());
                                   }
                                 } catch (e) {
                                   debugPrint('[SAF] guardar movimiento: $e');
@@ -8719,10 +8655,7 @@ class _HomeScreenState extends State<HomeScreen>
                                   return;
                                 }
                                 if (selectedTipo == null) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              'Selecciona el tipo de cuenta')));
+                                  _showResult(false, 'Selecciona el tipo de cuenta');
                                   return;
                                 }
                                 setS(() => saving = true);
@@ -8735,23 +8668,15 @@ class _HomeScreenState extends State<HomeScreen>
                                     'usuario': codigoUsuario,
                                   });
                                   final d = _json(r.body);
-                                  if (d['success'] == true) {
-                                    if (ctx.mounted) Navigator.pop(ctx);
-                                    unawaited(_fetchCuentas('1'));
-                                    _snack(d['msg']?.toString() ??
-                                        'Cuenta creada');
-                                  } else {
-                                    setS(() => saving = false);
-                                    if (ctx.mounted) {
-                                      ScaffoldMessenger.of(ctx).showSnackBar(
-                                          SnackBar(
-                                              content: Text(
-                                                  d['msg']?.toString() ??
-                                                      'Error al guardar')));
-                                    }
-                                  }
+                                  final ok = d['success'] == true;
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (ok) unawaited(_fetchCuentas('1'));
+                                  _showResult(ok, ok
+                                      ? (d['msg']?.toString() ?? 'Cuenta creada exitosamente')
+                                      : _friendlyError(d['msg'] ?? 'No se pudo guardar la cuenta'));
                                 } catch (e) {
-                                  setS(() => saving = false);
+                                  if (ctx.mounted) setS(() => saving = false);
+                                  _showResult(false, _friendlyError(e));
                                 }
                               },
                         child: saving
@@ -9289,12 +9214,7 @@ class _HomeScreenState extends State<HomeScreen>
                             ? null
                             : () async {
                                 if (nombreCtrl.text.trim().isEmpty) {
-                                  ScaffoldMessenger.of(ctx).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Ingrese el nombre'),
-                                      backgroundColor: Color(0xFFDC2626),
-                                    ),
-                                  );
+                                  _showResult(false, 'Ingrese el nombre de la cuenta');
                                   return;
                                 }
                                 setS(() => saving = true);
@@ -9318,23 +9238,11 @@ class _HomeScreenState extends State<HomeScreen>
                                     msg = (j['msg'] ?? msg).toString();
                                   } catch (_) {}
                                   if (ctx.mounted) Navigator.pop(ctx);
-                                  if (mounted) {
-                                    showDialog(
-                                      context: context,
-                                      builder: (_) => _resultDialog(
-                                          ok ? 'Cambios guardados' : msg, ok),
-                                    );
-                                    if (ok) unawaited(_fetchCuentas('1'));
-                                  }
+                                  _showResult(ok, ok ? 'Cambios guardados exitosamente' : _friendlyError(msg));
+                                  if (ok) unawaited(_fetchCuentas('1'));
                                 } catch (e) {
-                                  if (ctx.mounted) {
-                                    setS(() => saving = false);
-                                    ScaffoldMessenger.of(ctx)
-                                        .showSnackBar(SnackBar(
-                                      content: Text('Error: $e'),
-                                      backgroundColor: const Color(0xFFDC2626),
-                                    ));
-                                  }
+                                  if (ctx.mounted) setS(() => saving = false);
+                                  _showResult(false, _friendlyError(e));
                                 }
                               },
                         child: Row(
@@ -12137,11 +12045,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (!mounted) return;
     final exito =
         r.statusCode == 200 && r.body.toLowerCase().contains('aprobado');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(exito ? 'Solicitud #$cod aprobada' : 'Error: ${r.body}'),
-      backgroundColor:
-          exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-    ));
+    _showResult(exito, exito ? 'Solicitud #$cod aprobada exitosamente' : _friendlyError(r.body));
     if (exito) {
       await _fetchPendientes();
       if (mounted) setState(() {});
@@ -12191,11 +12095,7 @@ class _HomeScreenState extends State<HomeScreen>
     if (!mounted) return;
     final exito =
         r.statusCode == 200 && r.body.toLowerCase().contains('rechazado');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(exito ? 'Solicitud #$cod rechazada' : 'Error: ${r.body}'),
-      backgroundColor:
-          exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-    ));
+    _showResult(exito, exito ? 'Solicitud #$cod rechazada' : _friendlyError(r.body));
     if (exito) {
       await _fetchPendientes();
       if (mounted) setState(() {});
@@ -12903,14 +12803,10 @@ class _HomeScreenState extends State<HomeScreen>
                   : () async {
                       final val = double.tryParse(valorCtrl.text.trim()) ?? 0;
                       if (val <= 0) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Ingresa el valor pagado'),
-                                backgroundColor: Color(0xFFDC2626)));
+                        _showResult(false, 'Ingresa el valor del pago antes de continuar');
                         return;
                       }
                       setS(() => saving = true);
-                      final messenger = ScaffoldMessenger.of(context);
                       final r =
                           await _api.post('/ajax/registrar_cuota_credito.php', {
                         'codigo_cuota': codigoCuota,
@@ -12924,18 +12820,13 @@ class _HomeScreenState extends State<HomeScreen>
                       if (!ctx.mounted) return;
                       final ok = r.statusCode == 200 &&
                           r.body.contains('Pago Registrado');
-                      messenger.showSnackBar(SnackBar(
-                        content: Text(ok
-                            ? 'Pago registrado correctamente'
-                            : 'Error: ${r.body}'),
-                        backgroundColor: ok
-                            ? const Color(0xFF16A34A)
-                            : const Color(0xFFDC2626),
-                      ));
                       if (ok) {
                         Navigator.pop(ctx);
                         onSaved();
                       }
+                      _showResult(ok, ok
+                          ? 'Pago registrado correctamente'
+                          : _friendlyError(r.body));
                     },
               child: saving
                   ? const SizedBox(
@@ -13121,7 +13012,6 @@ class _HomeScreenState extends State<HomeScreen>
                   ? null
                   : () async {
                       setS(() => saving = true);
-                      final messenger = ScaffoldMessenger.of(context);
                       final r = await _api.post('/ajax/editar_cuota.php', {
                         'codigo_cuota': codigoCuota,
                         'valor_pago': valorCtrl.text.trim(),
@@ -13137,17 +13027,13 @@ class _HomeScreenState extends State<HomeScreen>
                       } catch (_) {
                         ok = false;
                       }
-                      messenger.showSnackBar(SnackBar(
-                        content:
-                            Text(ok ? 'Cuota actualizada' : 'Error: ${r.body}'),
-                        backgroundColor: ok
-                            ? const Color(0xFF16A34A)
-                            : const Color(0xFFDC2626),
-                      ));
                       if (ok) {
                         Navigator.pop(ctx);
                         onSaved();
                       }
+                      _showResult(ok, ok
+                          ? 'Cuota actualizada correctamente'
+                          : _friendlyError(r.body));
                     },
               child: saving
                   ? const SizedBox(
@@ -13190,14 +13076,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
 
     if (telefono.length != 10) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'El crédito #$cod no tiene un teléfono válido para WhatsApp.'),
-          backgroundColor: const Color(0xFFDC2626),
-        ),
-      );
+      _showResult(false, 'El crédito #$cod no tiene un número de WhatsApp válido registrado.');
       return;
     }
 
@@ -13272,14 +13151,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(resultado),
-        backgroundColor:
-            enviado ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-        duration: const Duration(seconds: 5),
-      ),
-    );
+    _showResult(enviado, resultado);
   }
 
   // ── Confirmar eliminar ───────────────────────────────────────────
@@ -13324,13 +13196,9 @@ class _HomeScreenState extends State<HomeScreen>
     if (!mounted) return;
     final exito =
         r.statusCode == 200 && r.body.toLowerCase().contains('eliminado');
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(exito
-          ? 'Crédito #$cod eliminado'
-          : 'No se pudo eliminar. Verifique el servidor.'),
-      backgroundColor:
-          exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-    ));
+    _showResult(exito, exito
+        ? 'Crédito #$cod eliminado exitosamente'
+        : 'No se pudo eliminar el crédito. Por favor intenta de nuevo.');
     if (exito) {
       _api.invalidateCache('/ajax/get_creditos_lista.php');
       await _fetchCreditos('');
