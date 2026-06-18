@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:http/http.dart' as http;
 import '../services/api_service.dart';
 import '../widgets/saf_logo.dart';
 
@@ -39,16 +41,38 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Filtros créditos
   String _creditoFiltroEstado = '';
+  String _creditoFiltroAsesor = '';
+  bool _creditoConsultando = false;
+  int _creditoPagina = 1;
+  int _creditosTotal = 0;
+  double _creditosTotalPagado = 0;
+  double _creditosTotalPendiente = 0;
+  static const int _creditosPorPagina = 20;
+
+  // Pendientes (solicitudes)
+  List<Map<String, dynamic>> _pendientesLista = [];
+  int _pendientesPagina = 1;
+  int _pendientesTotal = 0;
+  bool _pendientesLoading = false;
+  bool _pendientesLoaded = false;
 
   // Listas para diálogos
   List<Map<String, dynamic>> _deudoresLista = [];
   List<Map<String, dynamic>> _tasasLista = [];
   List<Map<String, dynamic>> _fuentesLista = [];
+  List<Map<String, dynamic>> _asesoresLista = [];
+
+  // Filtros de Estadística por Fuente
+  String _statEstado = '';          // '' = Todos, '1' = Activos, '2' = Pagados, '3' = Pendientes
+  DateTime? _statFechaDesde;
+  DateTime? _statFechaHasta;
+  String _statFuente = '0';         // '0' = Todos, o codigo de tbl_cuentas
+  bool _statLoading = false;
 
   // Simulador crédito
-  double _simMeses = 6;
+  double _simMeses = 12;
   double _simMonto = 1000000;
-  double _simTasa = 2.0;
+  double _simTasa = 10;
   DateTime? _simDesde;
   DateTime? _simHasta;
 
@@ -207,7 +231,7 @@ class _HomeScreenState extends State<HomeScreen>
     _tryBuildDeudoresFromLocal();
     // Tasas y fuentes en paralelo; deudores via API en background (no bloquea)
     unawaited(_fetchDeudores());
-    await Future.wait([_fetchTasas(), _fetchFuentes()]);
+    await Future.wait([_fetchTasas(), _fetchFuentes(), _fetchAsesores()]);
 
     if (mounted) setState(() => _loadingData = false);
   }
@@ -311,15 +335,21 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _fetchCreditos(String filtro) async {
-    // Lista de créditos aprobados/pendientes
+    // Lista de créditos — endpoint dedicado con JSON + paginación
     try {
-      final r = await _api.cachedPost('/ajax/listado_json_campos.php',
-          {'codigo_consulta': 'json_creditos_aprobados', 'filtro': filtro});
+      final r = await _api.post('/ajax/get_creditos_lista.php', {
+        'estado': _creditoFiltroEstado,
+        'asesor': _creditoFiltroAsesor,
+        'pagina': _creditoPagina.toString(),
+        'por_pagina': _creditosPorPagina.toString(),
+      });
       if (r.statusCode == 200) {
-        final d = _json(r.body);
-        final list = d['datos'];
-        if (list is List) {
-          _creditosLista = list
+        final decoded = jsonDecode(r.body);
+        if (decoded is Map && decoded['datos'] is List) {
+          _creditosTotal           = int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
+          _creditosTotalPagado     = double.tryParse(decoded['total_pagado_global']?.toString() ?? '0') ?? 0;
+          _creditosTotalPendiente  = double.tryParse(decoded['total_pendiente_global']?.toString() ?? '0') ?? 0;
+          _creditosLista = (decoded['datos'] as List)
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList();
@@ -372,6 +402,40 @@ class _HomeScreenState extends State<HomeScreen>
     } catch (e) {
       debugPrint('[SAF] creditos stat fallback: $e');
     }
+  }
+
+  /// Llama get_estadistica_fuente.php con los filtros activos y actualiza _creditos.
+  Future<void> _aplicarFiltrosEstadistica() async {
+    if (!mounted) return;
+    setState(() => _statLoading = true);
+    String fmt(DateTime? d) => d == null
+        ? ''
+        : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    try {
+      _api.invalidateCache('/ajax/get_estadistica_fuente.php');
+      final r = await _api.post('/ajax/get_estadistica_fuente.php', {
+        'estado': _statEstado,
+        'fecha_desde': fmt(_statFechaDesde),
+        'fecha_hasta': fmt(_statFechaHasta),
+        'fuente': _statFuente,
+      }).timeout(const Duration(seconds: 10));
+      if (r.statusCode == 200) {
+        final decoded = jsonDecode(r.body);
+        if (decoded is List && mounted) {
+          setState(() {
+            _creditos = decoded
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+            _statLoading = false;
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('[SAF] aplicarFiltros: $e');
+    }
+    if (mounted) setState(() => _statLoading = false);
   }
 
   /// Agrega _creditosLista por fuente para obtener salidas. Entradas = 0 (sin data de pagos).
@@ -586,6 +650,55 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  Future<void> _fetchPendientes() async {
+    if (mounted) setState(() => _pendientesLoading = true);
+    try {
+      final r = await _api.post('/ajax/get_pendientes_lista.php', {
+        'asesor': _creditoFiltroAsesor,
+        'estado': _creditoFiltroEstado,
+        'pagina': _pendientesPagina.toString(),
+        'por_pagina': _creditosPorPagina.toString(),
+      });
+      if (r.statusCode == 200) {
+        final decoded = jsonDecode(r.body);
+        if (decoded is Map && decoded['datos'] is List) {
+          _pendientesTotal = int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
+          _pendientesLista = (decoded['datos'] as List)
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('[SAF] pendientes lista: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _pendientesLoading = false;
+          _pendientesLoaded = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _fetchAsesores() async {
+    try {
+      final r = await _api.cachedPost('/ajax/get_asesores.php', {},
+          ttl: const Duration(hours: 1));
+      if (r.statusCode == 200) {
+        final decoded = jsonDecode(r.body);
+        if (decoded is List && decoded.isNotEmpty) {
+          _asesoresLista = decoded
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+        }
+      }
+    } catch (e) {
+      debugPrint('[SAF] asesores: $e');
+    }
+  }
+
   // ── User helpers ────────────────────────────────────────────────
   String get _fullName {
     final u = _api.user;
@@ -662,6 +775,1010 @@ class _HomeScreenState extends State<HomeScreen>
       builder: (_) => _profileSheet(email),
     );
   }
+
+  Future<List<Map<String, dynamic>>> _fetchUsuariosAdmin({bool forceRefresh = false}) async {
+    if (forceRefresh) _api.invalidateCache('/ajax/gestion_usuarios.php');
+    final response = await _api.cachedPost('/ajax/gestion_usuarios.php', {
+      'accion': 'listar',
+    }, ttl: const Duration(minutes: 5));
+    if (response.statusCode != 200) {
+      throw Exception('El servidor no respondió correctamente');
+    }
+    final decoded = _json(response.body);
+    if (decoded.isEmpty) {
+      final raw = response.body
+          .replaceAll(RegExp(r'<[^>]*>'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      throw Exception(
+        raw.isEmpty ? 'El servidor devolvió una respuesta vacía' : raw,
+      );
+    }
+    if (decoded['success'] != true && decoded['resultado'] != 1) {
+      throw Exception(
+          decoded['mensaje']?.toString() ?? 'No se pudieron cargar usuarios');
+    }
+    final raw = decoded['datos'];
+    if (raw is! List) {
+      throw Exception('No fue posible leer el listado de usuarios');
+    }
+    final lista = raw.whereType<Map>().map((e) {
+      // Normaliza claves: minúsculas + guión bajo en lugar de espacios
+      // El SQL en tbl_conf_consultas usa aliases como "Tipo Usuario" con mayúsculas y espacios
+      final m = <String, dynamic>{};
+      for (final entry in e.entries) {
+        final k = entry.key.toString().toLowerCase().replaceAll(' ', '_');
+        m[k] = entry.value;
+      }
+      return m;
+    }).toList();
+    return lista;
+  }
+
+  void _showUsersManagement() {
+    List<Map<String, dynamic>> usuarios = [];
+    bool loading = true;
+    bool started = false;
+    String error = '';
+    String query = '';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          if (!started) {
+            started = true;
+            _fetchUsuariosAdmin().then<void>((data) {
+              if (ctx.mounted) {
+                setS(() {
+                  usuarios = data;
+                  loading = false;
+                });
+              }
+            }).catchError((Object e) {
+              if (ctx.mounted) {
+                setS(() {
+                  error = e.toString().replaceFirst('Exception: ', '');
+                  loading = false;
+                });
+              }
+            });
+          }
+
+          final filtrados = usuarios.where((user) {
+            if (query.isEmpty) return true;
+            final text = user.values.join(' ').toLowerCase();
+            return text.contains(query.toLowerCase());
+          }).toList();
+
+          return Dialog.fullscreen(
+            backgroundColor: const Color(0xFFF5F7FC),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(4, 6, 12, 12),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              icon: const Icon(Icons.arrow_back_rounded,
+                                  color: Colors.white),
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              child: const Icon(
+                                Icons.manage_accounts_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Gestión de usuarios',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Administración · Acceso restringido',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            GestureDetector(
+                              onTap: () async {
+                                final saved = await _showUserForm();
+                                if (saved && ctx.mounted) {
+                                  setS(() {
+                                    loading = true;
+                                    error = '';
+                                  });
+                                  try {
+                                    final data = await _fetchUsuariosAdmin(
+                                        forceRefresh: true);
+                                    if (ctx.mounted) {
+                                      setS(() {
+                                        usuarios = data;
+                                        loading = false;
+                                      });
+                                    }
+                                  } catch (e) {
+                                    if (ctx.mounted) {
+                                      setS(() {
+                                        error = e
+                                            .toString()
+                                            .replaceFirst('Exception: ', '');
+                                        loading = false;
+                                      });
+                                    }
+                                  }
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.4),
+                                      width: 1),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.person_add_alt_1_rounded,
+                                        color: Colors.white, size: 16),
+                                    SizedBox(width: 6),
+                                    Text(
+                                      'Nuevo',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                    child: TextField(
+                      onChanged: (value) => setS(() => query = value.trim()),
+                      style: const TextStyle(color: _navy, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Buscar usuario, perfil o estado',
+                        hintStyle:
+                            const TextStyle(color: Color(0xFFB0BBCC)),
+                        prefixIcon: const Icon(Icons.search_rounded,
+                            color: Color(0xFF8899BB)),
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFE2E8F0)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide:
+                              const BorderSide(color: _accent1, width: 1.5),
+                        ),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: loading
+                        ? const Center(
+                            child: CircularProgressIndicator(color: _accent1),
+                          )
+                        : error.isNotEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(28),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.cloud_off_rounded,
+                                        size: 44,
+                                        color: Color(0xFF8899BB),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        error,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Color(0xFF64748B),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : filtrados.isEmpty
+                                ? const Center(
+                                    child: Text(
+                                      'No se encontraron usuarios',
+                                      style:
+                                          TextStyle(color: Color(0xFF8899BB)),
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    padding: const EdgeInsets.fromLTRB(
+                                        16, 4, 16, 24),
+                                    itemCount: filtrados.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(height: 10),
+                                    itemBuilder: (_, index) => _adminUserCard(
+                                      filtrados[index],
+                                      () async {
+                                        final saved = await _showUserForm(
+                                            filtrados[index]);
+                                        if (saved && ctx.mounted) {
+                                          setS(() {
+                                            loading = true;
+                                            error = '';
+                                          });
+                                          try {
+                                            final data =
+                                                await _fetchUsuariosAdmin(forceRefresh: true);
+                                            if (ctx.mounted) {
+                                              setS(() {
+                                                usuarios = data;
+                                                loading = false;
+                                              });
+                                            }
+                                          } catch (e) {
+                                            if (ctx.mounted) {
+                                              setS(() {
+                                                error = e
+                                                    .toString()
+                                                    .replaceFirst(
+                                                        'Exception: ', '');
+                                                loading = false;
+                                              });
+                                            }
+                                          }
+                                        }
+                                      },
+                                    ),
+                                  ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _usuariosRequest(
+      Map<String, dynamic> body) async {
+    final response =
+        await _api.post('/ajax/gestion_usuarios.php', body);
+    if (response.statusCode != 200) {
+      throw Exception('El servidor no respondió correctamente');
+    }
+    final decoded = _json(response.body);
+    if (decoded.isEmpty) {
+      final raw = response.body
+          .replaceAll(RegExp(r'<[^>]*>'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      throw Exception(
+        raw.isEmpty ? 'El servidor devolvió una respuesta vacía' : raw,
+      );
+    }
+    if (decoded['success'] != true && decoded['resultado'] != 1) {
+      throw Exception(
+          decoded['mensaje']?.toString() ?? 'Operación no completada');
+    }
+    return decoded;
+  }
+
+  Future<bool> _showUserForm([Map<String, dynamic>? listadoUser]) async {
+    final codigoUsuario = (listadoUser?['codigo_usuario'] ??
+            listadoUser?['codigo'] ??
+            listadoUser?['cod'] ??
+            '')
+        .toString();
+    final editing = codigoUsuario.isNotEmpty;
+    if (!mounted) return false;
+
+    // Estado mutable dentro del StatefulBuilder
+    bool loadingData = true;
+    String loadError = '';
+    List<Map<String, dynamic>> perfiles = [];
+    List<Map<String, dynamic>> tipos = [];
+    final emailCtrl = TextEditingController();
+    String perfil = '';
+    String tipo = '';
+    String origen = '';
+    List<Map<String, dynamic>> origenes = [];
+    bool loadingOrigenes = false;
+    bool saving = false;
+    bool initStarted = false;
+
+    Future<List<Map<String, dynamic>>> loadOrigins(
+        String tipoCodigo, StateSetter setS) async {
+      if (tipoCodigo.isEmpty) return [];
+      final response = await _usuariosRequest({
+        'accion': 'origenes',
+        'codigo_tipo_usuario': tipoCodigo,
+      });
+      final raw = response['datos'];
+      return raw is List
+          ? raw
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList()
+          : [];
+    }
+
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          // Inicializar datos la primera vez que se renderiza
+          if (!initStarted) {
+            initStarted = true;
+            Future.microtask(() async {
+              try {
+                final cats =
+                    await _usuariosRequest({'accion': 'catalogos'});
+                final data = cats['datos'] is Map
+                    ? Map<String, dynamic>.from(cats['datos'] as Map)
+                    : <String, dynamic>{};
+                final loadedPerfiles =
+                    (data['perfiles'] is List ? data['perfiles'] as List : [])
+                        .whereType<Map>()
+                        .map((e) => Map<String, dynamic>.from(e))
+                        .toList();
+                final loadedTipos =
+                    (data['tipos'] is List ? data['tipos'] as List : [])
+                        .whereType<Map>()
+                        .map((e) => Map<String, dynamic>.from(e))
+                        .toList();
+
+                Map<String, dynamic> detail = {};
+                if (editing) {
+                  final resp = await _usuariosRequest({
+                    'accion': 'detalle',
+                    'codigo_usuario': codigoUsuario,
+                  });
+                  if (resp['datos'] is Map) {
+                    detail =
+                        Map<String, dynamic>.from(resp['datos'] as Map);
+                  }
+                }
+
+                final initEmail = (detail['usuario'] ??
+                        listadoUser?['usuario'] ??
+                        listadoUser?['email'] ??
+                        '')
+                    .toString();
+                final initPerfil =
+                    (detail['codigo_perfil'] ?? '').toString();
+                final initTipo =
+                    (detail['codigo_tipo_usuario'] ?? '').toString();
+                final initOrigen =
+                    (detail['codigo_origen'] ?? '').toString();
+
+                List<Map<String, dynamic>> loadedOrigenes = [];
+                if (initTipo.isNotEmpty) {
+                  try {
+                    loadedOrigenes = await loadOrigins(initTipo, setS);
+                  } catch (_) {}
+                }
+
+                if (ctx.mounted) {
+                  setS(() {
+                    perfiles = loadedPerfiles;
+                    tipos = loadedTipos;
+                    emailCtrl.text = initEmail;
+                    perfil = initPerfil;
+                    tipo = initTipo;
+                    origen = initOrigen;
+                    origenes = loadedOrigenes;
+                    loadingData = false;
+                  });
+                }
+              } catch (e) {
+                if (ctx.mounted) {
+                  setS(() {
+                    loadError =
+                        e.toString().replaceFirst('Exception: ', '');
+                    loadingData = false;
+                  });
+                }
+              }
+            });
+          }
+
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            titlePadding: EdgeInsets.zero,
+            title: Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    _accent1.withValues(alpha: 0.08),
+                    Colors.white,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _accent1.withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      editing
+                          ? Icons.manage_accounts_rounded
+                          : Icons.person_add_alt_1_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          editing ? 'Editar usuario' : 'Crear usuario',
+                          style: const TextStyle(
+                            color: _navy,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          editing
+                              ? 'Modifica los datos del usuario'
+                              : 'Registra un nuevo acceso',
+                          style: const TextStyle(
+                            color: Color(0xFF8899BB),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            content: loadingData
+                ? const SizedBox(
+                    height: 120,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(color: _accent1),
+                          SizedBox(height: 16),
+                          Text('Cargando datos...',
+                              style: TextStyle(
+                                  color: Color(0xFF8899BB), fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  )
+                : loadError.isNotEmpty
+                    ? SizedBox(
+                        height: 100,
+                        child: Center(
+                          child: Text(loadError,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: Color(0xFFDC2626))),
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        child: SizedBox(
+                          width: 440,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(height: 4),
+                              TextField(
+                                controller: emailCtrl,
+                                keyboardType: TextInputType.emailAddress,
+                                style: const TextStyle(color: _navy),
+                                decoration: _userInputDecoration(
+                                  'Email usuario',
+                                  Icons.alternate_email_rounded,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                initialValue:
+                                    perfil.isEmpty ? null : perfil,
+                                isExpanded: true,
+                                dropdownColor: Colors.white,
+                                style: const TextStyle(
+                                    color: _navy, fontSize: 14),
+                                decoration: _userInputDecoration(
+                                  'Perfil',
+                                  Icons.admin_panel_settings_outlined,
+                                ),
+                                items: perfiles
+                                    .map((item) => DropdownMenuItem(
+                                          value: (item['codigo'] ?? '')
+                                              .toString(),
+                                          child: Text(
+                                            (item['nombre'] ?? '')
+                                                .toString(),
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                color: _navy),
+                                          ),
+                                        ))
+                                    .toList(),
+                                onChanged: saving
+                                    ? null
+                                    : (value) =>
+                                        setS(() => perfil = value ?? ''),
+                              ),
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                initialValue: tipo.isEmpty ? null : tipo,
+                                isExpanded: true,
+                                dropdownColor: Colors.white,
+                                style: const TextStyle(
+                                    color: _navy, fontSize: 14),
+                                decoration: _userInputDecoration(
+                                  'Tipo de usuario',
+                                  Icons.badge_outlined,
+                                ),
+                                items: tipos
+                                    .map((item) => DropdownMenuItem(
+                                          value: (item['codigo'] ?? '')
+                                              .toString(),
+                                          child: Text(
+                                            (item['nombre'] ?? '')
+                                                .toString(),
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                color: _navy),
+                                          ),
+                                        ))
+                                    .toList(),
+                                onChanged: saving
+                                    ? null
+                                    : (value) async {
+                                        final selected = value ?? '';
+                                        setS(() {
+                                          tipo = selected;
+                                          origen = '';
+                                          origenes = [];
+                                          loadingOrigenes =
+                                              selected.isNotEmpty;
+                                        });
+                                        if (selected.isEmpty) return;
+                                        try {
+                                          final result = await loadOrigins(
+                                              selected, setS);
+                                          if (ctx.mounted) {
+                                            setS(() {
+                                              origenes = result;
+                                              loadingOrigenes = false;
+                                            });
+                                          }
+                                        } catch (e) {
+                                          if (ctx.mounted) {
+                                            setS(() =>
+                                                loadingOrigenes = false);
+                                            ScaffoldMessenger.of(ctx)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: Text(e
+                                                    .toString()
+                                                    .replaceFirst(
+                                                        'Exception: ',
+                                                        '')),
+                                                backgroundColor:
+                                                    const Color(0xFFDC2626),
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      },
+                              ),
+                              const SizedBox(height: 12),
+                              DropdownButtonFormField<String>(
+                                key: ValueKey(
+                                    'origen-$tipo-$origen-${origenes.length}'),
+                                initialValue: origen.isEmpty ||
+                                        !origenes.any((item) =>
+                                            (item['codigo'] ?? '')
+                                                    .toString() ==
+                                                origen)
+                                    ? null
+                                    : origen,
+                                isExpanded: true,
+                                dropdownColor: Colors.white,
+                                style: const TextStyle(
+                                    color: _navy, fontSize: 14),
+                                decoration: _userInputDecoration(
+                                  loadingOrigenes
+                                      ? 'Cargando usuarios...'
+                                      : 'Usuario asociado',
+                                  Icons.person_search_outlined,
+                                ),
+                                items: origenes
+                                    .map((item) => DropdownMenuItem(
+                                          value: (item['codigo'] ?? '')
+                                              .toString(),
+                                          child: Text(
+                                            (item['nombre'] ?? '')
+                                                .toString(),
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                color: _navy),
+                                          ),
+                                        ))
+                                    .toList(),
+                                onChanged: saving || loadingOrigenes
+                                    ? null
+                                    : (value) =>
+                                        setS(() => origen = value ?? ''),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+            actions: loadingData || loadError.isNotEmpty
+                ? [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cerrar'),
+                    ),
+                  ]
+                : [
+                    TextButton(
+                      onPressed:
+                          saving ? null : () => Navigator.pop(ctx, false),
+                      style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF8899BB)),
+                      child: const Text('Cancelar'),
+                    ),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: saving
+                            ? null
+                            : const LinearGradient(
+                                colors: [
+                                  Color(0xFF0D1B4B),
+                                  Color(0xFF1E3A8A)
+                                ],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: saving
+                            ? null
+                            : [
+                                BoxShadow(
+                                  color: _accent1.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                )
+                              ],
+                      ),
+                      child: ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              const Color(0xFFCBD5E1),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                final email = emailCtrl.text.trim();
+                                if (!email.contains('@') ||
+                                    perfil.isEmpty ||
+                                    tipo.isEmpty ||
+                                    origen.isEmpty) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    const SnackBar(
+                                      content:
+                                          Text('Complete todos los campos.'),
+                                      backgroundColor: Color(0xFFDC2626),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                setS(() => saving = true);
+                                try {
+                                  await _usuariosRequest({
+                                    'accion': 'guardar',
+                                    'codigo_usuario': codigoUsuario,
+                                    'usuario': email,
+                                    'codigo_perfil': perfil,
+                                    'codigo_tipo_usuario': tipo,
+                                    'codigo_origen': origen,
+                                  });
+                                  if (ctx.mounted) {
+                                    Navigator.pop(ctx, true);
+                                  }
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    setS(() => saving = false);
+                                    ScaffoldMessenger.of(ctx).showSnackBar(
+                                      SnackBar(
+                                        content: Text(e
+                                            .toString()
+                                            .replaceFirst('Exception: ', '')),
+                                        backgroundColor:
+                                            const Color(0xFFDC2626),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        icon: saving
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.save_rounded, size: 18),
+                        label:
+                            Text(saving ? 'Guardando...' : 'Guardar'),
+                      ),
+                    ),
+                  ],
+          );
+        },
+      ),
+    );
+    emailCtrl.dispose();
+    return saved == true;
+  }
+
+  InputDecoration _userInputDecoration(String label, IconData icon) =>
+      InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: _accent1, size: 20),
+        filled: true,
+        fillColor: const Color(0xFFF0F2FA),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFDCE2F0)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _accent1, width: 1.5),
+        ),
+      );
+
+  Widget _adminUserCard(
+      Map<String, dynamic> user, VoidCallback onEdit) {
+    final email = (user['usuario'] ??
+            user['email'] ??
+            user['correo'] ??
+            'Usuario sin correo')
+        .toString();
+    final tipo =
+        (user['tipo_usuario'] ?? user['tipo'] ?? 'Usuario').toString();
+    final perfil =
+        (user['perfil'] ?? user['nombre_perfil'] ?? 'Sin perfil').toString();
+    final estadoRaw = (user['estado'] ?? user['activo'] ?? '').toString();
+    final activo = estadoRaw.isEmpty ||
+        estadoRaw == '1' ||
+        estadoRaw.toLowerCase() == 'activo' ||
+        estadoRaw.toLowerCase() == 'true';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEEF0F8)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Borde izquierdo de color
+          Container(
+            width: 4,
+            height: 72,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: activo
+                    ? [const Color(0xFF0D1B4B), const Color(0xFF1E3A8A)]
+                    : [const Color(0xFFCBD5E1), const Color(0xFFCBD5E1)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16),
+                bottomLeft: Radius.circular(16),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Avatar
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: activo
+                  ? const LinearGradient(
+                      colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              color: activo ? null : const Color(0xFFCBD5E1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.person_rounded,
+                color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    email,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _navy,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 5,
+                    runSpacing: 4,
+                    children: [
+                      _userBadge(tipo, const Color(0xFF4361EE)),
+                      _userBadge(perfil, const Color(0xFF4361EE)),
+                      _userBadge(
+                        activo ? 'Activo' : 'Inactivo',
+                        activo
+                            ? const Color(0xFF16A34A)
+                            : const Color(0xFFDC2626),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Botón editar
+          GestureDetector(
+            onTap: onEdit,
+            child: Container(
+              width: 36,
+              height: 36,
+              margin: const EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: _accent1.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.edit_rounded,
+                color: _accent1,
+                size: 18,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _userBadge(String text, Color color) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
 
   // ── Build ───────────────────────────────────────────────────────
   @override
@@ -822,65 +1939,71 @@ class _HomeScreenState extends State<HomeScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionTitle('Resumen del mes'),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _summaryCard(
-                      icon: Icons.trending_up_rounded,
-                      label: 'Total Ingresos',
-                      value: _cop(ingresos),
-                      color: const Color(0xFF16A34A),
-                      bgColor: const Color(0xFFDCFCE7),
-                      badge:
-                          '+${_movimientos.where((m) => _tipoOf(m) == 'ingreso').length}',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _summaryCard(
-                      icon: Icons.trending_down_rounded,
-                      label: 'Total Gastos',
-                      value: _cop(egresos),
-                      color: const Color(0xFFDC2626),
-                      bgColor: const Color(0xFFFEE2E2),
-                      badge:
-                          '${_movimientos.where((m) => _tipoOf(m) == 'gasto').length}',
-                    ),
-                  ),
-                ],
+              _dashboardSectionHeader(
+                icon: Icons.insights_rounded,
+                title: 'Resumen del mes',
+                subtitle: 'Indicadores financieros consolidados',
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _summaryCard(
-                      icon: Icons.account_balance_wallet_rounded,
-                      label: 'Balance',
-                      value: _cop(balance),
-                      color: balance >= 0 ? _accent1 : const Color(0xFFDC2626),
-                      bgColor: balance >= 0
-                          ? const Color(0xFFEEF0FF)
-                          : const Color(0xFFFEE2E2),
-                      badge: '${_cuentas.length} cuentas',
+              const SizedBox(height: 16),
+              LayoutBuilder(builder: (context, constraints) {
+                const gap = 12.0;
+                final twoColumns = constraints.maxWidth >= 330;
+                final cardWidth = twoColumns
+                    ? (constraints.maxWidth - gap) / 2
+                    : constraints.maxWidth;
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    SizedBox(
+                      width: cardWidth,
+                      child: _summaryCard(
+                        icon: Icons.trending_up_rounded,
+                        label: 'Total ingresos',
+                        value: _cop(ingresos),
+                        color: const Color(0xFF059669),
+                        bgColor: const Color(0xFF6EE7B7),
+                        badge:
+                            '+${_movimientos.where((m) => _tipoOf(m) == 'ingreso').length}',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _summaryCard(
-                      icon: Icons.savings_rounded,
-                      label: 'Ahorradores',
-                      value: _ahorradores.isEmpty
-                          ? '0'
-                          : _ahorradores.length.toString(),
-                      color: const Color(0xFF7B2FBE),
-                      bgColor: const Color(0xFFF3E5F5),
-                      badge: 'activos',
+                    SizedBox(
+                      width: cardWidth,
+                      child: _summaryCard(
+                        icon: Icons.trending_down_rounded,
+                        label: 'Total gastos',
+                        value: _cop(egresos),
+                        color: const Color(0xFFDC2626),
+                        bgColor: const Color(0xFFFCA5A5),
+                        badge:
+                            '${_movimientos.where((m) => _tipoOf(m) == 'gasto').length}',
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _summaryCard(
+                        icon: Icons.account_balance_wallet_rounded,
+                        label: 'Balance neto',
+                        value: _cop(balance),
+                        color: _accent1,
+                        bgColor: const Color(0xFF93C5FD),
+                        badge: '${_cuentas.length} cuentas',
+                      ),
+                    ),
+                    SizedBox(
+                      width: cardWidth,
+                      child: _summaryCard(
+                        icon: Icons.groups_rounded,
+                        label: 'Ahorradores',
+                        value: _ahorradores.length.toString(),
+                        color: const Color(0xFF4361EE),
+                        bgColor: const Color(0xFFC4B5FD),
+                        badge: 'activos',
+                      ),
+                    ),
+                  ],
+                );
+              }),
             ],
           ),
         ),
@@ -889,33 +2012,24 @@ class _HomeScreenState extends State<HomeScreen>
         if (_cuentas.isNotEmpty) ...[
           const SizedBox(height: 26),
           Padding(
-            padding: const EdgeInsets.only(left: 20, right: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _sectionTitle('Mis Cuentas'),
-                TextButton(
-                  onPressed: () => setState(() => _selectedIndex = 3),
-                  style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero, minimumSize: Size.zero),
-                  child: const Text('Ver todo',
-                      style: TextStyle(
-                          color: _accent1,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600)),
-                ),
-              ],
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _dashboardSectionHeader(
+              icon: Icons.account_balance_rounded,
+              title: 'Mis cuentas',
+              subtitle: '${_cuentas.length} fuentes registradas',
+              action: 'Ver todas',
+              onAction: () => setState(() => _selectedIndex = 3),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           SizedBox(
-            height: 106,
+            height: 126,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
               itemCount: _cuentas.length,
               separatorBuilder: (_, __) => const SizedBox(width: 10),
-              itemBuilder: (_, i) => _cuentaChip(_cuentas[i]),
+              itemBuilder: (_, i) => _cuentaChip(_cuentas[i], index: i),
             ),
           ),
         ],
@@ -927,23 +2041,14 @@ class _HomeScreenState extends State<HomeScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _sectionTitle('Actividad Reciente'),
-                  TextButton(
-                    onPressed: () => setState(() => _selectedIndex = 3),
-                    style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero, minimumSize: Size.zero),
-                    child: const Text('Ver todo',
-                        style: TextStyle(
-                            color: _accent1,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600)),
-                  ),
-                ],
+              _dashboardSectionHeader(
+                icon: Icons.receipt_long_rounded,
+                title: 'Actividad reciente',
+                subtitle: '${recent.length} movimientos más recientes',
+                action: 'Ver todos',
+                onAction: () => setState(() => _selectedIndex = 3),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               if (_loadingData)
                 const Center(
                     child: Padding(
@@ -956,12 +2061,13 @@ class _HomeScreenState extends State<HomeScreen>
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: const Color(0xFFE6EBF5)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
+                        color: _navy.withValues(alpha: 0.06),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
                       )
                     ],
                   ),
@@ -991,35 +2097,32 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _creditosTab() {
     if (_loadingData) return _loadingView();
 
-    // Totales calculados desde lista de créditos individuales
-    final totalPagado = _creditosLista.fold(
-        0.0, (s, c) => s + _num(c['total_pagado'] ?? c['pagado'] ?? 0));
-    final totalPendiente = _creditosLista.fold(
-        0.0,
-        (s, c) =>
-            s +
-            _num(c['saldo_pendiente'] ?? c['pendiente'] ?? c['saldo'] ?? 0));
+    // Totales globales (todos los registros del filtro, no solo la página actual)
+    final totalPagado    = _creditosTotalPagado;
+    final totalPendiente = _creditosTotalPendiente;
 
-    final creditosFiltrados = _creditoFiltroEstado.isEmpty
-        ? _creditosLista
-        : _creditosLista.where((c) {
-            final est = (c['estado'] ?? '').toString().toLowerCase();
-            return est.contains(_creditoFiltroEstado.toLowerCase());
-          }).toList();
+    final creditosFiltrados = _creditosLista;
 
-    // ── Cálculo del simulador (modelo de interés diario) ──────────
+    // ── Cálculo del simulador (igual que web: tasa mensual simple) ──
     final meses = _simMeses.round();
-    // Días entre fechas; si no hay rango, se asume meses × 30.
+    // Interés mensual = monto × tasa% (tasa es mensual)
+    final interesMensual = _simMonto * (_simTasa / 100);
+    // Amortización mensual = monto / meses
+    final amortizacionMensual = meses > 0 ? _simMonto / meses : 0.0;
+    // Cuota mensual = amortización + interés
+    final cuotaMensual = amortizacionMensual + interesMensual;
+    final cuotaQuincenal = cuotaMensual / 2;
+    // Valor total a pagar
+    final valorAPagar = cuotaMensual * meses;
+    // Valor diario = interés mensual / 30
+    final valorDiario = interesMensual / 30;
+    // Si hay fechas, calcular intereses por días exactos
     final dias = (_simDesde != null && _simHasta != null)
         ? _simHasta!.difference(_simDesde!).inDays.clamp(0, 100000)
-        : meses * 30;
-    final tasaDiaria = (_simTasa / 100) / 30; // tasa mensual → diaria
-    final valorDiario = _simMonto * tasaDiaria; // interés que genera por día
-    final totalIntereses = valorDiario * dias;
-    final valorTotalDiario = _simMonto + totalIntereses; // capital + interés
-    final valorAPagar = valorTotalDiario;
-    final cuotaMensual = meses > 0 ? valorAPagar / meses : 0.0;
-    final cuotaQuincenal = meses > 0 ? valorAPagar / (meses * 2) : 0.0;
+        : 0;
+    final valorTotalDiario = dias > 0
+        ? _simMonto + (valorDiario * dias)
+        : 0.0;
     final cuotaReal = cuotaMensual;
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1082,7 +2185,8 @@ class _HomeScreenState extends State<HomeScreen>
 
       // ── Contenido por sub-tab ───────────────────────────────
       if (_creditoSubTab == 0 || _creditoSubTab == 1) ...[
-        // Botones acción
+        // Botones acción (solo en Aprobados)
+        if (_creditoSubTab == 0)
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           child: Row(children: [
@@ -1102,6 +2206,7 @@ class _HomeScreenState extends State<HomeScreen>
           ]),
         ),
         // Stats Total Pagado / Total Pendiente
+        if (_creditoSubTab == 0)
         Container(
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -1146,10 +2251,11 @@ class _HomeScreenState extends State<HomeScreen>
                 ])),
           ]),
         ),
-        // Filtro Estado — fila compacta alineada
+        // Filtros Asesor + Estado (solo en Aprobados)
+        if (_creditoSubTab == 0)
         Container(
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
@@ -1160,88 +2266,206 @@ class _HomeScreenState extends State<HomeScreen>
                   offset: const Offset(0, 3))
             ],
           ),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            const Text('Estado',
-                style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF8899BB))),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Container(
-                height: 38,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                    color: const Color(0xFFF0F2FA),
-                    borderRadius: BorderRadius.circular(8)),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _creditoFiltroEstado.isEmpty
-                        ? null
-                        : _creditoFiltroEstado,
-                    isExpanded: true,
-                    dropdownColor: Colors.white,
-                    hint: const Text('Seleccione',
-                        style:
-                            TextStyle(fontSize: 12, color: Color(0xFF8899BB))),
-                    items: const [
-                      DropdownMenuItem(value: null, child: Text('Todos')),
-                      DropdownMenuItem(value: 'activo', child: Text('Activo')),
-                      DropdownMenuItem(value: 'pagado', child: Text('Pagado')),
-                    ],
-                    style:
-                        const TextStyle(fontSize: 12, color: Color(0xFF0D1B4B)),
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                        size: 18, color: Color(0xFF8899BB)),
-                    onChanged: (v) =>
-                        setState(() => _creditoFiltroEstado = v ?? ''),
+          child: Column(children: [
+            Row(children: [
+              // Asesor
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Asesor', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF8899BB))),
+                const SizedBox(height: 4),
+                Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(color: const Color(0xFFF0F2FA), borderRadius: BorderRadius.circular(8)),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _creditoFiltroAsesor.isEmpty ? null : _creditoFiltroAsesor,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
+                      hint: const Text('[Seleccione]', style: TextStyle(fontSize: 11, color: Color(0xFF8899BB))),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF0D1B4B)),
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF8899BB)),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('[Seleccione]', style: TextStyle(color: Color(0xFF0D1B4B)))),
+                        ..._asesoresLista.map((a) {
+                          final sigla = (a['sigla'] ?? a['codigo_asesor'] ?? a['codigo'] ?? '').toString();
+                          final nombre = ([a['nombres'], a['apellidos']].where((x) => x != null && x.toString().isNotEmpty).join(' ')).trim();
+                          final display = nombre.isNotEmpty ? nombre : sigla;
+                          return DropdownMenuItem(
+                            value: sigla,
+                            child: Text(display, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF0D1B4B))),
+                          );
+                        }),
+                      ],
+                      onChanged: (v) => setState(() => _creditoFiltroAsesor = v ?? ''),
+                    ),
                   ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 10),
+              ])),
+              const SizedBox(width: 10),
+              // Estado
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Estado', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF8899BB))),
+                const SizedBox(height: 4),
+                Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(color: const Color(0xFFF0F2FA), borderRadius: BorderRadius.circular(8)),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _creditoFiltroEstado.isEmpty ? null : _creditoFiltroEstado,
+                      isExpanded: true,
+                      dropdownColor: Colors.white,
+                      hint: const Text('[Seleccione]', style: TextStyle(fontSize: 11, color: Color(0xFF8899BB))),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF0D1B4B)),
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF8899BB)),
+                      items: const [
+                        DropdownMenuItem(value: null, child: Text('[Seleccione]', style: TextStyle(color: Color(0xFF0D1B4B)))),
+                        DropdownMenuItem(value: '1', child: Text('Activo', style: TextStyle(color: Color(0xFF0D1B4B)))),
+                        DropdownMenuItem(value: '2', child: Text('Pagado', style: TextStyle(color: Color(0xFF0D1B4B)))),
+                      ],
+                      onChanged: (v) => setState(() => _creditoFiltroEstado = v ?? ''),
+                    ),
+                  ),
+                ),
+              ])),
+            ]),
+            const SizedBox(height: 10),
+            // Consultar
             GestureDetector(
-              onTap: () async {
-                final u = _api.user;
-                final codigo = u?['codigo_usuario']?.toString() ?? '';
-                _api.invalidateCache('/ajax/listado_json_campos.php');
-                await _fetchCreditos(codigo);
-                if (mounted) setState(() {});
-              },
-              child: Container(
-                height: 38,
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+              onTap: _creditoConsultando
+                  ? null
+                  : () async {
+                      setState(() => _creditoConsultando = true);
+                      try {
+                        if (_creditoSubTab == 0) {
+                          setState(() => _creditoPagina = 1);
+                          await _fetchCreditos('');
+                        } else {
+                          setState(() => _pendientesPagina = 1);
+                          await _fetchPendientes();
+                        }
+                      } finally {
+                        if (mounted) {
+                          setState(() => _creditoConsultando = false);
+                        }
+                      }
+                    },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                height: 36,
+                width: double.infinity,
                 decoration: BoxDecoration(
-                    color: _navy, borderRadius: BorderRadius.circular(8)),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.search_rounded, color: Colors.white, size: 14),
-                    SizedBox(width: 4),
-                    Text('Consultar',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                  ],
+                  color: _creditoConsultando
+                      ? _navy.withValues(alpha: 0.78)
+                      : _navy,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: _creditoConsultando
+                      ? const SizedBox(
+                          width: 17,
+                          height: 17,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.search_rounded,
+                                color: Colors.white, size: 14),
+                            SizedBox(width: 6),
+                            Text(
+                              'Consultar',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
                 ),
               ),
             ),
           ]),
         ),
-        // Lista de créditos
-        if (creditosFiltrados.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _emptyActivity(),
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-            child: Column(
-              children: creditosFiltrados.map((c) => _creditoCard(c)).toList(),
+        // ── Lista Aprobados ──
+        if (_creditoSubTab == 0) ...[
+          if (creditosFiltrados.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _emptyActivity(),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Column(children: creditosFiltrados.map((c) => _creditoCard(c)).toList()),
             ),
-          ),
+          if (_creditosTotal > _creditosPorPagina)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Row(children: [
+                _pgBtn(Icons.chevron_left_rounded, _creditoPagina > 1, () async {
+                  setState(() => _creditoPagina--);
+                  await _fetchCreditos('');
+                  if (mounted) setState(() {});
+                }),
+                const SizedBox(width: 8),
+                Expanded(child: Center(child: Text(
+                  'Pág $_creditoPagina de ${((_creditosTotal - 1) ~/ _creditosPorPagina) + 1}  ·  $_creditosTotal registros',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF8899BB)),
+                ))),
+                const SizedBox(width: 8),
+                _pgBtn(Icons.chevron_right_rounded,
+                    _creditoPagina * _creditosPorPagina < _creditosTotal, () async {
+                  setState(() => _creditoPagina++);
+                  await _fetchCreditos('');
+                  if (mounted) setState(() {});
+                }),
+              ]),
+            ),
+        ],
+        // ── Lista Pendientes ──
+        if (_creditoSubTab == 1) ...[
+          if (_pendientesLoading || !_pendientesLoaded)
+            _pendientesSkeleton()
+          else if (_pendientesLista.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _emptyActivity(),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Column(children: _pendientesLista.map((p) => _pendienteCard(p)).toList()),
+            ),
+          if (_pendientesTotal > _creditosPorPagina)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Row(children: [
+                _pgBtn(Icons.chevron_left_rounded, _pendientesPagina > 1, () async {
+                  setState(() => _pendientesPagina--);
+                  await _fetchPendientes();
+                  if (mounted) setState(() {});
+                }),
+                const SizedBox(width: 8),
+                Expanded(child: Center(child: Text(
+                  'Pág $_pendientesPagina de ${((_pendientesTotal - 1) ~/ _creditosPorPagina) + 1}  ·  $_pendientesTotal solicitudes',
+                  style: const TextStyle(fontSize: 12, color: Color(0xFF8899BB)),
+                ))),
+                const SizedBox(width: 8),
+                _pgBtn(Icons.chevron_right_rounded,
+                    _pendientesPagina * _creditosPorPagina < _pendientesTotal, () async {
+                  setState(() => _pendientesPagina++);
+                  await _fetchPendientes();
+                  if (mounted) setState(() {});
+                }),
+              ]),
+            ),
+        ],
       ] else if (_creditoSubTab == 2) ...[
         // ── SIMULAR CRÉDITO ──────────────────────────────────
         Container(
@@ -1263,8 +2487,8 @@ class _HomeScreenState extends State<HomeScreen>
             Slider(
               value: _simMeses,
               min: 1,
-              max: 60,
-              divisions: 59,
+              max: 24,
+              divisions: 23,
               activeColor: const Color(0xFF3B3B8A),
               onChanged: (v) => setState(() => _simMeses = v),
             ),
@@ -1273,18 +2497,18 @@ class _HomeScreenState extends State<HomeScreen>
             Slider(
               value: _simMonto,
               min: 100000,
-              max: 50000000,
-              divisions: 100,
+              max: 3000000,
+              divisions: 29,
               activeColor: const Color(0xFF3B3B8A),
               onChanged: (v) => setState(() => _simMonto = v),
             ),
             const SizedBox(height: 8),
-            _simLabel('Tasa interés mensual: ${_simTasa.toStringAsFixed(1)}%'),
+            _simLabel('Tasa interés: ${_simTasa.round()}'),
             Slider(
               value: _simTasa,
-              min: 0.5,
-              max: 10,
-              divisions: 19,
+              min: 5,
+              max: 20,
+              divisions: 15,
               activeColor: const Color(0xFF3B3B8A),
               onChanged: (v) => setState(() => _simTasa = v),
             ),
@@ -1351,11 +2575,15 @@ class _HomeScreenState extends State<HomeScreen>
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Column(children: [
-                _simResultRow('Valor Diario', _cop(valorDiario)),
+                _simResultRow('Valor Diaria', _cop(valorDiario)),
+                if (dias > 0)
+                  _simResultRow(
+                      'Valor total con intereses diarios',
+                      _cop(valorTotalDiario)),
                 _simResultRow(
-                    'Valor total con intereses diarios', _cop(valorTotalDiario)),
-                _simResultRow('Cuota Mensual', _cop(cuotaMensual)),
-                _simResultRow('Cuota Quincenal', _cop(cuotaQuincenal)),
+                    '$meses Cuota(s) Mensual(es)', _cop(cuotaMensual)),
+                _simResultRow(
+                    '${meses * 2} Cuota(s) Quincenal(es)', _cop(cuotaQuincenal)),
                 _simResultRow('Valor a Pagar', _cop(valorAPagar),
                     destacado: true),
               ]),
@@ -1370,50 +2598,184 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
 
-  // ── Estadística por Fuente — barras horizontales ─────────────
+  // ── Estadística por Fuente — filtros + barras horizontales ──────
   Widget _estadisticaCreditosWidget() {
-    if (_creditos.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-        child: _emptyActivity(),
-      );
-    }
-
-    // Campos fijos: get_estadistica_fuente.php devuelve {fuente, total_salidas, total_entradas}
-    String labelOf(Map<String, dynamic> d) =>
-        (d['fuente'] ?? '?').toString();
+    String labelOf(Map<String, dynamic> d)   => (d['fuente'] ?? '?').toString();
     double salidasOf(Map<String, dynamic> d) => _num(d['total_salidas']);
-    double entradasOf(Map<String, dynamic> d) => _num(d['total_entradas']);
+    double entradasOf(Map<String, dynamic> d)=> _num(d['total_entradas']);
 
-    final totalSalidas  = _creditos.fold(0.0, (s, d) => s + salidasOf(d));
-    final totalEntradas = _creditos.fold(0.0, (s, d) => s + entradasOf(d));
+    String fmtDate(DateTime? d) => d == null
+        ? 'dd/mm/aaaa'
+        : '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
+
+    // Dropdown de fuentes para el filtro
+    final fuenteItems = <DropdownMenuItem<String>>[
+      const DropdownMenuItem(value: '0', child: Text('[Seleccione]')),
+      ..._fuentesLista.map((f) {
+        final label = (f['fuente'] ?? f['nombre'] ?? f['name'] ?? '').toString();
+        final codigo = (f['valor'] ?? f['codigo'] ?? f['id'] ?? '0').toString();
+        return DropdownMenuItem(value: codigo, child: Text(label, overflow: TextOverflow.ellipsis));
+      }),
+    ];
+
+    final inputDeco = InputDecoration(
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFD1D5DB))),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFD1D5DB))),
+      filled: true, fillColor: Colors.white,
+    );
+
+    Future<void> pickDate(bool isDesde) async {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: (isDesde ? _statFechaDesde : _statFechaHasta) ?? DateTime.now(),
+        firstDate: DateTime(2015), lastDate: DateTime(2035),
+      );
+      if (picked != null && mounted) {
+        setState(() {
+          if (isDesde) {
+            _statFechaDesde = picked;
+          } else {
+            _statFechaHasta = picked;
+          }
+        });
+      }
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('Balance de valores por fuente',
-            style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w800, color: _navy)),
-        const SizedBox(height: 16),
-        _barChartSection(
-          title: 'Salidas por fuente (Créditos otorgados)',
-          barColor: const Color(0xFF3B3B8A),
-          data: _creditos,
-          labelFn: labelOf,
-          valueFn: salidasOf,
-          total: totalSalidas,
-          totalLabel: 'Total salidas',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _navy)),
+        const SizedBox(height: 14),
+
+        // ── Filtro Estado ──────────────────────────────────────
+        Text('Estado:', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        const SizedBox(height: 4),
+        DropdownButtonFormField<String>(
+          initialValue: _statEstado.isEmpty ? '' : _statEstado,
+          decoration: inputDeco,
+          dropdownColor: Colors.white,
+          style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
+          items: const [
+            DropdownMenuItem(value: '',  child: Text('Todos', style: TextStyle(color: Color(0xFF1E293B)))),
+            DropdownMenuItem(value: '1', child: Text('Activos', style: TextStyle(color: Color(0xFF1E293B)))),
+            DropdownMenuItem(value: '2', child: Text('Pagados', style: TextStyle(color: Color(0xFF1E293B)))),
+            DropdownMenuItem(value: '3', child: Text('Pendientes', style: TextStyle(color: Color(0xFF1E293B)))),
+          ],
+          onChanged: (v) {
+            setState(() => _statEstado = v ?? '');
+            _aplicarFiltrosEstadistica();
+          },
+        ),
+        const SizedBox(height: 10),
+
+        // ── Filtro Fechas ──────────────────────────────────────
+        Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Fecha desde:', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            const SizedBox(height: 4),
+            GestureDetector(
+              onTap: () => pickDate(true),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFD1D5DB)),
+                ),
+                child: Row(children: [
+                  Expanded(child: Text(fmtDate(_statFechaDesde),
+                      style: TextStyle(fontSize: 13,
+                          color: _statFechaDesde == null ? Colors.grey[400] : _navy))),
+                  const Icon(Icons.calendar_today, size: 14, color: Color(0xFF9CA3AF)),
+                ]),
+              ),
+            ),
+          ])),
+          const SizedBox(width: 8),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Fecha hasta:', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            const SizedBox(height: 4),
+            GestureDetector(
+              onTap: () => pickDate(false),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                decoration: BoxDecoration(
+                  color: Colors.white, borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFD1D5DB)),
+                ),
+                child: Row(children: [
+                  Expanded(child: Text(fmtDate(_statFechaHasta),
+                      style: TextStyle(fontSize: 13,
+                          color: _statFechaHasta == null ? Colors.grey[400] : _navy))),
+                  const Icon(Icons.calendar_today, size: 14, color: Color(0xFF9CA3AF)),
+                ]),
+              ),
+            ),
+          ])),
+        ]),
+        const SizedBox(height: 10),
+
+        // ── Filtro Fuente ──────────────────────────────────────
+        Text('Fuente:', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        const SizedBox(height: 4),
+        DropdownButtonFormField<String>(
+          initialValue: _statFuente,
+          decoration: inputDeco,
+          dropdownColor: Colors.white,
+          style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
+          items: fuenteItems,
+          onChanged: (v) {
+            setState(() => _statFuente = v ?? '0');
+            _aplicarFiltrosEstadistica();
+          },
+        ),
+        const SizedBox(height: 14),
+
+        // ── Botón Mostrar Gráficos ─────────────────────────────
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            onPressed: _statLoading ? null : _aplicarFiltrosEstadistica,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _navy,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: _statLoading
+                ? const SizedBox(height: 18, width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Mostrar Gráficos',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          ),
         ),
         const SizedBox(height: 20),
-        _barChartSection(
-          title: 'Entradas por fuente (Cuotas pagadas)',
-          barColor: const Color(0xFF16A34A),
-          data: _creditos,
-          labelFn: labelOf,
-          valueFn: entradasOf,
-          total: totalEntradas,
-          totalLabel: 'Total entradas',
-        ),
+
+        // ── Gráficas ───────────────────────────────────────────
+        if (_creditos.isEmpty)
+          _emptyActivity()
+        else ...[
+          _barChartSection(
+            title: 'Salidas por fuente (Créditos otorgados)',
+            barColor: const Color(0xFF3B3B8A),
+            data: _creditos,
+            labelFn: labelOf, valueFn: salidasOf,
+            total: _creditos.fold(0.0, (s, d) => s + salidasOf(d)),
+            totalLabel: 'Total salidas',
+          ),
+          const SizedBox(height: 20),
+          _barChartSection(
+            title: 'Entradas por fuente (Cuotas pagadas)',
+            barColor: const Color(0xFF16A34A),
+            data: _creditos,
+            labelFn: labelOf, valueFn: entradasOf,
+            total: _creditos.fold(0.0, (s, d) => s + entradasOf(d)),
+            totalLabel: 'Total entradas',
+          ),
+        ],
       ]),
     );
   }
@@ -1525,7 +2887,12 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _creditoTabBtn(int index, String label) {
     final active = _creditoSubTab == index;
     return GestureDetector(
-      onTap: () => setState(() => _creditoSubTab = index),
+      onTap: () {
+        setState(() => _creditoSubTab = index);
+        if (index == 1 && !_pendientesLoaded && !_pendientesLoading) {
+          _fetchPendientes();
+        }
+      },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
@@ -1644,6 +3011,1793 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       );
 
+  // ── Diálogo Configurar Ahorro ────────────────────────────────────
+  Future<void> _showConfigurarAhorroDialog() async {
+    final formKey = GlobalKey<FormState>();
+    final anioCtrl = TextEditingController(
+        text: DateTime.now().year.toString());
+    final tiempoCtrl = TextEditingController();
+    DateTime? fechaInicio;
+    DateTime? fechaFinal;
+    String? selectedTipo;
+    bool saving = false;
+
+    final tipos = ['Fijo', 'Variable'];
+
+    String fmtDisplay(DateTime d) =>
+        '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    String fmtApi(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 480,
+              maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42, height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.settings_rounded,
+                            color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Configurar Ahorro',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800)),
+                            Text('Nuevo período de ahorro',
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: saving ? null : () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded,
+                            color: Colors.white60, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Campos
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                    child: Form(
+                      key: formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Año
+                          _ahorrField(
+                            ctrl: anioCtrl,
+                            label: 'Año',
+                            icon: Icons.calendar_today_outlined,
+                            keyboard: TextInputType.number,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Ingrese el año'
+                                : null,
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Fecha Inicio
+                          _ahorrFieldLabel('Fecha Inicio'),
+                          const SizedBox(height: 6),
+                          GestureDetector(
+                            onTap: () async {
+                              final d = await showDatePicker(
+                                context: ctx,
+                                initialDate: fechaInicio ?? DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2035),
+                                builder: (c, child) => Theme(
+                                  data: Theme.of(c).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                          primary: _navy)),
+                                  child: child!,
+                                ),
+                              );
+                              if (d != null) setS(() => fechaInicio = d);
+                            },
+                            child: _dateContainer(
+                                fechaInicio != null ? fmtDisplay(fechaInicio!) : null,
+                                'dd/mm/aaaa'),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Fecha Final
+                          _ahorrFieldLabel('Fecha Final'),
+                          const SizedBox(height: 6),
+                          GestureDetector(
+                            onTap: () async {
+                              final d = await showDatePicker(
+                                context: ctx,
+                                initialDate:
+                                    fechaFinal ?? fechaInicio ?? DateTime.now(),
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2035),
+                                builder: (c, child) => Theme(
+                                  data: Theme.of(c).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                          primary: _navy)),
+                                  child: child!,
+                                ),
+                              );
+                              if (d != null) setS(() => fechaFinal = d);
+                            },
+                            child: _dateContainer(
+                                fechaFinal != null ? fmtDisplay(fechaFinal!) : null,
+                                'dd/mm/aaaa'),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Tiempo en Mes
+                          _ahorrField(
+                            ctrl: tiempoCtrl,
+                            label: 'Tiempo en Mes',
+                            icon: Icons.timelapse_rounded,
+                            keyboard: TextInputType.number,
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Ingrese el tiempo en meses'
+                                : null,
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Tipo
+                          _ahorrFieldLabel('Tipo'),
+                          const SizedBox(height: 6),
+                          GestureDetector(
+                            onTap: () async {
+                              final picked = await showDialog<String>(
+                                context: ctx,
+                                builder: (dCtx) => SimpleDialog(
+                                  backgroundColor: Colors.white,
+                                  title: const Text('Seleccionar Tipo',
+                                      style: TextStyle(
+                                          color: _navy,
+                                          fontWeight: FontWeight.w700)),
+                                  children: tipos.map((t) => SimpleDialogOption(
+                                    onPressed: () =>
+                                        Navigator.pop(dCtx, t),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 4),
+                                      child: Text(t,
+                                          style: const TextStyle(
+                                              color: _navy, fontSize: 14)),
+                                    ),
+                                  )).toList(),
+                                ),
+                              );
+                              if (picked != null) {
+                                setS(() => selectedTipo = picked);
+                              }
+                            },
+                            child: Container(
+                              height: 48,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF5F7FB),
+                                border: Border.all(
+                                  color: selectedTipo != null
+                                      ? _accent1.withValues(alpha: 0.6)
+                                      : const Color(0xFFDDE3EF),
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(children: [
+                                Icon(Icons.category_outlined,
+                                    size: 18,
+                                    color: selectedTipo != null
+                                        ? _accent1
+                                        : const Color(0xFF9CA3AF)),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    selectedTipo ??
+                                        '[Seleccione una Opción]',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: selectedTipo != null
+                                          ? _navy
+                                          : const Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                ),
+                                const Icon(Icons.expand_more_rounded,
+                                    color: Color(0xFF9CA3AF), size: 20),
+                              ]),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Botones
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed:
+                              saving ? null : () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF8899BB),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(
+                                color: Color(0xFFDDE3EF)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Cerrar',
+                              style:
+                                  TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: saving
+                                ? null
+                                : const LinearGradient(
+                                    colors: [
+                                      Color(0xFF0D1B4B),
+                                      Color(0xFF1E3A8A)
+                                    ],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                            color: saving
+                                ? const Color(0xFFCBD5E1)
+                                : null,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: saving
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: _navy.withValues(alpha: 0.3),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    )
+                                  ],
+                          ),
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(12)),
+                            ),
+                            onPressed: saving
+                                ? null
+                                : () async {
+                                    if (fechaInicio == null) {
+                                      ScaffoldMessenger.of(ctx)
+                                          .showSnackBar(const SnackBar(
+                                        content: Text(
+                                            'Seleccione la fecha inicio'),
+                                        backgroundColor:
+                                            Color(0xFFDC2626),
+                                      ));
+                                      return;
+                                    }
+                                    if (fechaFinal == null) {
+                                      ScaffoldMessenger.of(ctx)
+                                          .showSnackBar(const SnackBar(
+                                        content: Text(
+                                            'Seleccione la fecha final'),
+                                        backgroundColor:
+                                            Color(0xFFDC2626),
+                                      ));
+                                      return;
+                                    }
+                                    if (!formKey.currentState!.validate()) {
+                                      return;
+                                    }
+                                    if (selectedTipo == null) {
+                                      ScaffoldMessenger.of(ctx)
+                                          .showSnackBar(const SnackBar(
+                                        content:
+                                            Text('Seleccione el tipo'),
+                                        backgroundColor:
+                                            Color(0xFFDC2626),
+                                      ));
+                                      return;
+                                    }
+                                    setS(() => saving = true);
+                                    try {
+                                      final r = await _api.post(
+                                        '/ajax/registrar_conf_cuota.php',
+                                        {
+                                          'anio': anioCtrl.text.trim(),
+                                          'fecha_inicio':
+                                              fmtApi(fechaInicio!),
+                                          'fecha_final':
+                                              fmtApi(fechaFinal!),
+                                          'tiempo_mes':
+                                              tiempoCtrl.text.trim(),
+                                          'tipo': selectedTipo ?? '',
+                                        },
+                                      );
+                                      final body = r.body.trim();
+                                      final ok = r.statusCode == 200 &&
+                                          body.contains(
+                                              'Configuración Registrada');
+                                      if (ctx.mounted) Navigator.pop(ctx);
+                                      if (mounted) {
+                                        showDialog(
+                                          context: context,
+                                          builder: (_) => _resultDialog(
+                                            ok
+                                                ? 'Configuración registrada exitosamente'
+                                                : body.isNotEmpty
+                                                    ? body
+                                                    : 'No se pudo registrar',
+                                            ok,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (ctx.mounted) {
+                                        setS(() => saving = false);
+                                        ScaffoldMessenger.of(ctx)
+                                            .showSnackBar(SnackBar(
+                                          content: Text('Error: $e'),
+                                          backgroundColor:
+                                              const Color(0xFFDC2626),
+                                        ));
+                                      }
+                                    }
+                                  },
+                            icon: saving
+                                ? const SizedBox(
+                                    width: 16, height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white))
+                                : const Icon(Icons.save_rounded, size: 18),
+                            label: Text(
+                                saving ? 'Guardando...' : 'Grabar'),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+
+    Future.delayed(const Duration(milliseconds: 400), () {
+      anioCtrl.dispose();
+      tiempoCtrl.dispose();
+    });
+  }
+
+  Widget _dateContainer(String? value, String hint) => Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5F7FB),
+          border: Border.all(
+            color: value != null
+                ? _accent1.withValues(alpha: 0.6)
+                : const Color(0xFFDDE3EF),
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.calendar_month_outlined,
+                size: 18,
+                color: value != null
+                    ? _accent1
+                    : const Color(0xFF9CA3AF)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                value ?? hint,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: value != null ? _navy : const Color(0xFF6B7280),
+                ),
+              ),
+            ),
+            const Icon(Icons.expand_more_rounded,
+                color: Color(0xFF9CA3AF), size: 20),
+          ],
+        ),
+      );
+
+  // ── Diálogo Crear Ahorro ─────────────────────────────────────────
+  Future<void> _showCrearAhorroDialog() async {
+    final formKey = GlobalKey<FormState>();
+    String? selectedAhorrador;
+    String ahorradorLabel = '';
+    String? selectedAnioCodigo;
+    DateTime? fechaIngreso;
+    final valorCtrl = TextEditingController();
+    bool saving = false;
+    bool aniosLoaded = false;
+    bool loadingAnios = false;
+    List<Map<String, dynamic>> aniosOpts = [];
+
+    // Usar _deudoresLista ya en memoria (construida desde _ahorradores)
+    _tryBuildDeudoresFromLocal();
+    final ahorradorOpts = List<Map<String, dynamic>>.from(_deudoresLista);
+
+    Future<void> loadAnios(StateSetter setS) async {
+      setS(() => loadingAnios = true);
+      try {
+        // Carga años desde tbl_ahorro_anyos
+        // CHAR(124) = '|' evita comillas en SQL (compatibilidad con magic_quotes)
+        final r = await _api.post('/ajax/listado_select.php', {
+          'tabla': 'tbl_ahorro_anyos',
+          'valor': 'codigo_ahorro_anyo',
+          'etiqueta': 'concat(fecha_inicio,CHAR(124),fecha_fin)',
+          'filtro': '1',
+          'campos_orden': 'fecha_fin DESC',
+        });
+        if (r.statusCode == 200) {
+          final raw = jsonDecode(r.body);
+          if (raw is List) {
+            aniosOpts = raw.whereType<Map>().map((e) {
+              final m = Map<String, dynamic>.from(e);
+              final raw2 = m.values.last.toString(); // "2025-11-05|2026-10-05"
+              final parts = raw2.split('|');
+              final year = parts.length == 2 && parts[1].length >= 4
+                  ? parts[1].substring(0, 4)
+                  : raw2;
+              m['_label'] = parts.length == 2
+                  ? '$year (${parts[0]} hasta ${parts[1]})'
+                  : raw2;
+              return m;
+            }).toList();
+          }
+        }
+      } catch (e, st) {
+        debugPrint('[SAF] loadAnios ERROR: $e\n$st');
+      }
+      setS(() {
+        loadingAnios = false;
+        aniosLoaded = true;
+      });
+    }
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        if (!aniosLoaded && !loadingAnios) loadAnios(setS);
+        return Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 480,
+              maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Header ───────────────────────────────────────
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42, height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.savings_rounded,
+                            color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Crear Ahorro',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                )),
+                            Text('Registrar nuevo ahorro',
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: saving ? null : () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded,
+                            color: Colors.white60, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Campos ───────────────────────────────────────
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                    child: Form(
+                      key: formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Ahorrador — buscable
+                          _ahorrFieldLabel('Ahorrador'),
+                          const SizedBox(height: 6),
+                          GestureDetector(
+                            onTap: () async {
+                                    final result = await _showAhorradorPicker(
+                                        ctx, ahorradorOpts);
+                                    if (result != null) {
+                                      setS(() {
+                                        selectedAhorrador = result['valor'];
+                                        ahorradorLabel  = result['nombre'];
+                                      });
+                                    }
+                                  },
+                            child: Container(
+                              height: 48,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF5F7FB),
+                                border: Border.all(
+                                  color: selectedAhorrador != null
+                                      ? _accent1.withValues(alpha: 0.6)
+                                      : const Color(0xFFDDE3EF),
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.person_search_rounded,
+                                      size: 18,
+                                      color: selectedAhorrador != null
+                                          ? _accent1
+                                          : const Color(0xFF9CA3AF)),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                            ahorradorLabel.isNotEmpty
+                                                ? ahorradorLabel
+                                                : 'Seleccione un ahorrador...',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: ahorradorLabel.isNotEmpty
+                                                  ? _navy
+                                                  : const Color(0xFF9CA3AF),
+                                            ),
+                                          ),
+                                  ),
+                                  const Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      color: Color(0xFF9CA3AF), size: 20),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Año de Ahorro
+                          _ahorrFieldLabel('Año de Ahorro'),
+                          const SizedBox(height: 6),
+                          GestureDetector(
+                            onTap: loadingAnios || aniosOpts.isEmpty
+                                ? null
+                                : () async {
+                                    final result = await _showAnioPicker(
+                                        ctx, aniosOpts);
+                                    if (result != null) {
+                                      setS(() => selectedAnioCodigo =
+                                          result['codigo']);
+                                    }
+                                  },
+                            child: Container(
+                              height: 48,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF5F7FB),
+                                border: Border.all(
+                                  color: selectedAnioCodigo != null
+                                      ? _accent1.withValues(alpha: 0.6)
+                                      : const Color(0xFFDDE3EF),
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.calendar_today_outlined,
+                                      size: 18,
+                                      color: selectedAnioCodigo != null
+                                          ? _accent1
+                                          : const Color(0xFF9CA3AF)),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: loadingAnios
+                                        ? const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              SizedBox(
+                                                width: 14, height: 14,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: Color(
+                                                            0xFF9CA3AF)),
+                                              ),
+                                              SizedBox(width: 8),
+                                              Text('Cargando...',
+                                                  style: TextStyle(
+                                                      color: Color(0xFF9CA3AF),
+                                                      fontSize: 13)),
+                                            ],
+                                          )
+                                        : Builder(builder: (_) {
+                                            String label =
+                                                'Seleccione un año...';
+                                            if (selectedAnioCodigo != null) {
+                                              final m = aniosOpts.firstWhere(
+                                                (a) =>
+                                                    (a['codigo_ahorro_anyo'] ??
+                                                            a.values.first)
+                                                        .toString() ==
+                                                    selectedAnioCodigo,
+                                                orElse: () =>
+                                                    <String, dynamic>{},
+                                              );
+                                              label = m['_label']?.toString() ??
+                                                  selectedAnioCodigo!;
+                                            }
+                                            return Text(
+                                              label,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: selectedAnioCodigo != null
+                                                    ? _navy
+                                                    : const Color(0xFF6B7280),
+                                              ),
+                                            );
+                                          }),
+                                  ),
+                                  const Icon(
+                                      Icons.keyboard_arrow_down_rounded,
+                                      color: Color(0xFF9CA3AF), size: 20),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Fecha de Ingreso
+                          _ahorrFieldLabel('Fecha de Ingreso'),
+                          const SizedBox(height: 6),
+                          GestureDetector(
+                            onTap: () async {
+                              final d = await showDatePicker(
+                                context: ctx,
+                                initialDate: fechaIngreso ?? DateTime.now(),
+                                firstDate: DateTime(2015),
+                                lastDate: DateTime(2035),
+                                builder: (c, child) => Theme(
+                                  data: Theme.of(c).copyWith(
+                                      colorScheme: const ColorScheme.light(
+                                          primary: _navy)),
+                                  child: child!,
+                                ),
+                              );
+                              if (d != null) setS(() => fechaIngreso = d);
+                            },
+                            child: Container(
+                              height: 48,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF5F7FB),
+                                border: Border.all(
+                                  color: fechaIngreso != null
+                                      ? _accent1.withValues(alpha: 0.6)
+                                      : const Color(0xFFDDE3EF),
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.calendar_month_outlined,
+                                      size: 18,
+                                      color: fechaIngreso != null
+                                          ? _accent1
+                                          : const Color(0xFF9CA3AF)),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      fechaIngreso != null
+                                          ? '${fechaIngreso!.day.toString().padLeft(2, '0')}/${fechaIngreso!.month.toString().padLeft(2, '0')}/${fechaIngreso!.year}'
+                                          : 'dd/mm/aaaa',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: fechaIngreso != null
+                                            ? _navy
+                                            : const Color(0xFF9CA3AF),
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(Icons.expand_more_rounded,
+                                      color: Color(0xFF9CA3AF), size: 20),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Valor Pactado
+                          _ahorrField(
+                            ctrl: valorCtrl,
+                            label: 'Valor Pactado',
+                            icon: Icons.attach_money_rounded,
+                            keyboard: TextInputType.number,
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty)
+                                    ? 'Requerido'
+                                    : null,
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // ── Botones ───────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: saving ? null : () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF8899BB),
+                            padding:
+                                const EdgeInsets.symmetric(vertical: 14),
+                            side:
+                                const BorderSide(color: Color(0xFFDDE3EF)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Cerrar',
+                              style:
+                                  TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: saving
+                                ? null
+                                : const LinearGradient(
+                                    colors: [
+                                      Color(0xFF0D1B4B),
+                                      Color(0xFF1E3A8A)
+                                    ],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                            color: saving
+                                ? const Color(0xFFCBD5E1)
+                                : null,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: saving
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: _navy.withValues(alpha: 0.3),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    )
+                                  ],
+                          ),
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: saving
+                                ? null
+                                : () async {
+                                    if (selectedAhorrador == null) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Seleccione un ahorrador'),
+                                          backgroundColor:
+                                              Color(0xFFDC2626),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    if (fechaIngreso == null) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Seleccione la fecha de ingreso'),
+                                          backgroundColor:
+                                              Color(0xFFDC2626),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    if (!formKey.currentState!.validate()) {
+                                      return;
+                                    }
+                                    setS(() => saving = true);
+                                    try {
+                                      final fechaStr =
+                                          '${fechaIngreso!.year}-${fechaIngreso!.month.toString().padLeft(2, '0')}-${fechaIngreso!.day.toString().padLeft(2, '0')}';
+                                      final r = await _api.post(
+                                        '/ajax/registrar_ahorro.php',
+                                        {
+                                          'codigo_ahorrador':
+                                              selectedAhorrador!,
+                                          'codigo_anio_ahorro':
+                                              selectedAnioCodigo ?? '',
+                                          'fecha_ingreso': fechaStr,
+                                          'valor_pactado':
+                                              valorCtrl.text.trim(),
+                                        },
+                                      );
+                                      final ok = r.statusCode == 200 &&
+                                          (r.body.toLowerCase().contains('exitoso') ||
+                                           r.body.toLowerCase().contains('registrado') ||
+                                           r.body.toLowerCase().contains('creado') ||
+                                           r.body.contains('"resultado":1') ||
+                                           r.body.contains('"success":true'));
+                                      if (ctx.mounted) Navigator.pop(ctx);
+                                      if (mounted) {
+                                        showDialog(
+                                          context: context,
+                                          builder: (_) => _resultDialog(
+                                            ok
+                                                ? 'Ahorro registrado exitosamente'
+                                                : r.body.trim().isNotEmpty
+                                                    ? r.body.trim()
+                                                    : 'No se pudo registrar',
+                                            ok,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (ctx.mounted) {
+                                        setS(() => saving = false);
+                                        ScaffoldMessenger.of(ctx).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error: $e'),
+                                            backgroundColor:
+                                                const Color(0xFFDC2626),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                            icon: saving
+                                ? const SizedBox(
+                                    width: 16, height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white))
+                                : const Icon(Icons.save_rounded, size: 18),
+                            label: Text(saving ? 'Guardando...' : 'Grabar'),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+
+    Future.delayed(const Duration(milliseconds: 400), valorCtrl.dispose);
+  }
+
+  Future<Map<String, dynamic>?> _showAnioPicker(
+      BuildContext ctx, List<Map<String, dynamic>> lista) {
+    return showDialog<Map<String, dynamic>>(
+      context: ctx,
+      builder: (aCtx) => Dialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        insetPadding:
+            const EdgeInsets.symmetric(horizontal: 40, vertical: 120),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
+              decoration: const BoxDecoration(
+                color: _navy,
+                borderRadius:
+                    BorderRadius.vertical(top: Radius.circular(18)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today_outlined,
+                      color: Colors.white70, size: 18),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text('Año de Ahorro',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(aCtx),
+                    icon: const Icon(Icons.close_rounded,
+                        color: Colors.white60, size: 18),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+            ),
+            ...lista.map((a) {
+              final codigo =
+                  (a['codigo_ahorro_anyo'] ?? a.values.first).toString();
+              final label = a['_label']?.toString() ?? codigo;
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () =>
+                      Navigator.pop(aCtx, {'codigo': codigo, 'label': label}),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 16),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.event_available_rounded,
+                            color: _accent1, size: 18),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(label,
+                              style: const TextStyle(
+                                  color: _navy,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500)),
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: Color(0xFFCBD5E1), size: 18),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>?> _showAhorradorPicker(
+      BuildContext ctx, List<Map<String, dynamic>> lista) {
+    String query = '';
+    // El campo nombre en listado_select viene como "concat(nombres,' ',apellidos)"
+    String nombre(Map<String, dynamic> e) {
+      final keys = e.keys.where((k) => k.toLowerCase().contains('concat') ||
+          k.toLowerCase().contains('nombre') ||
+          k.toLowerCase().contains('apellido'));
+      for (final k in keys) {
+        final v = e[k]?.toString().trim() ?? '';
+        if (v.isNotEmpty) return v;
+      }
+      return e.values.lastWhere((v) => v != null && v.toString().isNotEmpty,
+          orElse: () => '').toString();
+    }
+
+    return showDialog<Map<String, dynamic>>(
+      context: ctx,
+      builder: (aCtx) => StatefulBuilder(
+        builder: (aCtx, setA) {
+          final filtered = lista.where((e) {
+            if (query.isEmpty) return true;
+            return nombre(e).toLowerCase().contains(query.toLowerCase());
+          }).toList();
+
+          return Dialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18)),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(aCtx).size.height * 0.65,
+                maxWidth: 420,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
+                    decoration: const BoxDecoration(
+                      color: _navy,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(18)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person_search_rounded,
+                            color: Colors.white70, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Seleccionar ahorrador (${lista.length})',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(aCtx),
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white60, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: TextField(
+                      autofocus: true,
+                      onChanged: (v) => setA(() => query = v.trim()),
+                      style:
+                          const TextStyle(color: _navy, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Buscar ahorrador...',
+                        hintStyle: const TextStyle(
+                            color: Color(0xFFB0BBCC), fontSize: 13),
+                        prefixIcon: const Icon(Icons.search_rounded,
+                            color: Color(0xFF8899BB), size: 18),
+                        filled: true,
+                        fillColor: const Color(0xFFF5F7FB),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 10),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                                color: Color(0xFFDDE3EF))),
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                                color: Color(0xFFDDE3EF))),
+                        focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                                color: _accent1, width: 1.5)),
+                      ),
+                    ),
+                  ),
+                  Flexible(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, indent: 16),
+                      itemBuilder: (_, i) {
+                        final e = filtered[i];
+                        final n = nombre(e);
+                        final id = (e['codigo'] ?? e['valor'] ??
+                                e['codigo_deudor'] ?? n)
+                            .toString();
+                        return Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => Navigator.pop(
+                                aCtx, {'valor': id, 'nombre': n}),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 34, height: 34,
+                                    decoration: BoxDecoration(
+                                      color: _accent1
+                                          .withValues(alpha: 0.1),
+                                      borderRadius:
+                                          BorderRadius.circular(9),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        n.isNotEmpty
+                                            ? n[0].toUpperCase()
+                                            : '?',
+                                        style: const TextStyle(
+                                          color: _accent1,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(n,
+                                        style: const TextStyle(
+                                          color: _navy,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        )),
+                                  ),
+                                  const Icon(Icons.chevron_right_rounded,
+                                      color: Color(0xFFCBD5E1), size: 18),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // ── Diálogo Crear Ahorrador ──────────────────────────────────────
+  Future<void> _showCrearAhorradorDialog() async {
+    final formKey = GlobalKey<FormState>();
+    String? selectedAsesor;
+    String asesorLabel = '';
+    final docCtrl      = TextEditingController();
+    final nombresCtrl  = TextEditingController();
+    final apellCtrl    = TextEditingController();
+    final dirCtrl      = TextEditingController();
+    final telCtrl      = TextEditingController();
+    bool saving = false;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 480,
+              maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Header gradiente ──────────────────────────────
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42, height: 42,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.person_add_rounded,
+                            color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Crear Ahorrador',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                )),
+                            Text('Registrar nuevo ahorrador',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                )),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: saving ? null : () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded,
+                            color: Colors.white60, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Formulario ────────────────────────────────────
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                    child: Form(
+                      key: formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Asesor — campo buscable
+                          _ahorrFieldLabel('Asesor'),
+                          const SizedBox(height: 6),
+                          GestureDetector(
+                            onTap: () async {
+                              final result = await _showAsesorPicker(ctx);
+                              if (result != null) {
+                                setS(() {
+                                  selectedAsesor = result['valor'];
+                                  asesorLabel   = result['nombre'];
+                                });
+                              }
+                            },
+                            child: Container(
+                              height: 48,
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF5F7FB),
+                                border: Border.all(
+                                  color: selectedAsesor != null
+                                      ? _accent1.withValues(alpha: 0.6)
+                                      : const Color(0xFFDDE3EF),
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.person_search_rounded,
+                                      size: 18,
+                                      color: selectedAsesor != null
+                                          ? _accent1
+                                          : const Color(0xFF9CA3AF)),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      asesorLabel.isNotEmpty
+                                          ? asesorLabel
+                                          : 'Seleccione un asesor...',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: asesorLabel.isNotEmpty
+                                            ? _navy
+                                            : const Color(0xFF9CA3AF),
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(Icons.keyboard_arrow_down_rounded,
+                                      color: Color(0xFF9CA3AF), size: 20),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // N° Documento
+                          _ahorrField(
+                            ctrl: docCtrl,
+                            label: 'N° Documento',
+                            icon: Icons.badge_outlined,
+                            keyboard: TextInputType.number,
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Nombres + Apellidos en fila
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _ahorrField(
+                                  ctrl: nombresCtrl,
+                                  label: 'Nombres',
+                                  icon: Icons.person_outline_rounded,
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _ahorrField(
+                                  ctrl: apellCtrl,
+                                  label: 'Apellidos',
+                                  icon: Icons.person_outline_rounded,
+                                  validator: (v) =>
+                                      (v == null || v.trim().isEmpty) ? 'Requerido' : null,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Dirección
+                          _ahorrField(
+                            ctrl: dirCtrl,
+                            label: 'Dirección',
+                            icon: Icons.location_on_outlined,
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Teléfono
+                          _ahorrField(
+                            ctrl: telCtrl,
+                            label: 'Teléfono',
+                            icon: Icons.phone_outlined,
+                            keyboard: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                // ── Botones ───────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: saving ? null : () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF8899BB),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: const BorderSide(color: Color(0xFFDDE3EF)),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Cerrar',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: saving
+                                ? null
+                                : const LinearGradient(
+                                    colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                            color: saving ? const Color(0xFFCBD5E1) : null,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: saving
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: _navy.withValues(alpha: 0.3),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    )
+                                  ],
+                          ),
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: saving
+                                ? null
+                                : () async {
+                                    if (selectedAsesor == null) {
+                                      ScaffoldMessenger.of(ctx).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Seleccione un asesor'),
+                                          backgroundColor: Color(0xFFDC2626),
+                                        ),
+                                      );
+                                      return;
+                                    }
+                                    if (!formKey.currentState!.validate()) return;
+                                    setS(() => saving = true);
+                                    try {
+                                      final r = await _api.post(
+                                        '/ajax/registrar_ahorrador.php',
+                                        {
+                                          'codigo_asesor': selectedAsesor!,
+                                          'documento': docCtrl.text.trim(),
+                                          'nombres': nombresCtrl.text.trim(),
+                                          'apellidos': apellCtrl.text.trim(),
+                                          'direccion': dirCtrl.text.trim(),
+                                          'telefono': telCtrl.text.trim(),
+                                        },
+                                      );
+                                      final ok = r.statusCode == 200 &&
+                                          (r.body.toLowerCase().contains('exitoso') ||
+                                           r.body.toLowerCase().contains('registrado') ||
+                                           r.body.toLowerCase().contains('creado') ||
+                                           r.body.contains('"resultado":1') ||
+                                           r.body.contains('"success":true'));
+                                      if (ctx.mounted) Navigator.pop(ctx);
+                                      if (mounted) {
+                                        showDialog(
+                                          context: context,
+                                          builder: (_) => _resultDialog(
+                                            ok
+                                                ? 'Ahorrador registrado exitosamente'
+                                                : r.body.trim().isNotEmpty
+                                                    ? r.body.trim()
+                                                    : 'No se pudo registrar',
+                                            ok,
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (ctx.mounted) {
+                                        setS(() => saving = false);
+                                        ScaffoldMessenger.of(ctx).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Error: $e'),
+                                            backgroundColor:
+                                                const Color(0xFFDC2626),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                            icon: saving
+                                ? const SizedBox(
+                                    width: 16, height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white))
+                                : const Icon(Icons.save_rounded, size: 18),
+                            label: Text(saving ? 'Guardando...' : 'Grabar'),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+
+    Future.delayed(const Duration(milliseconds: 400), () {
+      docCtrl.dispose();
+      nombresCtrl.dispose();
+      apellCtrl.dispose();
+      dirCtrl.dispose();
+      telCtrl.dispose();
+    });
+  }
+
+  Widget _ahorrFieldLabel(String text) => Text(
+        text,
+        style: const TextStyle(
+          color: _navy,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+
+  Widget _ahorrField({
+    required TextEditingController ctrl,
+    required String label,
+    required IconData icon,
+    TextInputType keyboard = TextInputType.text,
+    String? Function(String?)? validator,
+  }) =>
+      TextFormField(
+        controller: ctrl,
+        keyboardType: keyboard,
+        style: const TextStyle(color: _navy, fontSize: 14),
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: const TextStyle(color: Color(0xFF8899BB), fontSize: 13),
+          prefixIcon: Icon(icon, color: _accent1, size: 18),
+          filled: true,
+          fillColor: const Color(0xFFF5F7FB),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFDDE3EF)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFDDE3EF)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: _accent1, width: 1.5),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide:
+                const BorderSide(color: Color(0xFFDC2626), width: 1.5),
+          ),
+        ),
+      );
+
+  Future<Map<String, dynamic>?> _showAsesorPicker(BuildContext ctx) {
+    String query = '';
+    return showDialog<Map<String, dynamic>>(
+      context: ctx,
+      builder: (aCtx) => StatefulBuilder(
+        builder: (aCtx, setA) {
+          final all = _asesoresLista.map((a) {
+            final sigla = (a['sigla'] ?? a['codigo_asesor'] ?? '').toString();
+            final nombre = [a['nombres'], a['apellidos']]
+                .where((x) => x != null && x.toString().isNotEmpty)
+                .join(' ')
+                .trim();
+            return {'valor': sigla, 'nombre': nombre.isNotEmpty ? nombre : sigla};
+          }).toList();
+
+          final filtered = query.isEmpty
+              ? all
+              : all
+                  .where((a) => a['nombre']!
+                      .toLowerCase()
+                      .contains(query.toLowerCase()))
+                  .toList();
+
+          return Dialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18)),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(aCtx).size.height * 0.6,
+                maxWidth: 420,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
+                    decoration: const BoxDecoration(
+                      color: _navy,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(18)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person_search_rounded,
+                            color: Colors.white70, size: 18),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text('Seleccionar asesor',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(aCtx),
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white60, size: 18),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: TextField(
+                      autofocus: true,
+                      onChanged: (v) => setA(() => query = v.trim()),
+                      style: const TextStyle(color: _navy, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Buscar asesor...',
+                        hintStyle: const TextStyle(
+                            color: Color(0xFFB0BBCC), fontSize: 13),
+                        prefixIcon: const Icon(Icons.search_rounded,
+                            color: Color(0xFF8899BB), size: 18),
+                        filled: true,
+                        fillColor: const Color(0xFFF5F7FB),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 10),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFDDE3EF))),
+                        enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFDDE3EF))),
+                        focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(
+                                color: _accent1, width: 1.5)),
+                      ),
+                    ),
+                  ),
+                  Flexible(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, __) =>
+                          const Divider(height: 1, indent: 16),
+                      itemBuilder: (_, i) {
+                        final a = filtered[i];
+                        return Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(10),
+                            onTap: () => Navigator.pop(aCtx, a),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 34, height: 34,
+                                    decoration: BoxDecoration(
+                                      color: _accent1.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(9),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        a['nombre']!.isNotEmpty
+                                            ? a['nombre']![0].toUpperCase()
+                                            : '?',
+                                        style: const TextStyle(
+                                          color: _accent1,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(a['nombre']!,
+                                        style: const TextStyle(
+                                          color: _navy,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        )),
+                                  ),
+                                  const Icon(Icons.chevron_right_rounded,
+                                      color: Color(0xFFCBD5E1), size: 18),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   // ══════════════════════════════════════════════════════════════
   //  AHORRADORES TAB
   // ══════════════════════════════════════════════════════════════
@@ -1652,10 +4806,10 @@ class _HomeScreenState extends State<HomeScreen>
 
     const navy = Color(0xFF0D1B4B);
 
-    // Años disponibles: 2020..año actual
+    // Años disponibles: solo 2025 y año actual
     final currentYear = DateTime.now().year;
-    final anios = List.generate(
-        currentYear - 2019, (i) => (currentYear - i).toString());
+    final anios = ({currentYear.toString(), '2025'}).toList()
+      ..sort((a, b) => b.compareTo(a));
 
     // Asesores: todos los conocidos (igual que la web) + cualquiera presente
     // en los datos, ordenados por nombre completo.
@@ -1686,17 +4840,17 @@ class _HomeScreenState extends State<HomeScreen>
                 icon: Icons.person_add_rounded,
                 label: 'Agregar Ahorrador',
                 color: navy,
-                onTap: () => _snack('Agregar ahorrador próximamente')),
+                onTap: () => _showCrearAhorradorDialog()),
             _actionBtn(
                 icon: Icons.savings_rounded,
                 label: 'Agregar Ahorro',
                 color: navy,
-                onTap: () => _snack('Agregar ahorro próximamente')),
+                onTap: () => _showCrearAhorroDialog()),
             _actionBtn(
                 icon: Icons.settings_rounded,
                 label: 'Configurar Ahorro',
                 color: navy,
-                onTap: () => _snack('Configurar ahorro próximamente')),
+                onTap: () => _showConfigurarAhorroDialog()),
           ]),
         ),
 
@@ -1797,14 +4951,14 @@ class _HomeScreenState extends State<HomeScreen>
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF5B21B6), Color(0xFF7C3AED)],
+              colors: [Color(0xFF5B21B6), Color(0xFF4361EE)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF7C3AED).withValues(alpha: 0.4),
+                color: const Color(0xFF4361EE).withValues(alpha: 0.4),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -2334,24 +5488,22 @@ class _HomeScreenState extends State<HomeScreen>
           if (!formKey.currentState!.validate()) return;
           setS(() => saving = true);
           try {
-            final r = await _api.post('/ajax/crear_deudor.php', {
-              'asesor': selectedAsesor ?? '',
-              'numero_documento': docCtrl.text.trim(),
+            final r = await _api.post('/ajax/registrar_deudor.php', {
+              'codigo_asesor': selectedAsesor ?? '',
+              'num_documento': docCtrl.text.trim(),
               'nombres': nombresCtrl.text.trim(),
               'apellidos': apellidosCtrl.text.trim(),
               'direccion': direccionCtrl.text.trim(),
               'telefono': telefonoCtrl.text.trim(),
             });
-            final d = _json(r.body);
-            final ok = d['resultado'] == 1 ||
-                d['resultado'] == '1' ||
-                d['success'] == true;
+            final ok = r.statusCode == 200 &&
+                r.body.toLowerCase().contains('registrado');
             if (ctx.mounted) Navigator.pop(ctx);
             if (mounted) {
               showDialog(
                 context: context,
                 builder: (_) => _resultDialog(
-                  ok ? 'Deudor creado exitosamente' : (d['mensaje']?.toString() ?? 'Error al crear el deudor'),
+                  ok ? 'Deudor creado exitosamente' : r.body.trim(),
                   ok,
                 ),
               );
@@ -2461,10 +5613,240 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  // ── Buscador de deudor ───────────────────────────────────────────
+  Future<Map<String, dynamic>?> _showDeudorPicker(BuildContext ctx) {
+    String query = '';
+    return showDialog<Map<String, dynamic>>(
+      context: ctx,
+      builder: (dCtx) => StatefulBuilder(
+        builder: (dCtx, setD) {
+          final allFiltered = _deudoresLista.where((d) {
+            if (query.isEmpty) return true;
+            final label = (d['etiqueta'] ?? d['nombres'] ?? d['nombre'] ?? '')
+                .toString()
+                .toLowerCase();
+            return label.contains(query.toLowerCase());
+          }).toList();
+          // Limitar a 100 para no saturar el render si hay cientos
+          final filtered = allFiltered.length > 100
+              ? allFiltered.sublist(0, 100)
+              : allFiltered;
+
+          return Dialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(dCtx).size.height * 0.75,
+                maxWidth: 480,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 8, 12),
+                    decoration: BoxDecoration(
+                      color: _navy,
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(18)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person_search_rounded,
+                            color: Colors.white70, size: 20),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Buscar deudor',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(dCtx),
+                          icon: const Icon(Icons.close_rounded,
+                              color: Colors.white60, size: 20),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Buscador
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+                    child: TextField(
+                      autofocus: true,
+                      onChanged: (v) => setD(() => query = v.trim()),
+                      style:
+                          const TextStyle(color: _navy, fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText:
+                            'Nombre del deudor... (${_deudoresLista.length} registrados)',
+                        hintStyle:
+                            const TextStyle(color: Color(0xFFB0BBCC), fontSize: 13),
+                        prefixIcon: const Icon(Icons.search_rounded,
+                            color: Color(0xFF8899BB), size: 20),
+                        suffixIcon: query.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear_rounded,
+                                    color: Color(0xFF8899BB), size: 18),
+                                onPressed: () => setD(() => query = ''),
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: const Color(0xFFF5F7FB),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFDDE3EF)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFDDE3EF)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: _accent1, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Contador
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16, bottom: 4),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        filtered.isEmpty
+                            ? 'Sin resultados'
+                            : allFiltered.length > 100
+                                ? 'Mostrando 100 de ${allFiltered.length} — escribe para filtrar'
+                                : '${filtered.length} resultado${filtered.length == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                            color: Color(0xFF8899BB), fontSize: 11),
+                      ),
+                    ),
+                  ),
+                  // Lista
+                  Flexible(
+                    child: filtered.isEmpty
+                        ? const Padding(
+                            padding: EdgeInsets.all(32),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.search_off_rounded,
+                                    size: 40, color: Color(0xFFCBD5E1)),
+                                SizedBox(height: 10),
+                                Text('No se encontró ningún deudor',
+                                    style:
+                                        TextStyle(color: Color(0xFF8899BB))),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1, indent: 16),
+                            itemBuilder: (_, i) {
+                              final d = filtered[i];
+                              final label = (d['etiqueta'] ??
+                                      d['nombres'] ??
+                                      d['nombre'] ??
+                                      '')
+                                  .toString()
+                                  .trim();
+                              final id = (d['valor'] ??
+                                      d['codigo'] ??
+                                      d['id'] ??
+                                      label)
+                                  .toString();
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: () => Navigator.pop(dCtx, {
+                                    'valor': id,
+                                    'etiqueta': label,
+                                  }),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 12),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 36,
+                                          height: 36,
+                                          decoration: BoxDecoration(
+                                            color: _accent1
+                                                .withValues(alpha: 0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              label.isNotEmpty
+                                                  ? label[0].toUpperCase()
+                                                  : '?',
+                                              style: const TextStyle(
+                                                color: _accent1,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 15,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            label.isNotEmpty ? label : id,
+                                            style: const TextStyle(
+                                              color: _navy,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                        const Icon(
+                                            Icons.chevron_right_rounded,
+                                            color: Color(0xFFCBD5E1),
+                                            size: 18),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   // ── Diálogo Crear Crédito ────────────────────────────────────────
   void _showCrearCreditoDialog() {
     final formKey = GlobalKey<FormState>();
     String? selectedDeudor;
+    String deudorLabel = '';
     String? selectedTiempoC = 'Mensual';
     String? selectedTipoInt = 'fijo';
     String? selectedTasa;
@@ -2567,28 +5949,26 @@ class _HomeScreenState extends State<HomeScreen>
           }
           setS(() => saving = true);
           try {
-            final r = await _api.post('/ajax/crear_credito.php', {
-              'deudor': selectedDeudor ?? '',
+            final r = await _api.post('/ajax/registrar_credito.php', {
+              'codigo_deudor': selectedDeudor ?? '',
               'fecha_prestamo':
                   '${fechaPrestamo!.year}-${fechaPrestamo!.month.toString().padLeft(2, '0')}-${fechaPrestamo!.day.toString().padLeft(2, '0')}',
               'valor_prestamo': valorCtrl.text.trim(),
-              'tiempo_cuotas': selectedTiempoC ?? '',
-              'numero_cuotas': numCuotasCtrl.text.trim(),
+              'tiempo_cuota': selectedTiempoC ?? '',
+              'num_cuotas': numCuotasCtrl.text.trim(),
               'tipo_interes': selectedTipoInt ?? '',
-              'tasa_interes': selectedTasa ?? '',
-              'fuente': selectedFuente ?? '',
+              'codigo_tasa_interes_reg': selectedTasa ?? '',
+              'fuente_credito_reg': selectedFuente ?? '',
               'total_pagar': totalAPagar.toStringAsFixed(0),
             });
-            final d = _json(r.body);
-            final ok = d['resultado'] == 1 ||
-                d['resultado'] == '1' ||
-                d['success'] == true;
+            final ok = r.statusCode == 200 &&
+                r.body.toLowerCase().contains('creado');
             if (ctx.mounted) Navigator.pop(ctx);
             if (mounted) {
               showDialog(
                 context: context,
                 builder: (_) => _resultDialog(
-                  ok ? 'Crédito creado exitosamente' : (d['mensaje']?.toString() ?? 'Error al crear el crédito'),
+                  ok ? 'Crédito creado exitosamente' : r.body.trim(),
                   ok,
                 ),
               );
@@ -2641,38 +6021,75 @@ class _HomeScreenState extends State<HomeScreen>
                         constraints: const BoxConstraints()),
                   ]),
                   const Divider(height: 20),
-                  // Deudor
+                  // Deudor — campo buscable
                   _dRow(
                     'Deudor:',
-                    loadingDeudores
-                        ? Stack(children: [
-                            _dDropdown<String>(
-                              value: null,
-                              items: const [],
-                              onChanged: (_) {},
-                              hint: 'Cargando...',
+                    GestureDetector(
+                      onTap: loadingDeudores
+                          ? null
+                          : () async {
+                              final result = await _showDeudorPicker(ctx);
+                              if (result != null) {
+                                setS(() {
+                                  selectedDeudor = result['valor'];
+                                  deudorLabel = result['etiqueta'] ?? '';
+                                });
+                              }
+                            },
+                      child: Container(
+                        height: 40,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F7FB),
+                          border: Border.all(
+                            color: selectedDeudor != null
+                                ? _accent1.withValues(alpha: 0.5)
+                                : const Color(0xFFDDE3EF),
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: loadingDeudores
+                                  ? Row(children: [
+                                      const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Color(0xFF9CA3AF)),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      const Text('Cargando deudores...',
+                                          style: TextStyle(
+                                              color: Color(0xFF9CA3AF),
+                                              fontSize: 13)),
+                                    ])
+                                  : Text(
+                                      deudorLabel.isNotEmpty
+                                          ? deudorLabel
+                                          : 'Toca para buscar deudor...',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: deudorLabel.isNotEmpty
+                                            ? const Color(0xFF0D1B4B)
+                                            : const Color(0xFF9CA3AF),
+                                        fontSize: 13,
+                                      ),
+                                    ),
                             ),
-                            const Positioned(
-                              right: 36, top: 0, bottom: 0,
-                              child: Center(
-                                child: SizedBox(width: 14, height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF9CA3AF))),
-                              ),
+                            Icon(
+                              Icons.search_rounded,
+                              size: 18,
+                              color: selectedDeudor != null
+                                  ? _accent1
+                                  : const Color(0xFF9CA3AF),
                             ),
-                          ])
-                        : _dDropdown<String>(
-                                value: selectedDeudor,
-                                items: _deudoresLista.map((d) {
-                                  final label = (d['etiqueta'] ?? d['nombres'] ?? d['nombre'] ?? '').toString().trim();
-                                  final id = (d['valor'] ?? d['codigo'] ?? d['id'] ?? label).toString();
-                                  return DropdownMenuItem(
-                                      value: id,
-                                      child: Text(label.isEmpty ? id : label,
-                                          overflow: TextOverflow.ellipsis));
-                                }).toList(),
-                                onChanged: (v) => setS(() => selectedDeudor = v),
-                                validator: (v) => v == null ? 'Seleccione un deudor' : null,
-                              ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   // Fecha Préstamo
@@ -3142,33 +6559,46 @@ class _HomeScreenState extends State<HomeScreen>
 
     return Column(children: [
       Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
         child: Row(children: [
-          // Color dot de la cuenta
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: isIngreso
+                      ? const Color(0xFFDCFCE7)
+                      : const Color(0xFFFFE4E6),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(
+                  isIngreso
+                      ? Icons.south_west_rounded
+                      : Icons.north_east_rounded,
+                  color: isIngreso
+                      ? const Color(0xFF0E9F6E)
+                      : const Color(0xFFE02424),
+                  size: 19,
+                ),
+              ),
+              Positioned(
+                left: -3,
+                bottom: -3,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color:
-                  isIngreso ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(
-              isIngreso
-                  ? Icons.arrow_downward_rounded
-                  : Icons.arrow_upward_rounded,
-              color:
-                  isIngreso ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
-              size: 16,
-            ),
-          ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 13),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3177,18 +6607,46 @@ class _HomeScreenState extends State<HomeScreen>
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.5,
                         color: _navy)),
-                const SizedBox(height: 2),
-                Text(
-                  cuentaNom.isNotEmpty ? '$cuentaNom · $fecha' : fecha,
-                  style:
-                      const TextStyle(fontSize: 11, color: Color(0xFF8899BB)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        cuentaNom.isNotEmpty ? cuentaNom : 'Cuenta SAF',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          color: Color(0xFF7181A6),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      width: 3,
+                      height: 3,
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFB6C0D5),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Text(
+                      fecha,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        color: Color(0xFF9AA7C2),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -3197,17 +6655,32 @@ class _HomeScreenState extends State<HomeScreen>
                 '${isIngreso ? '+' : '-'}${_cop(valor)}',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 13,
+                  fontSize: 12.5,
                   color: isIngreso
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFDC2626),
+                      ? const Color(0xFF0E9F6E)
+                      : const Color(0xFFE02424),
                 ),
               ),
-              const SizedBox(height: 4),
-              GestureDetector(
-                onTap: () => _snack('Eliminar movimiento próximamente'),
-                child: const Icon(Icons.cancel_rounded,
-                    size: 20, color: Color(0xFFCBD5E1)),
+              const SizedBox(height: 5),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: isIngreso
+                      ? const Color(0xFFDCFCE7)
+                      : const Color(0xFFFFE4E6),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  isIngreso ? 'Ingreso' : 'Gasto',
+                  style: TextStyle(
+                    color: isIngreso
+                        ? const Color(0xFF0E9F6E)
+                        : const Color(0xFFE02424),
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ],
           ),
@@ -3217,9 +6690,9 @@ class _HomeScreenState extends State<HomeScreen>
         Divider(
             height: 1,
             thickness: 1,
-            indent: 68,
+            indent: 70,
             endIndent: 16,
-            color: Colors.grey.withValues(alpha: 0.12)),
+            color: const Color(0xFFE9EDF5)),
     ]);
   }
 
@@ -3576,7 +7049,7 @@ class _HomeScreenState extends State<HomeScreen>
                           style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF7C3AED))),
+                              color: Color(0xFF4361EE))),
                     ],
                   ),
                 ),
@@ -3988,6 +7461,90 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       );
 
+  Widget _dashboardSectionHeader({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    String? action,
+    VoidCallback? onAction,
+  }) =>
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  _accent1.withValues(alpha: 0.16),
+                  _accent2.withValues(alpha: 0.10),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _accent1.withValues(alpha: 0.12)),
+            ),
+            child: Icon(icon, color: _accent1, size: 19),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _navy,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Color(0xFF8899BB),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (action != null && onAction != null)
+            TextButton(
+              onPressed: onAction,
+              style: TextButton.styleFrom(
+                foregroundColor: _accent1,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                minimumSize: Size.zero,
+                backgroundColor: _accent1.withValues(alpha: 0.08),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    action,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  const Icon(Icons.arrow_forward_rounded, size: 14),
+                ],
+              ),
+            ),
+        ],
+      );
+
   Widget _summaryCard({
     required IconData icon,
     required String label,
@@ -3997,118 +7554,239 @@ class _HomeScreenState extends State<HomeScreen>
     required String badge,
   }) =>
       Container(
-        padding: const EdgeInsets.all(16),
+        height: 142,
+        padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          gradient: LinearGradient(
+            colors: [
+              Color.lerp(Colors.white, bgColor, 0.25)!,
+              Color.lerp(Colors.white, bgColor, 0.80)!,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.18)),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: 0.08),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+              color: color.withValues(alpha: 0.22),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                      color: bgColor, borderRadius: BorderRadius.circular(10)),
-                  child: Icon(icon, color: color, size: 18),
+            Positioned(
+              right: -24,
+              bottom: -32,
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withValues(alpha: 0.10),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(
-                      color: bgColor, borderRadius: BorderRadius.circular(6)),
-                  child: Text(badge,
-                      style: TextStyle(
+              ),
+            ),
+            Positioned(
+              right: 28,
+              top: -12,
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: color.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withValues(alpha: 0.35),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(icon, color: Colors.white, size: 20),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.60),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: color.withValues(alpha: 0.25)),
+                      ),
+                      child: Text(
+                        badge,
+                        style: TextStyle(
                           color: color,
                           fontSize: 9.5,
-                          fontWeight: FontWeight.w700)),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: color.withValues(alpha: 0.70),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 21,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
                 ),
               ],
-            ),
-            const SizedBox(height: 10),
-            Text(label,
-                style: const TextStyle(
-                    color: Color(0xFF8899BB),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w500)),
-            const SizedBox(height: 3),
-            FittedBox(
-              child: Text(value,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  )),
             ),
           ],
         ),
       );
 
-  Widget _cuentaChip(Map<String, dynamic> c) {
+  static const _cuentaPalette = [
+    (Color(0xFF4361EE), Color(0xFF93C5FD)), // indigo → blue
+    (Color(0xFF059669), Color(0xFF6EE7B7)), // emerald → mint
+    (Color(0xFF4361EE), Color(0xFFC4B5FD)), // violet → lavender
+    (Color(0xFFF59E0B), Color(0xFFFDE68A)), // amber → yellow
+    (Color(0xFFDC2626), Color(0xFFFCA5A5)), // red → rose
+    (Color(0xFF0891B2), Color(0xFF67E8F9)), // cyan → sky
+    (Color(0xFFDB2777), Color(0xFFF9A8D4)), // pink → blush
+    (Color(0xFF65A30D), Color(0xFFBEF264)), // lime → chartreuse
+  ];
+
+  Widget _cuentaChip(Map<String, dynamic> c, {int index = 0}) {
     final nombre = (c['nombre'] ?? c['name'] ?? 'Cuenta').toString();
     final tipo = (c['tipo'] ?? c['type'] ?? '').toString().toLowerCase();
     final saldo = _num(c['saldo_actual'] ?? c['saldo'] ?? 0);
-    final color = _cuentaColor(tipo);
+    final palette = _cuentaPalette[index % _cuentaPalette.length];
+    final color = palette.$1;
+    final gradEnd = palette.$2;
 
     return Container(
-      width: 140,
+      width: 154,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [
+            Color.lerp(Colors.white, gradEnd, 0.30)!,
+            Color.lerp(Colors.white, gradEnd, 0.85)!,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color.withValues(alpha: 0.20)),
         boxShadow: [
           BoxShadow(
-              color: color.withValues(alpha: 0.12),
-              blurRadius: 10,
-              offset: const Offset(0, 4))
+            color: color.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
+          Positioned(
+            right: -14,
+            bottom: -18,
+            child: Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8)),
-                child: Icon(_cuentaIcon(tipo), color: color, size: 14),
+              Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.30),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Icon(_cuentaIcon(tipo), color: Colors.white, size: 17),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: color.withValues(alpha: 0.25)),
+                    ),
+                    child: Text(
+                      saldo >= 0 ? 'Activa' : 'Revisar',
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const Spacer(),
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              Text(nombre,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: color.withValues(alpha: 0.85))),
+              const SizedBox(height: 4),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(_cop(saldo),
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: saldo >= 0 ? _navy : const Color(0xFFDC2626))),
               ),
             ],
-          ),
-          const Spacer(),
-          Text(nombre,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF3A4A7A))),
-          const SizedBox(height: 3),
-          FittedBox(
-            child: Text(_cop(saldo),
-                style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    color: saldo >= 0 ? _navy : const Color(0xFFDC2626))),
           ),
         ],
       ),
@@ -4116,85 +7794,1398 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Widget _creditoCard(Map<String, dynamic> c) {
-    final nombre =
-        (c['cliente'] ?? c['nombre'] ?? c['name'] ?? 'Cliente').toString();
-    final monto = _num(c['monto'] ?? c['valor'] ?? c['amount'] ?? 0);
-    final cuota = _num(c['cuota'] ?? c['cuota_mensual'] ?? 0);
+    final cod = c['cod']?.toString() ?? '';
+    final asesor = (() {
+      final nombre = (c['asesor'] ?? '').toString().trim();
+      final cod    = (c['asesor_cod'] ?? '').toString().trim();
+      return nombre.isNotEmpty ? nombre : cod;
+    })();
+    final nombre = (c['cliente'] ?? 'Cliente').toString();
+    final monto = _num(c['valor_prestamo'] ?? 0);
+    final totalPagar = _num(c['total_pagar'] ?? 0);
+    final numCuotas = c['num_cuotas']?.toString() ?? '';
+    final tipo = (c['tipo'] ?? '').toString();
+    final pagado = _num(c['total_pagado'] ?? 0);
+    final pendiente = _num(c['saldo_pendiente'] ?? 0);
+    final fecha = (c['fecha_prestamo'] ?? '').toString();
+    final proxima = (c['proxima_fecha'] ?? '').toString();
     final estado = (c['estado'] ?? 'Activo').toString();
     final activo = estado.toLowerCase().contains('activ');
 
+    // Determinar si está vencido: activo y proxima_fecha < hoy
+    bool vencido = false;
+    if (activo && proxima.isNotEmpty) {
+      try {
+        final fechaProx = DateTime.parse(proxima);
+        vencido = fechaProx.isBefore(DateTime.now());
+      } catch (_) {}
+    }
+
+    // Color de fondo: pagado=verde, activo vencido=rojo, activo al día=blanco
+    final cardBg = !activo
+        ? const Color(0xFFC8E6C9)   // pagado → verde
+        : vencido
+            ? const Color(0xFFFFCDD2) // activo vencido → rojo
+            : Colors.white;           // activo al día → blanco
+    final cardBorder = !activo
+        ? const Color(0xFFA5D6A7)
+        : vencido
+            ? const Color(0xFFEF9A9A)
+            : const Color(0xFFE2E8F0);
+
+    final estadoColor = !activo
+        ? const Color(0xFF16A34A)
+        : vencido
+            ? const Color(0xFFB71C1C)
+            : const Color(0xFF0D1B4B);
+    final estadoBg = !activo
+        ? const Color(0xFFD1FAE5)
+        : vencido
+            ? const Color(0xFFFFEBEE)
+            : const Color(0xFFF3F4F6);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 3))
-        ],
+        color: cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cardBorder, width: 1),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 3))],
       ),
-      child: Row(
-        children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Fila superior: nombre + estado
+        Row(children: [
+          Expanded(child: Text(nombre,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _navy))),
           Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFD1FAE5),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.credit_card_rounded,
-                color: Color(0xFF34D399), size: 22),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(color: estadoBg, borderRadius: BorderRadius.circular(8)),
+            child: Text(estado, style: TextStyle(color: estadoColor, fontSize: 11, fontWeight: FontWeight.w700)),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(nombre,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: _navy)),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text('Monto: ${_cop(monto)}',
-                        style: const TextStyle(
-                            fontSize: 11, color: Color(0xFF8899BB))),
-                    if (cuota > 0) ...[
-                      const Text(' · ',
-                          style: TextStyle(color: Color(0xFF8899BB))),
-                      Text('Cuota: ${_cop(cuota)}',
-                          style: const TextStyle(
-                              fontSize: 11, color: Color(0xFF8899BB))),
-                    ],
-                  ],
+        ]),
+        const SizedBox(height: 6),
+        // Cod · Asesor · Fecha · Tipo · Cuotas
+        Wrap(spacing: 12, runSpacing: 2, children: [
+          if (cod.isNotEmpty) _cTag('Cód', '#$cod'),
+          if (asesor.isNotEmpty) _cTag('Asesor', asesor),
+          if (fecha.isNotEmpty) _cTag('Fecha', fecha),
+          if (tipo.isNotEmpty) _cTag('Tipo', tipo),
+          if (numCuotas.isNotEmpty) _cTag('Cuotas', numCuotas),
+        ]),
+        const SizedBox(height: 8),
+        const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        const SizedBox(height: 8),
+        // Montos
+        Row(children: [
+          Expanded(child: _cMonto('Crédito', monto, _navy)),
+          Expanded(child: _cMonto('A pagar', totalPagar, _navy)),
+          Expanded(child: _cMonto('Pagado', pagado, const Color(0xFF16A34A))),
+          Expanded(child: _cMonto('Pendiente', pendiente, const Color(0xFFDC2626))),
+        ]),
+        if (proxima.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text('Próx. cuota: $proxima',
+              style: const TextStyle(fontSize: 10, color: Color(0xFF8899BB))),
+        ],
+        const SizedBox(height: 8),
+        const Divider(height: 1, color: Color(0xFFD1D5DB)),
+        const SizedBox(height: 8),
+        // Botones de acción
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          _accionBtn(Icons.list_alt_rounded, 'Cuotas', const Color(0xFF3B3B8A),
+              () => _showCuotasDialog(c)),
+          _whatsAppBtn(() => _enviarRecordatorioWhatsApp(c)),
+          _accionBtn(Icons.cancel_outlined, 'Eliminar', const Color(0xFFDC2626),
+              () => _confirmarEliminarCredito(c)),
+          _accionBtn(Icons.verified_outlined, 'Paz y Salvo', const Color(0xFF2563EB),
+              () => _showPazYSalvoDialog(c)),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _pendienteCard(Map<String, dynamic> p) {
+    final cod         = (p['codigo_solicitud'] ?? p['cod'] ?? '').toString();
+    final solicitante = ([p['nombres'], p['apellidos']].where((x) => x != null && x.toString().isNotEmpty).join(' ')).trim();
+    final doc         = (p['num_documento'] ?? p['documento'] ?? '').toString();
+    final email       = (p['email'] ?? p['correo'] ?? '').toString();
+    final tel         = (p['telefono'] ?? '').toString();
+    final valor       = _num(p['valor_solicitado'] ?? p['valor_prestamo'] ?? 0);
+    final numCuotas   = (p['num_cuotas'] ?? '').toString();
+    final tiempoRaw   = (p['tiempo_cuota'] ?? p['tipo_cuota'] ?? '').toString();
+    final tipo = tiempoRaw == '1' ? 'Mensual' : tiempoRaw == '2' ? 'Quincenal'
+               : tiempoRaw == '4' ? 'Semanal'  : tiempoRaw == '30' ? 'Diario' : tiempoRaw;
+    final interes     = (p['tasa_interes'] ?? p['interes'] ?? '').toString();
+    final codigoAsesor = (p['codigo_asesor'] ?? '').toString().trim();
+    final nombreAsesor = (p['nombre_asesor'] ?? codigoAsesor).toString().trim();
+    final estadoCod   = int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0;
+
+    // Verde = asesor asignado, Rojo = rechazado (estado 3), Blanco = pendiente
+    final tieneAsesor = codigoAsesor.isNotEmpty;
+    final rechazado   = estadoCod == 3;
+    final cardBg = rechazado   ? const Color(0xFFFFCDD2)
+                 : tieneAsesor ? const Color(0xFFC8E6C9)
+                 : Colors.white;
+    final cardBorder = rechazado   ? const Color(0xFFEF9A9A)
+                     : tieneAsesor ? const Color(0xFFA5D6A7)
+                     : const Color(0xFFE2E8F0);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cardBorder, width: 1),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 3))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Nombre + cod
+        Row(children: [
+          Expanded(child: Text(solicitante.isNotEmpty ? solicitante : 'Sin nombre',
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: _navy))),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(8)),
+            child: Text('#$cod', style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w700)),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        Wrap(spacing: 12, runSpacing: 2, children: [
+          if (doc.isNotEmpty)    _cTag('Doc', doc),
+          if (tel.isNotEmpty)    _cTag('Tel', tel),
+          if (tipo.isNotEmpty)   _cTag('Tipo', tipo),
+          if (numCuotas.isNotEmpty) _cTag('Cuotas', numCuotas),
+          if (interes.isNotEmpty) _cTag('Interés', '$interes%'),
+          if (nombreAsesor.isNotEmpty) _cTag('Asesor', nombreAsesor),
+        ]),
+        if (email.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(email, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+        ],
+        const SizedBox(height: 8),
+        const Divider(height: 1, color: Color(0xFFD1D5DB)),
+        const SizedBox(height: 8),
+        // Valor + botones según estado
+        Row(children: [
+          Text(_cop(valor),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _navy)),
+          const Spacer(),
+          // Aprobado (verde): solo Rechazar
+          if (tieneAsesor && !rechazado)
+            _accionBtn(Icons.cancel_outlined, 'Rechazar', const Color(0xFFDC2626),
+                () => _rechazarSolicitud(p))
+          // Rechazado (rojo): solo Aprobar
+          else if (rechazado)
+            _accionBtn(Icons.check_circle_outline_rounded, 'Aprobar', const Color(0xFF16A34A),
+                () => _aprobarSolicitud(p))
+          // Pendiente (blanco): Aprobar + Rechazar
+          else ...[
+            _accionBtn(Icons.check_circle_outline_rounded, 'Aprobar', const Color(0xFF16A34A),
+                () => _aprobarSolicitud(p)),
+            const SizedBox(width: 8),
+            _accionBtn(Icons.cancel_outlined, 'Rechazar', const Color(0xFFDC2626),
+                () => _rechazarSolicitud(p)),
+          ],
+        ]),
+      ]),
+    );
+  }
+
+  Future<void> _aprobarSolicitud(Map<String, dynamic> p) async {
+    final cod    = (p['codigo_solicitud'] ?? '').toString();
+    String? asesorSel = _creditoFiltroAsesor.isNotEmpty ? _creditoFiltroAsesor : null;
+
+    // Si no hay asesor preseleccionado, pedir al usuario
+    if (asesorSel == null && _asesoresLista.isNotEmpty) {
+      asesorSel = await showDialog<String>(
+        context: context,
+        builder: (ctx) {
+          String? tmp = _asesoresLista.first['sigla']?.toString() ?? '';
+          return StatefulBuilder(builder: (ctx, setS) => AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Asignar asesor', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0D1B4B))),
+            content: InputDecorator(
+              decoration: const InputDecoration(labelText: 'Asesor', border: OutlineInputBorder()),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: tmp,
+                  dropdownColor: Colors.white,
+                  isExpanded: true,
+                  items: _asesoresLista.map((a) {
+                    final sigla  = (a['sigla'] ?? a['codigo_asesor'] ?? '').toString();
+                    final nombre = ([a['nombres'], a['apellidos']].where((x) => x != null && x.toString().isNotEmpty).join(' ')).trim();
+                    return DropdownMenuItem(value: sigla, child: Text(nombre.isNotEmpty ? nombre : sigla));
+                  }).toList(),
+                  onChanged: (v) => setS(() => tmp = v),
                 ),
-              ],
+              ),
             ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: activo ? const Color(0xFFD1FAE5) : const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(estado,
-                style: TextStyle(
-                  color: activo
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFF6B7280),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                )),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, null), child: const Text('Cancelar')),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF16A34A), foregroundColor: Colors.white),
+                onPressed: () => Navigator.pop(ctx, tmp),
+                child: const Text('Aprobar'),
+              ),
+            ],
+          ));
+        },
+      );
+      if (asesorSel == null || !mounted) return;
+    }
+
+    final r = await _api.post('/ajax/aprobar_solicitud.php', {
+      'codigo_solicitud': cod,
+      'codigo_asesor': asesorSel ?? '',
+    });
+    if (!mounted) return;
+    final exito = r.statusCode == 200 && r.body.toLowerCase().contains('aprobado');
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(exito ? 'Solicitud #$cod aprobada' : 'Error: ${r.body}'),
+      backgroundColor: exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+    ));
+    if (exito) { await _fetchPendientes(); if (mounted) setState(() {}); }
+  }
+
+  Future<void> _rechazarSolicitud(Map<String, dynamic> p) async {
+    final cod    = (p['codigo_solicitud'] ?? '').toString();
+    final nombre = ([p['nombres'], p['apellidos']].where((x) => x != null && x.toString().isNotEmpty).join(' ')).trim();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.cancel_outlined, color: Color(0xFFDC2626)),
+          SizedBox(width: 8),
+          Text('Rechazar solicitud', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF0D1B4B))),
+        ]),
+        content: Text('¿Rechazar la solicitud #$cod de $nombre?',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('No')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Rechazar'),
           ),
         ],
       ),
     );
+    if (ok != true || !mounted) return;
+    final r = await _api.post('/ajax/rechazar_solicitud.php', {'codigo_solicitud': cod});
+    if (!mounted) return;
+    final exito = r.statusCode == 200 && r.body.toLowerCase().contains('rechazado');
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(exito ? 'Solicitud #$cod rechazada' : 'Error: ${r.body}'),
+      backgroundColor: exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+    ));
+    if (exito) { await _fetchPendientes(); if (mounted) setState(() {}); }
   }
+
+  Widget _accionBtn(IconData icon, String label, Color color, VoidCallback onTap) {
+    final colorLight = Color.lerp(color, Colors.white, 0.28) ?? color;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [colorLight, color],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.35),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 13, color: Colors.white),
+          const SizedBox(width: 5),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _whatsAppBtn(VoidCallback onTap) => Tooltip(
+        message: 'Enviar recordatorio por WhatsApp',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(10),
+            child: Ink(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: const Color(0xFF25D366),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF128C7E).withValues(alpha: 0.28),
+                    blurRadius: 7,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Center(
+                child: SvgPicture.asset(
+                  'assets/icons/whatsapp.svg',
+                  width: 21,
+                  height: 21,
+                  colorFilter: const ColorFilter.mode(
+                    Colors.white,
+                    BlendMode.srcIn,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+  // ── Cuotas dialog ───────────────────────────────────────────────
+  Future<void> _showCuotasDialog(Map<String, dynamic> credito) async {
+    final cod     = credito['cod']?.toString() ?? '';
+    final cliente = (credito['cliente'] ?? '').toString();
+    List<Map<String, dynamic>> cuotas = [];
+    bool loading = true;
+    bool requestStarted = false;
+    final hoy = DateTime.now();
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        if (loading && !requestStarted) {
+          requestStarted = true;
+          _api.post('/ajax/get_cuotas_credito.php', {'codigo_credito': cod}).then((r) {
+            if (r.statusCode == 200) {
+              try {
+                final decoded = jsonDecode(r.body);
+                if (decoded is List) {
+                  cuotas = decoded.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+                }
+              } catch (_) {}
+            }
+            if (ctx.mounted) setS(() => loading = false);
+          });
+        }
+
+        // Determina color de fila: verde=pagada, rojo=vencida, blanco=futura
+        Color cuotaColor(Map<String, dynamic> q) {
+          final pagadoFlag = (q['pagado'] ?? '').toString().toLowerCase();
+          final pagada = pagadoFlag == 'si' ||
+              (_num(q['valor_pagado'] ?? 0) >= _num(q['valor_pago'] ?? 1) &&
+               _num(q['valor_pagado'] ?? 0) > 0);
+          if (pagada) return const Color(0xFFC8E6C9);
+          try {
+            final fp = DateTime.parse((q['fecha_pago'] ?? '').toString());
+            if (fp.isBefore(hoy)) return const Color(0xFFFFCDD2);
+          } catch (_) {}
+          return Colors.white;
+        }
+
+        Color cuotaTextColor(Map<String, dynamic> q) {
+          final c = cuotaColor(q);
+          if (c == const Color(0xFFC8E6C9)) return const Color(0xFF1B5E20);
+          if (c == const Color(0xFFFFCDD2)) return const Color(0xFFB71C1C);
+          return const Color(0xFF0D1B4B);
+        }
+
+        return Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // Header morado
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: const BoxDecoration(
+                color: Color(0xFF3B3B8A),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.list_alt_rounded, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Listado de cuotas', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14)),
+                  Text(
+                    '$cliente · Cód #$cod',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ])),
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close, color: Colors.white70, size: 18),
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints.tightFor(width: 36, height: 36),
+                ),
+              ]),
+            ),
+            // Cabecera tabla (color morado)
+            Container(
+              color: const Color(0xFF4A4A9A),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: const Row(children: [
+                SizedBox(width: 24, child: Text('No.', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
+                Expanded(flex: 3, child: Text('Fecha pago', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
+                Expanded(flex: 3, child: Text('V. Pagar', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
+                Expanded(flex: 3, child: Text('V. Pagado', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700))),
+                SizedBox(
+                  width: 28,
+                  child: Center(
+                    child: Text('Pag.', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                SizedBox(
+                  width: 48,
+                  child: Center(
+                    child: Text('Acc.', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ]),
+            ),
+            // Filas de cuotas
+            if (loading)
+              const Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator())
+            else if (cuotas.isEmpty)
+              const Padding(padding: EdgeInsets.all(32), child: Text('Sin cuotas registradas', style: TextStyle(color: Color(0xFF8899BB))))
+            else
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.5),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: cuotas.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  itemBuilder: (_, i) {
+                    final q = cuotas[i];
+                    final bg   = cuotaColor(q);
+                    final txt  = cuotaTextColor(q);
+                    final valorPago   = _num(q['valor_pago']   ?? 0);
+                    final valorPagado = _num(q['valor_pagado'] ?? 0);
+                    final pagadoFlag  = (q['pagado'] ?? '').toString();
+                    final pagadoSi    = pagadoFlag.toLowerCase() == 'si' ||
+                        (valorPagado >= valorPago && valorPagado > 0);
+                    final fechaPago   = (q['fecha_pago'] ?? '').toString();
+                    return Container(
+                      color: bg,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: Row(children: [
+                        SizedBox(width: 24,
+                          child: Text('${q['numero_cuota'] ?? i + 1}',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: txt)),
+                        ),
+                        Expanded(flex: 3, child: Text(fechaPago,
+                          style: TextStyle(fontSize: 10, color: txt))),
+                        Expanded(flex: 3, child: Text(_cop(valorPago),
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: txt))),
+                        Expanded(flex: 3, child: Text(valorPagado > 0 ? _cop(valorPagado) : '',
+                          style: TextStyle(fontSize: 10, color: txt))),
+                        SizedBox(width: 28,
+                          child: Center(
+                            child: Text(pagadoSi ? 'Si' : 'No',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700,
+                                color: pagadoSi ? const Color(0xFF1B5E20) : const Color(0xFFB71C1C))),
+                          )),
+                        SizedBox(width: 48, child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          GestureDetector(
+                            onTap: () => _showRegistroPagoDialog(ctx, q, () {
+                              _api.post('/ajax/get_cuotas_credito.php', {'codigo_credito': cod}).then((r) {
+                                if (r.statusCode == 200) {
+                                  try {
+                                    final d = jsonDecode(r.body);
+                                    if (d is List) cuotas = d.whereType<Map>().map((e) => Map<String,dynamic>.from(e)).toList();
+                                  } catch (_) {}
+                                }
+                                if (ctx.mounted) setS(() {});
+                              });
+                            }),
+                            child: const Padding(
+                              padding: EdgeInsets.all(3),
+                              child: Icon(Icons.assignment_turned_in_outlined, size: 15, color: Color(0xFF3B3B8A)),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => _showEditarCuotaDialog(ctx, q, () {
+                              _api.post('/ajax/get_cuotas_credito.php', {'codigo_credito': cod}).then((r) {
+                                if (r.statusCode == 200) {
+                                  try {
+                                    final d = jsonDecode(r.body);
+                                    if (d is List) cuotas = d.whereType<Map>().map((e) => Map<String,dynamic>.from(e)).toList();
+                                  } catch (_) {}
+                                }
+                                if (ctx.mounted) setS(() {});
+                              });
+                            }),
+                            child: const Padding(
+                              padding: EdgeInsets.all(3),
+                              child: Icon(Icons.edit_outlined, size: 15, color: Color(0xFF3B3B8A)),
+                            ),
+                          ),
+                        ])),
+                      ]),
+                    );
+                  },
+                ),
+              ),
+            // Botón Cerrar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF4A4A9A),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cerrar'),
+                ),
+              ),
+            ),
+          ]),
+        );
+      }),
+    );
+  }
+
+  // ── Registro de pago de cuota ────────────────────────────────────
+  Future<void> _showRegistroPagoDialog(
+      BuildContext parentCtx, Map<String, dynamic> cuota, VoidCallback onSaved) async {
+    final codigoCuota = cuota['codigo_cuota']?.toString() ?? '';
+    String interes = '1'; // 1=No interés, 2=Con interés
+    String fuente = '';
+    final valorCtrl = TextEditingController(
+        text: (cuota['valor_pago'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), ''));
+    final comentCtrl = TextEditingController();
+    DateTime fechaPago = DateTime.now();
+    double moraVal = 0;
+    bool loadingMora = codigoCuota.isNotEmpty;
+    bool saving = false;
+
+    await showDialog(
+      context: parentCtx,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        if (loadingMora && codigoCuota.isNotEmpty) {
+          loadingMora = false;
+          _api.post('/ajax/consultar_datos_cuota.php', {'codigo_cuota': codigoCuota}).then((r) {
+            if (r.statusCode == 200) {
+              try {
+                final d = jsonDecode(r.body);
+                if (d is Map && d['success'] == true) {
+                  final inc = double.tryParse(d['valor_incremento']?.toString() ?? '0') ?? 0;
+                  if (ctx.mounted) setS(() => moraVal = inc);
+                }
+              } catch (_) {}
+            }
+          });
+        }
+
+        String fechaStr() {
+          return '${fechaPago.year}-${fechaPago.month.toString().padLeft(2, '0')}-${fechaPago.day.toString().padLeft(2, '0')}';
+        }
+
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Registro de pago',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0D1B4B))),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // Interés
+              Row(children: [
+                const SizedBox(width: 80,
+                    child: Text('Interés', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0D1B4B)))),
+                Expanded(child: Container(
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE7E9F5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFD3D7EB)),
+                  ),
+                  child: DropdownButtonHideUnderline(child: DropdownButton<String>(
+                    value: interes,
+                    isExpanded: true,
+                    dropdownColor: Colors.white,
+                    iconEnabledColor: const Color(0xFF3B3B8A),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF0D1B4B),
+                      fontWeight: FontWeight.w500,
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: '1', child: Text('No')),
+                      DropdownMenuItem(value: '2', child: Text('Si')),
+                    ],
+                    onChanged: (v) => setS(() => interes = v ?? '1'),
+                  )),
+                )),
+              ]),
+              const SizedBox(height: 10),
+              // Valor pagado
+              TextField(
+                controller: valorCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(
+                  color: Color(0xFF0D1B4B),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+                cursorColor: const Color(0xFF3B3B8A),
+                decoration: InputDecoration(
+                  labelText: 'Valor pagado',
+                  labelStyle: const TextStyle(
+                    color: Color(0xFF5B5BB0),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  floatingLabelStyle: const TextStyle(
+                    color: Color(0xFF3B3B8A),
+                    fontWeight: FontWeight.w700,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFE7E9F5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B3B8A),
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Mora calculada (read-only)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: moraVal > 0 ? const Color(0xFFFFD7DB) : const Color(0xFFDDF2E1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: moraVal > 0
+                        ? const Color(0xFFF3A8B0)
+                        : const Color(0xFFB8DFC0),
+                  ),
+                ),
+                child: Text(
+                  moraVal > 0 ? 'Incremento por mora: ${_cop(moraVal)}' : 'Sin incremento por mora',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: moraVal > 0 ? const Color(0xFFB71C1C) : const Color(0xFF1B5E20),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Fuente
+              DropdownButtonFormField<String>(
+                initialValue: fuente,
+                isExpanded: true,
+                dropdownColor: Colors.white,
+                iconEnabledColor: const Color(0xFF3B3B8A),
+                style: const TextStyle(
+                  color: Color(0xFF0D1B4B),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Fuente',
+                  labelStyle: const TextStyle(
+                    color: Color(0xFF5B5BB0),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  floatingLabelStyle: const TextStyle(
+                    color: Color(0xFF3B3B8A),
+                    fontWeight: FontWeight.w700,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFE7E9F5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B3B8A),
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text(
+                      '[Seleccione]',
+                      style: TextStyle(color: Color(0xFF667395)),
+                    ),
+                  ),
+                  ..._fuentesLista.map((f) {
+                    final label = (f['fuente'] ??
+                            f['nombre'] ??
+                            f['name'] ??
+                            '')
+                        .toString();
+                    final codigo = (f['valor'] ??
+                            f['codigo'] ??
+                            f['id'] ??
+                            label)
+                        .toString();
+                    return DropdownMenuItem(
+                      value: codigo,
+                      child: Text(label, overflow: TextOverflow.ellipsis),
+                    );
+                  }),
+                ],
+                onChanged: (v) => setS(() => fuente = v ?? ''),
+              ),
+              const SizedBox(height: 10),
+              // Fecha de Pago
+              GestureDetector(
+                onTap: () async {
+                  final d = await showDatePicker(
+                    context: ctx,
+                    initialDate: fechaPago,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2035),
+                  );
+                  if (d != null && ctx.mounted) setS(() => fechaPago = d);
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE7E9F5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFD3D7EB)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF3B3B8A)),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${fechaPago.day.toString().padLeft(2,'0')}/${fechaPago.month.toString().padLeft(2,'0')}/${fechaPago.year}',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF0D1B4B)),
+                    ),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Comentarios
+              TextField(
+                controller: comentCtrl,
+                maxLines: 3,
+                style: const TextStyle(
+                  color: Color(0xFF0D1B4B),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                cursorColor: const Color(0xFF3B3B8A),
+                decoration: InputDecoration(
+                  hintText: 'Comentarios (opcional)',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF667395),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFE7E9F5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B3B8A),
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cerrar', style: TextStyle(color: Color(0xFF8899BB))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B3B8A),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: saving ? null : () async {
+                final val = double.tryParse(valorCtrl.text.trim()) ?? 0;
+                if (val <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Ingresa el valor pagado'), backgroundColor: Color(0xFFDC2626)));
+                  return;
+                }
+                setS(() => saving = true);
+                final messenger = ScaffoldMessenger.of(context);
+                final r = await _api.post('/ajax/registrar_cuota_credito.php', {
+                  'codigo_cuota':        codigoCuota,
+                  'interes':             interes,
+                  'valor_pagado':        valorCtrl.text.trim(),
+                  'fuente_cuota':        fuente,
+                  'fecha_registro_pago': fechaStr(),
+                  'comentarios':         comentCtrl.text.trim(),
+                });
+                setS(() => saving = false);
+                if (!ctx.mounted) return;
+                final ok = r.statusCode == 200 && r.body.contains('Pago Registrado');
+                messenger.showSnackBar(SnackBar(
+                  content: Text(ok ? 'Pago registrado correctamente' : 'Error: ${r.body}'),
+                  backgroundColor: ok ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                ));
+                if (ok) { Navigator.pop(ctx); onSaved(); }
+              },
+              child: saving
+                  ? const SizedBox(width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Grabar'),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  // ── Editar cuota ─────────────────────────────────────────────────
+  Future<void> _showEditarCuotaDialog(
+      BuildContext parentCtx, Map<String, dynamic> cuota, VoidCallback onSaved) async {
+    final codigoCuota = cuota['codigo_cuota']?.toString() ?? '';
+    final valorCtrl = TextEditingController(
+        text: (cuota['valor_pago'] ?? '').toString().replaceAll(RegExp(r'[^0-9.]'), ''));
+    final obsCtrl = TextEditingController(
+        text: (cuota['observaciones'] ?? '').toString());
+    DateTime? fechaPago;
+    try { fechaPago = DateTime.parse((cuota['fecha_pago'] ?? '').toString()); } catch (_) {}
+    bool saving = false;
+
+    await showDialog(
+      context: parentCtx,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        String fechaStr() {
+          if (fechaPago == null) return '';
+          return '${fechaPago!.year}-${fechaPago!.month.toString().padLeft(2,'0')}-${fechaPago!.day.toString().padLeft(2,'0')}';
+        }
+
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('Editar Cuota',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0D1B4B))),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: valorCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(
+                  color: Color(0xFF0D1B4B),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+                cursorColor: const Color(0xFF3B3B8A),
+                decoration: InputDecoration(
+                  labelText: 'Valor de la cuota',
+                  labelStyle: const TextStyle(
+                    color: Color(0xFF5B5BB0),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  floatingLabelStyle: const TextStyle(
+                    color: Color(0xFF3B3B8A),
+                    fontWeight: FontWeight.w700,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFE7E9F5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B3B8A),
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: () async {
+                  final d = await showDatePicker(
+                    context: ctx,
+                    initialDate: fechaPago ?? DateTime.now(),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2035),
+                  );
+                  if (d != null && ctx.mounted) setS(() => fechaPago = d);
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE7E9F5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFD3D7EB)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF3B3B8A)),
+                    const SizedBox(width: 8),
+                    Text(
+                      fechaPago != null
+                          ? '${fechaPago!.day.toString().padLeft(2,'0')}/${fechaPago!.month.toString().padLeft(2,'0')}/${fechaPago!.year}'
+                          : 'Fecha de pago',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: fechaPago != null ? const Color(0xFF0D1B4B) : const Color(0xFF8899BB),
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: obsCtrl,
+                maxLines: 3,
+                style: const TextStyle(
+                  color: Color(0xFF0D1B4B),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                cursorColor: const Color(0xFF3B3B8A),
+                decoration: InputDecoration(
+                  hintText: 'Observaciones (opcional)',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF667395),
+                    fontWeight: FontWeight.w500,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFE7E9F5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B3B8A),
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ]),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF8899BB))),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3B3B8A),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: saving ? null : () async {
+                setS(() => saving = true);
+                final messenger = ScaffoldMessenger.of(context);
+                final r = await _api.post('/ajax/editar_cuota.php', {
+                  'codigo_cuota': codigoCuota,
+                  'valor_pago':   valorCtrl.text.trim(),
+                  'fecha_pago':   fechaStr(),
+                });
+                setS(() => saving = false);
+                if (!ctx.mounted) return;
+                bool ok = false;
+                try {
+                  final d = jsonDecode(r.body);
+                  ok = r.statusCode == 200 && (d['resultado'] == 1 || d['resultado'] == '1');
+                } catch (_) {
+                  ok = false;
+                }
+                messenger.showSnackBar(SnackBar(
+                  content: Text(ok ? 'Cuota actualizada' : 'Error: ${r.body}'),
+                  backgroundColor: ok ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                ));
+                if (ok) { Navigator.pop(ctx); onSaved(); }
+              },
+              child: saving
+                  ? const SizedBox(width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Text('Guardar cambios'),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  // ── Recordatorio por WhatsApp ────────────────────────────────────
+  Future<void> _enviarRecordatorioWhatsApp(
+      Map<String, dynamic> credito) async {
+    final cliente = (credito['cliente'] ?? 'cliente').toString().trim();
+    final cod = credito['cod']?.toString() ?? '';
+    final proxima = (credito['proxima_fecha'] ?? '').toString().trim();
+    final vencidas = int.tryParse(
+          (credito['cuotas_vencidas'] ??
+                  credito['vencidas'] ??
+                  credito['cantidad_vencidas'] ??
+                  '0')
+              .toString(),
+        ) ??
+        0;
+    var telefono = (credito['telefono'] ??
+            credito['celular'] ??
+            credito['telefono_cliente'] ??
+            credito['numero_telefono'] ??
+            '')
+        .toString()
+        .replaceAll(RegExp(r'\D'), '');
+
+    if (telefono.startsWith('00')) telefono = telefono.substring(2);
+    if (telefono.startsWith('57') && telefono.length == 12) {
+      telefono = telefono.substring(2);
+    }
+
+    if (telefono.length != 10) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'El crédito #$cod no tiene un teléfono válido para WhatsApp.'),
+          backgroundColor: const Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
+    final mensaje = vencidas > 0
+        ? 'Hola Sr(a) $cliente, tienes $vencidas cuota(s) vencida(s), recuerde que su fecha de pago'
+            '${proxima.isNotEmpty ? ' es $proxima' : ' ya se encuentra vencida'}.'
+        : 'Hola Sr(a) $cliente, le recordamos que su próxima fecha de pago'
+            '${proxima.isNotEmpty ? ' es $proxima' : ' está próxima'}.';
+
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: Card(
+          color: Colors.white,
+          child: Padding(
+            padding: EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(color: Color(0xFF25D366)),
+                SizedBox(height: 14),
+                Text(
+                  'Enviando recordatorio...',
+                  style: TextStyle(
+                    color: Color(0xFF0D1B4B),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    bool enviado = false;
+    String resultado = 'No se pudo enviar el recordatorio.';
+    try {
+      final response = await http
+          .post(
+            Uri.parse('https://whatsapp-bot-s66s.onrender.com/enviar'),
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'telefono': telefono,
+              'mensaje': mensaje,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map) {
+        enviado = response.statusCode == 200 && decoded['ok'] == true;
+        resultado = enviado
+            ? (decoded['mensaje']?.toString() ??
+                'Recordatorio enviado correctamente.')
+            : (decoded['error']?.toString() ??
+                decoded['mensaje']?.toString() ??
+                'El servicio de WhatsApp rechazó el envío.');
+      } else {
+        resultado = 'El servicio devolvió una respuesta no válida.';
+      }
+    } on TimeoutException {
+      resultado = 'El servicio de WhatsApp tardó demasiado en responder.';
+    } catch (e) {
+      resultado = 'No fue posible conectar con el servicio de WhatsApp.';
+      debugPrint('[SAF] WhatsApp: $e');
+    }
+
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(resultado),
+        backgroundColor:
+            enviado ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  // ── Confirmar eliminar ───────────────────────────────────────────
+  Future<void> _confirmarEliminarCredito(Map<String, dynamic> credito) async {
+    final cod     = credito['cod']?.toString() ?? '';
+    final cliente = (credito['cliente'] ?? '').toString();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(children: [
+          Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
+          SizedBox(width: 8),
+          Text('Eliminar crédito', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF0D1B4B))),
+        ]),
+        content: Text('¿Desea eliminar el crédito #$cod de $cliente? Esta acción no se puede deshacer.',
+            style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final r = await _api.post('/ajax/eliminar_credito.php', {'codigo_credito': cod});
+    if (!mounted) return;
+    final exito = r.statusCode == 200 && r.body.toLowerCase().contains('eliminado');
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(exito ? 'Crédito #$cod eliminado' : 'No se pudo eliminar. Verifique el servidor.'),
+      backgroundColor: exito ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+    ));
+    if (exito) {
+      _api.invalidateCache('/ajax/get_creditos_lista.php');
+      await _fetchCreditos('');
+      if (mounted) setState(() {});
+    }
+  }
+
+  // ── Paz y Salvo dialog ───────────────────────────────────────────
+  void _showPazYSalvoDialog(Map<String, dynamic> credito) {
+    final cliente        = (credito['cliente'] ?? '').toString();
+    final numDoc         = (credito['num_documento'] ?? '').toString();
+    final cod            = credito['cod']?.toString() ?? '';
+    final fechaPrestamo  = (credito['fecha_prestamo'] ?? '').toString();
+    final valorPrestamo  = _num(credito['valor_prestamo'] ?? 0);
+    final ultimaPago     = (credito['ultima_fecha_pago'] ?? '').toString();
+    final hoy            = DateTime.now();
+    final fechaFirma     = '${hoy.day}/${hoy.month}/${hoy.year}';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // Header empresa
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF0D1B4B), width: 2),
+                  ),
+                  child: const Icon(Icons.savings_rounded, color: Color(0xFF0D1B4B), size: 24),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('SAF', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF0D1B4B))),
+                  const Text('Dirección · Tel: (316) 270-5951', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                ])),
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  Text(fechaFirma, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                  const Text('Paz y salvo', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                ]),
+              ]),
+              const SizedBox(height: 12),
+              const Divider(color: Color(0xFF0D1B4B), thickness: 1.5),
+              const SizedBox(height: 16),
+              // Título
+              const Center(
+                child: Text('CERTIFICADO DE PAZ Y SALVO',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: Color(0xFF0D1B4B), letterSpacing: 0.5)),
+              ),
+              const SizedBox(height: 20),
+              // Cuerpo
+              RichText(text: TextSpan(style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B), height: 1.6), children: [
+                const TextSpan(text: 'La presente certifica que el(la) señor(a) '),
+                TextSpan(text: cliente, style: const TextStyle(fontWeight: FontWeight.w700)),
+                const TextSpan(text: ' identificado(a) con cédula de ciudadanía No. '),
+                TextSpan(text: numDoc, style: const TextStyle(fontWeight: FontWeight.w700)),
+                const TextSpan(text: ' ha cancelado en su totalidad las obligaciones relacionadas con el crédito identificado con número '),
+                TextSpan(text: cod, style: const TextStyle(fontWeight: FontWeight.w700)),
+                const TextSpan(text: ', realizado el dia '),
+                TextSpan(text: fechaPrestamo, style: const TextStyle(fontWeight: FontWeight.w700)),
+                const TextSpan(text: ', por valor de '),
+                TextSpan(text: _cop(valorPrestamo), style: const TextStyle(fontWeight: FontWeight.w700)),
+                const TextSpan(text: '.'),
+              ])),
+              const SizedBox(height: 12),
+              if (ultimaPago.isNotEmpty)
+                RichText(text: TextSpan(style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B), height: 1.6), children: [
+                  const TextSpan(text: 'Ultima Fecha de Pago: ', style: TextStyle(fontWeight: FontWeight.w700)),
+                  TextSpan(text: '$ultimaPago.'),
+                ])),
+              const SizedBox(height: 12),
+              const Text(
+                'Este certificado se expide a solicitud del interesado para los fines que estime convenientes.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF1E293B), height: 1.6),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'En constancia de lo anterior, se firma a los $fechaFirma.',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF1E293B), height: 1.6),
+              ),
+              const SizedBox(height: 24),
+              // Sello
+              Center(
+                child: Container(
+                  width: 90, height: 90,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF1565C0), width: 2),
+                  ),
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.savings_rounded, color: Color(0xFF1565C0), size: 22),
+                    const Text('SAF', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: Color(0xFF1565C0))),
+                    const Text('PAZ Y SALVO', style: TextStyle(fontSize: 7, fontWeight: FontWeight.w700, color: Color(0xFF1565C0))),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Firmas
+              Row(children: [
+                Expanded(child: Column(children: [
+                  const Divider(color: Color(0xFF0D1B4B)),
+                  const Text('Asesor', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                ])),
+                const SizedBox(width: 32),
+                Expanded(child: Column(children: [
+                  const Divider(color: Color(0xFF0D1B4B)),
+                  const Text('Deudor', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                ])),
+              ]),
+              const SizedBox(height: 12),
+              // Botón cerrar
+              Center(child: TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cerrar', style: TextStyle(color: Color(0xFF3B3B8A))),
+              )),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pgBtn(IconData icon, bool enabled, VoidCallback onTap) => GestureDetector(
+    onTap: enabled ? onTap : null,
+    child: Container(
+      width: 36, height: 36,
+      decoration: BoxDecoration(
+        color: enabled ? _navy : const Color(0xFFE2E8F0),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(icon, color: enabled ? Colors.white : const Color(0xFF9CA3AF), size: 20),
+    ),
+  );
+
+  Widget _cTag(String label, String value) => RichText(text: TextSpan(
+    style: const TextStyle(fontSize: 11),
+    children: [
+      TextSpan(text: '$label: ', style: const TextStyle(color: Color(0xFF8899BB))),
+      TextSpan(text: value, style: const TextStyle(color: Color(0xFF0D1B4B), fontWeight: FontWeight.w600)),
+    ],
+  ));
+
+  Widget _cMonto(String label, double value, Color color) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(label, style: const TextStyle(fontSize: 9, color: Color(0xFF8899BB))),
+      Text(_cop(value), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
+    ],
+  );
 
   Widget _ahoradorCard(Map<String, dynamic> a) =>
       _AhoradorExpandable(data: a, cop: _cop, num: _num);
@@ -4281,6 +9272,70 @@ class _HomeScreenState extends State<HomeScreen>
             ),
           );
         },
+      );
+
+  Widget _pendientesSkeleton() => IgnorePointer(
+        child: Opacity(
+          opacity: 0.68,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Column(
+              children: List.generate(
+                3,
+                (index) => Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFFE2E8F0)
+                          .withValues(alpha: 0.65),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(child: _skel(double.infinity, 15, r: 6)),
+                          const SizedBox(width: 28),
+                          _skel(58, 20, r: 8),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          _skel(62, 10, r: 5),
+                          const SizedBox(width: 10),
+                          _skel(88, 10, r: 5),
+                          const SizedBox(width: 10),
+                          Expanded(child: _skel(double.infinity, 10, r: 5)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Divider(
+                        height: 1,
+                        color:
+                            const Color(0xFFE2E8F0).withValues(alpha: 0.55),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(child: _skel(double.infinity, 25, r: 7)),
+                          const SizedBox(width: 10),
+                          _skel(78, 30, r: 9),
+                          const SizedBox(width: 8),
+                          _skel(72, 30, r: 9),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       );
 
   Widget _dashboardSkeleton() => Column(
@@ -4394,73 +9449,415 @@ class _HomeScreenState extends State<HomeScreen>
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
+            // Drag handle
+            Padding(
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
                   color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2)),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
             ),
-            const SizedBox(height: 24),
+
+            // Header con gradiente
             Container(
-              width: 76,
-              height: 76,
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: _accent1.withValues(alpha: 0.35), width: 2.5),
-                boxShadow: [
-                  BoxShadow(
-                      color: _accent1.withValues(alpha: 0.2),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6))
+                gradient: LinearGradient(
+                  colors: [
+                    _accent1.withValues(alpha: 0.06),
+                    Colors.white,
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+              child: Column(
+                children: [
+                  // Avatar con anillo gradiente
+                  Container(
+                    width: 86,
+                    height: 86,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _accent1.withValues(alpha: 0.35),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(3),
+                    child: ClipOval(
+                      child: Container(
+                        color: Colors.white,
+                        child: _photoUrl.isNotEmpty
+                            ? Image.network(
+                                _photoUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) =>
+                                    _avatarFallback(
+                                        _fullName.split(' ').first),
+                              )
+                            : _avatarFallback(_fullName.split(' ').first),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    _fullName,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: _navy,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  if (email.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _accent1.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        email,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _accent1.withValues(alpha: 0.85),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
-              child: ClipOval(
-                child: _photoUrl.isNotEmpty
-                    ? Image.network(_photoUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            _avatarFallback(_fullName.split(' ').first))
-                    : _avatarFallback(_fullName.split(' ').first),
-              ),
             ),
-            const SizedBox(height: 14),
-            Text(_fullName,
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.w700, color: _navy)),
-            if (email.isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(email,
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
-            ],
-            const SizedBox(height: 20),
-            const Divider(height: 1),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _logout();
-                },
-                icon: const Icon(Icons.logout_rounded,
-                    color: Color(0xFFE53935), size: 20),
-                label: const Text('Cerrar sesión',
-                    style: TextStyle(
-                        color: Color(0xFFE53935),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15)),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFE53935), width: 1.5),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
+
+            // Opciones
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+              child: Column(
+                children: [
+                  // Gestión de usuarios — tarjeta gradiente
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: _accent1.withValues(alpha: 0.35),
+                          blurRadius: 14,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          Navigator.of(context).pop();
+                          _showUsersManagement();
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.manage_accounts_rounded,
+                                  color: Colors.white,
+                                  size: 24,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Gestión de usuarios',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Usuarios, perfiles y accesos',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: Colors.white70,
+                                size: 15,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Cerrar sesión — gradiente épico
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          Color(0xFFB91C1C),
+                          Color(0xFFE53935),
+                          Color(0xFFFF6B35),
+                        ],
+                        stops: [0.0, 0.55, 1.0],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFE53935).withValues(alpha: 0.45),
+                          blurRadius: 18,
+                          spreadRadius: 0,
+                          offset: const Offset(0, 6),
+                        ),
+                        BoxShadow(
+                          color: const Color(0xFFFF6B35).withValues(alpha: 0.2),
+                          blurRadius: 30,
+                          spreadRadius: -4,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              backgroundColor: Colors.white,
+                              surfaceTintColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(24)),
+                              contentPadding: EdgeInsets.zero,
+                              titlePadding: EdgeInsets.zero,
+                              title: Padding(
+                                padding: const EdgeInsets.fromLTRB(24, 32, 24, 8),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Icono con gradiente épico
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFFB91C1C),
+                                            Color(0xFFE53935),
+                                            Color(0xFFFF6B35),
+                                          ],
+                                          stops: [0.0, 0.55, 1.0],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFE53935)
+                                                .withValues(alpha: 0.4),
+                                            blurRadius: 20,
+                                            spreadRadius: 0,
+                                            offset: const Offset(0, 8),
+                                          ),
+                                          BoxShadow(
+                                            color: const Color(0xFFFF6B35)
+                                                .withValues(alpha: 0.2),
+                                            blurRadius: 36,
+                                            spreadRadius: -4,
+                                            offset: const Offset(0, 14),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(
+                                        Icons.logout_rounded,
+                                        color: Colors.white,
+                                        size: 38,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    const Text(
+                                      '¿Cerrar sesión?',
+                                      style: TextStyle(
+                                        color: _navy,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.4,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Se cerrará tu sesión activa y tendrás que\nvolver a iniciar sesión para continuar.',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Color(0xFF8899BB),
+                                        fontSize: 13,
+                                        height: 1.6,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 28),
+                                    // Botón confirmar
+                                    Container(
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFFB91C1C),
+                                            Color(0xFFE53935),
+                                            Color(0xFFFF6B35),
+                                          ],
+                                          stops: [0.0, 0.55, 1.0],
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(14),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFE53935)
+                                                .withValues(alpha: 0.4),
+                                            blurRadius: 14,
+                                            offset: const Offset(0, 5),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(14),
+                                          onTap: () => Navigator.pop(ctx, true),
+                                          child: const Padding(
+                                            padding: EdgeInsets.symmetric(vertical: 15),
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                Icon(Icons.logout_rounded,
+                                                    color: Colors.white, size: 18),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'Sí, cerrar sesión',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w800,
+                                                    fontSize: 15,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    // Botón cancelar
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: TextButton(
+                                        onPressed: () => Navigator.pop(ctx, false),
+                                        style: TextButton.styleFrom(
+                                          foregroundColor: const Color(0xFF8899BB),
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 13),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(14),
+                                            side: const BorderSide(
+                                                color: Color(0xFFE2E8F0), width: 1.5),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'No, quedarse',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                  ],
+                                ),
+                              ),
+                              actions: const [],
+                            ),
+                          );
+                          if (confirm == true && mounted) {
+                            Navigator.of(context).pop();
+                            _logout();
+                          }
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 15),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.logout_rounded,
+                                  color: Colors.white, size: 20),
+                              SizedBox(width: 10),
+                              Text(
+                                'Cerrar sesión',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -4502,19 +9899,6 @@ class _HomeScreenState extends State<HomeScreen>
     return '\$ ${buf.toString()}';
   }
 
-  static Color _cuentaColor(String tipo) {
-    switch (tipo) {
-      case 'ingreso':
-        return const Color(0xFF16A34A);
-      case 'crédito':
-      case 'credito':
-        return const Color(0xFFF59E0B);
-      case 'gasto':
-        return const Color(0xFFDC2626);
-      default:
-        return const Color(0xFF4361EE);
-    }
-  }
 
   static IconData _cuentaIcon(String tipo) {
     switch (tipo) {
@@ -4573,7 +9957,7 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
     _expanded ? _ctrl.forward() : _ctrl.reverse();
   }
 
-  static const _purple = Color(0xFF7C3AED);
+  static const _purple = Color(0xFF4361EE);
   static const _navy   = Color(0xFF0D1B4B);
 
   @override
@@ -4641,7 +10025,7 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
                   width: 44, height: 44,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                        colors: [Color(0xFF7C3AED), Color(0xFFA855F7)]),
+                        colors: [Color(0xFF4361EE), Color(0xFFA855F7)]),
                     borderRadius: BorderRadius.circular(13),
                   ),
                   child: Center(

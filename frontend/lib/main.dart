@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
@@ -37,6 +38,13 @@ class SafApp extends StatelessWidget {
       title: 'SAF',
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('es'), Locale('en')],
+      locale: const Locale('es'),
       initialRoute: initialRoute,
       routes: {
         '/onboarding': (_) => const OnboardingScreen(),
