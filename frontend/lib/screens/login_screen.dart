@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'forgot_password_screen.dart';
 
 // ── Particle ─────────────────────────────────────────────────────────────────
 class _Particle {
@@ -138,6 +139,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
+    _loadLastEmail();
     final rng = math.Random(42);
     _particles = List.generate(
         28,
@@ -185,6 +187,13 @@ class _LoginScreenState extends State<LoginScreen>
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadLastEmail() async {
+    final email = await _api.getLastEmail();
+    if (email != null && mounted) {
+      setState(() => _emailCtrl.text = email);
+    }
   }
 
   Future<void> _login() async {
@@ -363,27 +372,58 @@ class _LoginScreenState extends State<LoginScreen>
 
                       SizedBox(height: size.height * 0.042),
 
-                      // ── White card ─────────────────────────────────
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF6C63FF)
-                                  .withValues(alpha: 0.18),
-                              blurRadius: 40,
-                              offset: const Offset(0, 16),
-                            ),
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.25),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
+                      // ── Card ───────────────────────────────────────
+                      AnimatedBuilder(
+                        animation: _pulseCtrl,
+                        builder: (_, child) => Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(28),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF6C63FF).withValues(alpha: 0.35 + 0.20 * _pulse.value),
+                                blurRadius: 28 + 18 * _pulse.value,
+                                spreadRadius: -4,
+                                offset: const Offset(0, 16),
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFF8B2FC9).withValues(alpha: 0.20 + 0.12 * _pulse.value),
+                                blurRadius: 55 + 20 * _pulse.value,
+                                spreadRadius: -10,
+                                offset: const Offset(0, 26),
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFF00C6FF).withValues(alpha: 0.15 + 0.08 * _pulse.value),
+                                blurRadius: 40,
+                                spreadRadius: -14,
+                                offset: const Offset(0, 30),
+                              ),
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.30),
+                                blurRadius: 22,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: child!,
                         ),
-                        padding: const EdgeInsets.fromLTRB(24, 30, 24, 30),
-                        child: Form(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(28),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Acento superior gradiente
+                              Container(
+                                height: 5,
+                                decoration: const BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Color(0xFF6C63FF), Color(0xFF00C6FF), Color(0xFF8B2FC9)],
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                color: Colors.white,
+                                padding: const EdgeInsets.fromLTRB(24, 26, 24, 30),
+                                child: Form(
                           key: _formKey,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -603,19 +643,25 @@ class _LoginScreenState extends State<LoginScreen>
 
                               const SizedBox(height: 20),
 
-                              // Register row
+                              // Forgot password
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Text(
-                                    '¿No tienes cuenta? ',
+                                    '¿Olvidaste tu contraseña? ',
                                     style: TextStyle(
                                       color: Color(0xFF8899BB),
                                       fontSize: 13,
                                     ),
                                   ),
                                   GestureDetector(
-                                    onTap: () {},
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const ForgotPasswordScreen(),
+                                      ),
+                                    ),
                                     child: ShaderMask(
                                       shaderCallback: (b) =>
                                           const LinearGradient(
@@ -625,7 +671,7 @@ class _LoginScreenState extends State<LoginScreen>
                                         ],
                                       ).createShader(b),
                                       child: const Text(
-                                        'Regístrate',
+                                        'Recuperar',
                                         style: TextStyle(
                                           color: Colors.white,
                                           fontSize: 13,
@@ -639,7 +685,11 @@ class _LoginScreenState extends State<LoginScreen>
                             ],
                           ),
                         ),
-                      ),
+                      ), // Container white body
+                      ], // Column children
+                    ), // Column
+                  ), // ClipRRect
+                ), // AnimatedBuilder
 
                       SizedBox(height: size.height * 0.038),
 

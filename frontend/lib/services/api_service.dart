@@ -16,6 +16,9 @@ class ApiService {
   static const String _defaultBaseUrl = 'https://www.jorgemario.co/ext/saf';
   static const String _tokenKey = 'auth_token';
   static const String _userKey = 'user_data';
+  static const String _lastEmailKey = 'last_login_email';
+  static const String _bgTimestampKey = 'bg_timestamp';
+  static const int _sessionTimeoutMs = 5 * 60 * 1000; // 5 minutos
   static const Duration _cacheTtl = Duration(minutes: 5);
 
   String _baseUrl = _defaultBaseUrl;
@@ -108,6 +111,8 @@ class ApiService {
           _user = topLevel.isNotEmpty ? topLevel : null;
         }
         await _saveSession();
+        final prefs = await _getPrefs();
+        await prefs.setString(_lastEmailKey, email);
       }
 
       final msg = data['mensaje']?.toString() ??
@@ -133,6 +138,33 @@ class ApiService {
     await prefs.remove(_tokenKey);
     await prefs.remove(_userKey);
     await prefs.remove(_sessionKey);
+    await prefs.remove(_bgTimestampKey);
+  }
+
+  Future<String?> getLastEmail() async {
+    final prefs = await _getPrefs();
+    return prefs.getString(_lastEmailKey);
+  }
+
+  Future<void> saveBackgroundTimestamp() async {
+    if (_token == null) return;
+    final prefs = await _getPrefs();
+    await prefs.setInt(_bgTimestampKey, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  /// Returns true if the session expired (> 5 min in background) and was cleared.
+  Future<bool> checkAndHandleSessionTimeout() async {
+    if (_token == null) return false;
+    final prefs = await _getPrefs();
+    final ts = prefs.getInt(_bgTimestampKey);
+    if (ts == null) return false;
+    final elapsed = DateTime.now().millisecondsSinceEpoch - ts;
+    await prefs.remove(_bgTimestampKey);
+    if (elapsed > _sessionTimeoutMs) {
+      await logout();
+      return true;
+    }
+    return false;
   }
 
   /// POST with optional in-memory cache (use for read-only queries).

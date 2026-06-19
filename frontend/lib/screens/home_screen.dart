@@ -10328,114 +10328,15 @@ class _HomeScreenState extends State<HomeScreen>
   //  BOTTOM NAV — Dark premium style
   // ══════════════════════════════════════════════════════════════
   Widget _buildBottomNav() {
-    const items = [
-      (Icons.home_rounded, Icons.home_outlined, 'Inicio'),
-      (Icons.credit_card_rounded, Icons.credit_card_outlined, 'Créditos'),
-      (Icons.savings_rounded, Icons.savings_outlined, 'Ahorros'),
-      (Icons.swap_horiz_rounded, Icons.swap_horiz_outlined, 'Movimientos'),
-      (Icons.bar_chart_rounded, Icons.bar_chart_outlined, 'Estadística'),
-    ];
-
-    return Container(
-      decoration: BoxDecoration(
-        color: _navy,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-        boxShadow: [
-          BoxShadow(
-            color: _navy.withValues(alpha: 0.55),
-            blurRadius: 30,
-            offset: const Offset(0, -6),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
-          child: Row(
-            children: List.generate(items.length, (i) {
-              final selected = i == _selectedIndex;
-              final color = _navColors[i];
-              final item = items[i];
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedIndex = i);
-                    // Al entrar a Estadística por primera vez, cargar datos.
-                    if (i == 4 && _estData.isEmpty && !_estLoading) {
-                      _fetchEstadistica();
-                    }
-                  },
-                  behavior: HitTestBehavior.opaque,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 280),
-                        curve: Curves.easeInOutCubic,
-                        width: 46,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? color.withValues(alpha: 0.18)
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                          border: selected
-                              ? Border.all(
-                                  color: color.withValues(alpha: 0.3), width: 1)
-                              : null,
-                        ),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: Icon(
-                            selected ? item.$1 : item.$2,
-                            key: ValueKey('${i}_$selected'),
-                            color: selected
-                                ? color
-                                : Colors.white.withValues(alpha: 0.38),
-                            size: 22,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 250),
-                        style: TextStyle(
-                          color: selected
-                              ? color
-                              : Colors.white.withValues(alpha: 0.35),
-                          fontSize: 9.5,
-                          fontWeight:
-                              selected ? FontWeight.w700 : FontWeight.w400,
-                          letterSpacing: selected ? 0.2 : 0,
-                        ),
-                        child: Text(item.$3),
-                      ),
-                      const SizedBox(height: 2),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 280),
-                        width: selected ? 20 : 0,
-                        height: 2.5,
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(2),
-                          boxShadow: selected
-                              ? [
-                                  BoxShadow(
-                                      color: color.withValues(alpha: 0.6),
-                                      blurRadius: 6)
-                                ]
-                              : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ),
+    return _AnimatedNavBar(
+      selectedIndex: _selectedIndex,
+      colors: _navColors,
+      onTap: (i) {
+        setState(() => _selectedIndex = i);
+        if (i == 4 && _estData.isEmpty && !_estLoading) {
+          _fetchEstadistica();
+        }
+      },
     );
   }
 
@@ -10444,183 +10345,314 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════════════════════════════
   Widget _buildBalanceCard(String greeting, String name) {
     final saldo = _totalSaldo;
+    final isPositive = saldo >= 0;
+    final balanceColor =
+        isPositive ? const Color(0xFF6EE7B7) : const Color(0xFFFCA5A5);
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF060E35),
-            Color(0xFF0D1B6E),
-            Color(0xFF1A3A9F),
-            Color(0xFF0099CC),
-          ],
-          stops: [0.0, 0.4, 0.75, 1.0],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _accent1.withValues(alpha: 0.45),
-            blurRadius: 30,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -20,
-            right: -20,
-            child: Container(
-              width: 110,
-              height: 110,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
+    return AnimatedBuilder(
+      animation: _shimmer,
+      builder: (_, child) {
+        return Container(
+          margin: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF060E35),
+                Color(0xFF0D1B6E),
+                Color(0xFF1435A8),
+                Color(0xFF0077BB),
+              ],
+              stops: [0.0, 0.38, 0.72, 1.0],
             ),
-          ),
-          Positioned(
-            bottom: -30,
-            right: 40,
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.04),
+            boxShadow: [
+              BoxShadow(
+                color: _accent1.withValues(
+                    alpha: 0.38 + 0.18 * _shimmer.value),
+                blurRadius: 28 + 14 * _shimmer.value,
+                offset: const Offset(0, 12),
               ),
-            ),
+              BoxShadow(
+                color: const Color(0xFF0099CC)
+                    .withValues(alpha: 0.20 + 0.10 * _shimmer.value),
+                blurRadius: 55,
+                spreadRadius: -6,
+                offset: const Offset(0, 22),
+              ),
+            ],
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                      child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(greeting,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.65),
-                            fontSize: 13,
-                          )),
-                      const SizedBox(height: 2),
-                      Text(name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                          )),
-                    ],
-                  )),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Stack(
+              children: [
+                // ── Decorative blobs ─────────────────────────────────
+                Positioned(
+                  top: -28,
+                  right: -28,
+                  child: Container(
+                    width: 130,
+                    height: 130,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: Colors.white.withValues(alpha: 0.12),
-                      border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.2)),
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(colors: [
+                        Colors.white.withValues(alpha: 0.08),
+                        Colors.transparent,
+                      ]),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Color(0xFF00FF9D),
+                  ),
+                ),
+                Positioned(
+                  bottom: -36,
+                  right: 30,
+                  child: Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(colors: [
+                        const Color(0xFF00C6FF).withValues(alpha: 0.12),
+                        Colors.transparent,
+                      ]),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 20,
+                  left: -30,
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(colors: [
+                        const Color(0xFF6C63FF).withValues(alpha: 0.10),
+                        Colors.transparent,
+                      ]),
+                    ),
+                  ),
+                ),
+
+                // ── Shimmer sweep ────────────────────────────────────
+                Positioned.fill(
+                  child: Transform.translate(
+                    offset: Offset(
+                        (_shimmer.value * 2 - 1) * 340, 0),
+                    child: Transform.rotate(
+                      angle: 0.45,
+                      child: Container(
+                        width: 60,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.white.withValues(alpha: 0),
+                              Colors.white.withValues(alpha: 0.055),
+                              Colors.white.withValues(alpha: 0),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 5),
-                        const Text('Activo',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            )),
-                      ],
+                      ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 22),
-              Text('Total de Saldos',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 12,
-                    letterSpacing: 0.5,
-                  )),
-              const SizedBox(height: 6),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child: _balanceVisible
-                        ? Text(_cop(saldo),
-                            key: const ValueKey('v'),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -1,
-                            ))
-                        : const Text('• • • • • •',
-                            key: ValueKey('h'),
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                            )),
-                  ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: () =>
-                        setState(() => _balanceVisible = !_balanceVisible),
-                    child: Icon(
-                      _balanceVisible
-                          ? Icons.visibility_rounded
-                          : Icons.visibility_off_rounded,
-                      color: Colors.white.withValues(alpha: 0.6),
-                      size: 20,
+                ),
+
+                // ── Content ──────────────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+                  child: child!,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      greeting,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.60),
+                        fontSize: 12.5,
+                        letterSpacing: 0.3,
+                      ),
                     ),
+                    const SizedBox(height: 2),
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Activo badge with pulsing dot
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  color: Colors.white.withValues(alpha: 0.10),
+                  border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.18), width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    _PulsingDot(),
+                    SizedBox(width: 6),
+                    Text(
+                      'Activo',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 22),
+
+          // Label
+          Text(
+            'Total de Saldos',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontSize: 11.5,
+              letterSpacing: 0.6,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+
+          // Balance row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 320),
+                  transitionBuilder: (child, anim) => FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                                begin: const Offset(0, 0.2),
+                                end: Offset.zero)
+                            .animate(anim),
+                        child: child,
+                      )),
+                  child: _balanceVisible
+                      ? Text(
+                          _cop(saldo),
+                          key: const ValueKey('v'),
+                          style: TextStyle(
+                            color: balanceColor,
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1,
+                            shadows: [
+                              Shadow(
+                                color: balanceColor.withValues(alpha: 0.45),
+                                blurRadius: 16,
+                              ),
+                            ],
+                          ),
+                        )
+                      : const Text(
+                          '• • • • • •',
+                          key: ValueKey('h'),
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () =>
+                    setState(() => _balanceVisible = !_balanceVisible),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.16)),
                   ),
+                  child: Icon(
+                    _balanceVisible
+                        ? Icons.visibility_rounded
+                        : Icons.visibility_off_rounded,
+                    color: Colors.white.withValues(alpha: 0.75),
+                    size: 18,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Divider
+          Container(
+            height: 1,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.transparent,
+                  Colors.white.withValues(alpha: 0.18),
+                  Colors.transparent,
                 ],
               ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  _balanceMini(
-                      Icons.savings_rounded,
-                      'Ahorros',
-                      _cop(_ahorradores.fold(
-                          0.0,
-                          (s, a) =>
-                              s +
-                              _num(a['total_ahorrado'] ?? a['monto'] ?? 0)))),
-                  Container(
-                      width: 1,
-                      height: 30,
-                      color: Colors.white.withValues(alpha: 0.2),
-                      margin: const EdgeInsets.symmetric(horizontal: 14)),
-                  _balanceMini(Icons.credit_score_rounded, 'Créditos',
-                      _creditos.length.toString()),
-                  Container(
-                      width: 1,
-                      height: 30,
-                      color: Colors.white.withValues(alpha: 0.2),
-                      margin: const EdgeInsets.symmetric(horizontal: 14)),
-                  _balanceMini(Icons.people_alt_rounded, 'Ahorradores',
-                      _ahorradores.length.toString()),
-                ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Mini stats
+          Row(
+            children: [
+              _balanceMini(
+                Icons.savings_rounded,
+                'Ahorros',
+                _cop(_ahorradores.fold(
+                    0.0,
+                    (s, a) =>
+                        s + _num(a['total_ahorrado'] ?? a['monto'] ?? 0))),
+                const Color(0xFFA78BFA),
+              ),
+              _balanceDivider(),
+              _balanceMini(
+                Icons.credit_score_rounded,
+                'Créditos',
+                _creditos.length.toString(),
+                const Color(0xFF34D399),
+              ),
+              _balanceDivider(),
+              _balanceMini(
+                Icons.people_alt_rounded,
+                'Ahorradores',
+                _ahorradores.length.toString(),
+                const Color(0xFF60A5FA),
               ),
             ],
           ),
@@ -10629,24 +10661,51 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
+  Widget _balanceDivider() => Container(
+        width: 1,
+        height: 36,
+        margin: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.transparent,
+              Colors.white.withValues(alpha: 0.22),
+              Colors.transparent,
+            ],
+          ),
+        ),
+      );
+
   // ══════════════════════════════════════════════════════════════
   //  REUSABLE WIDGETS
   // ══════════════════════════════════════════════════════════════
 
-  Widget _balanceMini(IconData icon, String label, String value) => Expanded(
+  Widget _balanceMini(IconData icon, String label, String value, [Color iconColor = Colors.white]) =>
+      Expanded(
         child: Column(
           children: [
-            Icon(icon, color: Colors.white.withValues(alpha: 0.7), size: 15),
-            const SizedBox(height: 4),
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: iconColor.withValues(alpha: 0.25), width: 1),
+              ),
+              child: Icon(icon, color: iconColor, size: 14),
+            ),
+            const SizedBox(height: 5),
             Text(label,
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5), fontSize: 10)),
+                    color: Colors.white.withValues(alpha: 0.50), fontSize: 9.5)),
             const SizedBox(height: 2),
             Text(value,
                 style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700)),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800)),
           ],
         ),
       );
@@ -14669,6 +14728,56 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
 }
 
 // ── Animated SAF logo for the AppBar ────────────────────────────────────────
+class _PulsingDot extends StatefulWidget {
+  const _PulsingDot();
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+    _pulse = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.45, end: 1).animate(_pulse),
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.8, end: 1.15).animate(_pulse),
+        child: Container(
+          width: 7,
+          height: 7,
+          decoration: const BoxDecoration(
+            color: Color(0xFF6EE7B7),
+            shape: BoxShape.circle,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AnimatedSafLogo extends StatefulWidget {
   const _AnimatedSafLogo();
   @override
@@ -14744,6 +14853,282 @@ class _AnimatedSafLogoState extends State<_AnimatedSafLogo>
             ),
           ),
         ]),
+      ),
+    );
+  }
+}
+
+// ── Animated Bottom Navigation Bar ───────────────────────────────────────────
+
+class _AnimatedNavBar extends StatefulWidget {
+  final int selectedIndex;
+  final List<Color> colors;
+  final ValueChanged<int> onTap;
+
+  const _AnimatedNavBar({
+    required this.selectedIndex,
+    required this.colors,
+    required this.onTap,
+  });
+
+  @override
+  State<_AnimatedNavBar> createState() => _AnimatedNavBarState();
+}
+
+class _AnimatedNavBarState extends State<_AnimatedNavBar>
+    with TickerProviderStateMixin {
+  static const _items = <(IconData, IconData, String)>[
+    (Icons.home_rounded, Icons.home_outlined, 'Inicio'),
+    (Icons.credit_card_rounded, Icons.credit_card_outlined, 'Créditos'),
+    (Icons.savings_rounded, Icons.savings_outlined, 'Ahorros'),
+    (Icons.swap_horiz_rounded, Icons.swap_horiz_outlined, 'Movimientos'),
+    (Icons.bar_chart_rounded, Icons.bar_chart_outlined, 'Estadística'),
+  ];
+
+  late final List<AnimationController> _bounceCtrls;
+  late final List<Animation<double>> _bounceAnims;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounceCtrls = List.generate(
+      _items.length,
+      (_) => AnimationController(
+          vsync: this, duration: const Duration(milliseconds: 520)),
+    );
+    _bounceAnims = _bounceCtrls.map((c) {
+      return TweenSequence<double>([
+        TweenSequenceItem(
+            tween: Tween(begin: 1.0, end: 0.78)
+                .chain(CurveTween(curve: Curves.easeIn)),
+            weight: 18),
+        TweenSequenceItem(
+            tween: Tween(begin: 0.78, end: 1.22)
+                .chain(CurveTween(curve: Curves.easeOut)),
+            weight: 36),
+        TweenSequenceItem(
+            tween: Tween(begin: 1.22, end: 0.94)
+                .chain(CurveTween(curve: Curves.easeIn)),
+            weight: 24),
+        TweenSequenceItem(
+            tween: Tween(begin: 0.94, end: 1.0)
+                .chain(CurveTween(curve: Curves.easeOut)),
+            weight: 22),
+      ]).animate(c);
+    }).toList();
+    // Trigger initial tab
+    _bounceCtrls[widget.selectedIndex].forward();
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedNavBar old) {
+    super.didUpdateWidget(old);
+    if (old.selectedIndex != widget.selectedIndex) {
+      _bounceCtrls[widget.selectedIndex].forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _bounceCtrls) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final n = _items.length;
+    final selColor = widget.colors[widget.selectedIndex];
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOutCubic,
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1B4B),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0D1B4B).withValues(alpha: 0.85),
+            blurRadius: 28,
+            offset: const Offset(0, -6),
+          ),
+          // Dynamic glow matching selected tab color
+          BoxShadow(
+            color: selColor.withValues(alpha: 0.18),
+            blurRadius: 50,
+            spreadRadius: -4,
+            offset: const Offset(0, -8),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 68,
+          child: Stack(
+            children: [
+              // ── Sliding gradient pill ───────────────────────────────
+              TweenAnimationBuilder<double>(
+                tween: Tween(end: widget.selectedIndex.toDouble()),
+                duration: const Duration(milliseconds: 380),
+                curve: Curves.easeInOutCubic,
+                builder: (_, v, __) {
+                  final c = widget.colors[widget.selectedIndex];
+                  return Align(
+                    alignment: Alignment(
+                      -1.0 + (2.0 * v / (n - 1)),
+                      0,
+                    ),
+                    child: FractionallySizedBox(
+                      widthFactor: 1 / n,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 7),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                c.withValues(alpha: 0.26),
+                                c.withValues(alpha: 0.11),
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: c.withValues(alpha: 0.40),
+                              width: 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: c.withValues(alpha: 0.28),
+                                blurRadius: 16,
+                                spreadRadius: -2,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // ── Tab items ───────────────────────────────────────────
+              Row(
+                children: List.generate(n, (i) {
+                  final selected = i == widget.selectedIndex;
+                  final color = widget.colors[i];
+                  final item = _items[i];
+
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () => widget.onTap(i),
+                      behavior: HitTestBehavior.opaque,
+                      child: AnimatedBuilder(
+                        animation: _bounceAnims[i],
+                        builder: (_, __) => Transform.scale(
+                          scale:
+                              selected ? _bounceAnims[i].value : 1.0,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 6),
+
+                              // Icon
+                              SizedBox(
+                                width: 26,
+                                height: 26,
+                                child: AnimatedSwitcher(
+                                  duration:
+                                      const Duration(milliseconds: 220),
+                                  transitionBuilder: (child, anim) =>
+                                      ScaleTransition(
+                                          scale: anim, child: child),
+                                  child: Icon(
+                                    selected ? item.$1 : item.$2,
+                                    key: ValueKey('${i}_$selected'),
+                                    color: selected
+                                        ? color
+                                        : Colors.white
+                                            .withValues(alpha: 0.32),
+                                    size: selected ? 23 : 20,
+                                    shadows: selected
+                                        ? [
+                                            Shadow(
+                                              color: color.withValues(
+                                                  alpha: 0.90),
+                                              blurRadius: 14,
+                                            ),
+                                          ]
+                                        : null,
+                                  ),
+                                ),
+                              ),
+
+                              const SizedBox(height: 3),
+
+                              // Label
+                              AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 260),
+                                style: TextStyle(
+                                  color: selected
+                                      ? color
+                                      : Colors.white
+                                          .withValues(alpha: 0.28),
+                                  fontSize: selected ? 9.5 : 9.0,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w400,
+                                  letterSpacing: selected ? 0.3 : 0,
+                                ),
+                                child: Text(item.$3),
+                              ),
+
+                              const SizedBox(height: 4),
+
+                              // Glowing dot indicator
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 320),
+                                curve: Curves.easeInOutCubic,
+                                width: selected ? 20 : 0,
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  gradient: selected
+                                      ? LinearGradient(colors: [
+                                          color.withValues(alpha: 0.05),
+                                          color,
+                                          color.withValues(alpha: 0.05),
+                                        ])
+                                      : null,
+                                  borderRadius: BorderRadius.circular(2),
+                                  boxShadow: selected
+                                      ? [
+                                          BoxShadow(
+                                            color:
+                                                color.withValues(alpha: 0.9),
+                                            blurRadius: 10,
+                                            spreadRadius: 1,
+                                          ),
+                                        ]
+                                      : null,
+                                ),
+                              ),
+
+                              const SizedBox(height: 2),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -7,12 +7,17 @@ import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/api_service.dart';
 
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiService().init();
 
   final prefs = await SharedPreferences.getInstance();
   final onboardingDone = prefs.getBool('onboarding_done') ?? false;
+
+  // Check if session expired while the app was killed
+  final sessionExpired = await ApiService().checkAndHandleSessionTimeout();
 
   String initialRoute;
   if (!onboardingDone) {
@@ -23,18 +28,137 @@ void main() async {
     initialRoute = '/login';
   }
 
-  runApp(SafApp(initialRoute: initialRoute));
+  runApp(SafApp(initialRoute: initialRoute, sessionExpired: sessionExpired));
 }
 
-class SafApp extends StatelessWidget {
+class SafApp extends StatefulWidget {
   final String initialRoute;
-  const SafApp({super.key, required this.initialRoute});
+  final bool sessionExpired;
+  const SafApp({super.key, required this.initialRoute, this.sessionExpired = false});
+
+  @override
+  State<SafApp> createState() => _SafAppState();
+}
+
+class _SafAppState extends State<SafApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    if (widget.sessionExpired) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showInactivityDialog());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) async {
+    if (state == AppLifecycleState.paused) {
+      await ApiService().saveBackgroundTimestamp();
+    } else if (state == AppLifecycleState.resumed) {
+      final expired = await ApiService().checkAndHandleSessionTimeout();
+      if (expired) {
+        navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (_) => false);
+        WidgetsBinding.instance.addPostFrameCallback((_) => _showInactivityDialog());
+      }
+    }
+  }
+
+  void _showInactivityDialog() {
+    final ctx = navigatorKey.currentContext;
+    if (ctx == null) return;
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 68,
+                height: 68,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF6C63FF), Color(0xFF8B2FC9)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text('💤', style: TextStyle(fontSize: 30)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Sesión cerrada por inactividad',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0D1B4B),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Estuviste más de 5 minutos inactivo. Por favor inicia sesión nuevamente.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+              ),
+              const SizedBox(height: 22),
+              GestureDetector(
+                onTap: () => Navigator.pop(ctx),
+                child: Container(
+                  width: double.infinity,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFF8B2FC9)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6C63FF).withValues(alpha: 0.40),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'Entendido',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'SAF',
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(),
@@ -45,7 +169,7 @@ class SafApp extends StatelessWidget {
       ],
       supportedLocales: const [Locale('es'), Locale('en')],
       locale: const Locale('es'),
-      initialRoute: initialRoute,
+      initialRoute: widget.initialRoute,
       routes: {
         '/onboarding': (_) => const OnboardingScreen(),
         '/login': (_) => const LoginScreen(),

@@ -1,0 +1,51 @@
+name: iOS-ipa-build
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build-ios:
+    name: 🎉 iOS Build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          architecture: x64
+
+      - name: Flutter pub get
+        run: flutter pub get
+        working-directory: frontend
+
+      - name: Pod install
+        run: pod install --repo-update
+        working-directory: frontend/ios
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+        working-directory: frontend
+
+      - name: Create Payload folder
+        run: mkdir Payload
+        working-directory: frontend/build/ios/iphoneos
+
+      - name: Move Runner.app into Payload
+        run: mv Runner.app/ Payload
+        working-directory: frontend/build/ios/iphoneos
+
+      - name: Zip IPA
+        run: zip -qq -r -9 SAF.ipa Payload
+        working-directory: frontend/build/ios/iphoneos
+
+      - name: Publish GitHub Release
+        run: |
+          gh release delete v1.0 --yes 2>/dev/null || true
+          gh release create v1.0 --title "SAF v1.0" --notes "Build automático desde GitHub Actions"
+          gh release upload v1.0 frontend/build/ios/iphoneos/SAF.ipa
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
