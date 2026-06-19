@@ -42,7 +42,6 @@ class _SafAnimatedBottomNavigationBarState
     (Icons.credit_card_rounded, Icons.credit_card_outlined, 'Créditos'),
     (Icons.savings_rounded, Icons.savings_outlined, 'Ahorros'),
     (Icons.swap_horiz_rounded, Icons.swap_horiz_outlined, 'Movimientos'),
-    (Icons.bar_chart_rounded, Icons.bar_chart_outlined, 'Estadística'),
   ];
 
   late final List<AnimationController> _bounceCtrls;
