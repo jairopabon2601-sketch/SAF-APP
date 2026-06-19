@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/home/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/api_service.dart';
 
@@ -60,8 +60,10 @@ class _SafAppState extends State<SafApp> with WidgetsBindingObserver {
     } else if (state == AppLifecycleState.resumed) {
       final expired = await ApiService().checkAndHandleSessionTimeout();
       if (expired) {
-        navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (_) => false);
-        WidgetsBinding.instance.addPostFrameCallback((_) => _showInactivityDialog());
+        navigatorKey.currentState
+            ?.pushNamedAndRemoveUntil('/login', (_) => false);
+        WidgetsBinding.instance
+            .addPostFrameCallback((_) => _showInactivityDialog());
       }
     }
   }
