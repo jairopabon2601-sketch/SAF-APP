@@ -2,8 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' show min, pi;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../services/api_service.dart';
 import '../widgets/saf_logo.dart';
 
@@ -39,6 +43,8 @@ class _HomeScreenState extends State<HomeScreen>
   String _filterTipo = '';
   DateTime? _filterDesde;
   DateTime? _filterHasta;
+  int _movsPagina = 1;
+  static const int _movsPorPagina = 25;
 
   // Totales del servidor (últimos 30 días, via listado_json_campos.php)
   double _srvGastos = 0.0;
@@ -64,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen>
   int _pendientesTotal = 0;
   bool _pendientesLoading = false;
   bool _pendientesLoaded = false;
+  String? _pendientesError;
 
   // Listas para diálogos
   List<Map<String, dynamic>> _deudoresLista = [];
@@ -125,6 +132,32 @@ class _HomeScreenState extends State<HomeScreen>
 
   String _nombreAsesor(String sigla) =>
       _asesorNombres[sigla.toUpperCase()] ?? sigla;
+
+  String _codigoAsesorCredito(String sigla) {
+    final buscada = sigla.trim().toUpperCase();
+    if (buscada.isEmpty) return '';
+    for (final asesor in _asesoresLista) {
+      final itemSigla = (asesor['sigla'] ?? '').toString().trim().toUpperCase();
+      if (itemSigla == buscada) {
+        return (asesor['codigo_asesor'] ?? asesor['codigo'] ?? sigla)
+            .toString()
+            .trim();
+      }
+    }
+    return sigla;
+  }
+
+  String _siglaAsesorCredito(String codigoOSigla) {
+    final buscado = codigoOSigla.trim().toUpperCase();
+    if (buscado.isEmpty) return '';
+    for (final asesor in _asesoresLista) {
+      final codigo =
+          (asesor['codigo_asesor'] ?? asesor['codigo'] ?? '').toString().trim();
+      final sigla = (asesor['sigla'] ?? '').toString().trim();
+      if (codigo == buscado || sigla.toUpperCase() == buscado) return sigla;
+    }
+    return codigoOSigla;
+  }
 
   // Ahorradores tras aplicar el filtro de asesor (memoizado)
   List<Map<String, dynamic>> get _ahorradoresFiltrados {
@@ -235,11 +268,11 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Fetch fresh data from network
     await _fetchCuentas(codigoUsuario);
-    // Primero cargar créditos y ahorradores (fuentes del fallback de deudores)
-    // Filtro por defecto: últimos 30 días (igual que el web)
+    // Filtro por defecto igual al web: hasta = hoy, desde = hoy - 31 días
     final now = DateTime.now();
-    _filterDesde ??= now.subtract(const Duration(days: 31));
-    _filterHasta ??= now;
+    final today = DateTime(now.year, now.month, now.day);
+    _filterDesde ??= today.subtract(const Duration(days: 31));
+    _filterHasta ??= today;
 
     await Future.wait([
       _fetchMovimientosTodasCuentas(codigoUsuario),
@@ -247,8 +280,6 @@ class _HomeScreenState extends State<HomeScreen>
       _fetchCreditos(codigoUsuario),
       _fetchTotalesResumen(codigoUsuario),
     ]);
-    // Totales de créditos van después para no ser sobreescritos por _fetchCreditos
-    await _fetchTotalesCreditos();
     // Con _creditosLista ya cargada, construir deudores al instante
     _tryBuildDeudoresFromLocal();
     // Tasas y fuentes en paralelo; deudores via API en background (no bloquea)
@@ -289,9 +320,64 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Future<void> _fetchMovimientosTodasCuentas(String usuario) async {
+  Future<void> _fetchMovimientosTodasCuentas(String usuario,
+      {String? desde, String? hasta}) async {
+    // Build filtro matching the web's SQL pattern
+    String pad2(int n) => n.toString().padLeft(2, '0');
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dStr = desde ??
+        () {
+          final d = today.subtract(const Duration(days: 31));
+          return '${d.year}-${pad2(d.month)}-${pad2(d.day)}';
+        }();
+    final hStr = hasta ??
+        () {
+          return '${today.year}-${pad2(today.month)}-${pad2(today.day)}';
+        }();
+
+    // Use global endpoint: single JOIN query, globally sorted by fecha DESC, codigo DESC
+    bool globalOk = false;
+    try {
+      final globalAll = <Map<String, dynamic>>[];
+      var pagina = 1;
+      var totalPaginas = 1;
+      do {
+        final r = await _api
+            .post('/ajax/listar_movimientos_usuario.php', {
+              'usuario': usuario,
+              'desde': dStr,
+              'hasta': hStr,
+              'pagina': pagina.toString(),
+            })
+            .timeout(const Duration(seconds: 15));
+        if (r.statusCode != 200) break;
+        final d = _json(r.body);
+        if (d['resultado'] != 1 && d['resultado'] != '1') break;
+        final raw = d['movimientos'];
+        if (raw is! List) break;
+        globalOk = true; // valid response received
+        for (final item in raw.whereType<Map>()) {
+          globalAll.add(Map<String, dynamic>.from(item));
+        }
+        if (raw.isEmpty) break;
+        totalPaginas =
+            int.tryParse(d['total_paginas']?.toString() ?? '1') ?? 1;
+        pagina++;
+      } while (pagina <= totalPaginas);
+
+      if (globalOk) {
+        _movimientos = globalAll;
+        _invalidateComputedCache();
+        unawaited(_api.saveLocalData('movimientos', _movimientos));
+        return;
+      }
+    } catch (e) {
+      debugPrint('[SAF] listar_movimientos_usuario fallback: $e');
+    }
+
+    // Fallback: per-account fetch (order may differ from web within same date)
     final all = <Map<String, dynamic>>[];
-    // Process in batches of 3 to avoid saturating the network
     const batchSize = 3;
     for (var i = 0; i < _cuentas.length; i += batchSize) {
       final batch = _cuentas.skip(i).take(batchSize);
@@ -299,21 +385,14 @@ class _HomeScreenState extends State<HomeScreen>
         final codigo = cuenta['codigo']?.toString() ?? '';
         if (codigo.isEmpty) return;
         try {
-          final r = await _api.cachedPost('/ajax/listar_movimientos_cuenta.php',
-              {'codigo_cuenta': codigo, 'pagina': '1', 'usuario': usuario});
-          if (r.statusCode == 200) {
-            final d = _json(r.body);
-            final list = d['movimientos'];
-            if (list is List) {
-              for (final m in list) {
-                if (m is Map) {
-                  final mov = Map<String, dynamic>.from(m);
-                  mov['cuenta_nombre'] = cuenta['nombre'];
-                  mov['cuenta_color'] = cuenta['color'];
-                  all.add(mov);
-                }
-              }
-            }
+          final movimientos =
+              await _fetchMovimientosCuenta(codigo, usuario, desde: dStr, hasta: hStr);
+          for (final m in movimientos) {
+            final mov = Map<String, dynamic>.from(m);
+            mov['codigo_cuenta'] = codigo;
+            mov['cuenta_nombre'] = cuenta['nombre'];
+            mov['cuenta_color'] = cuenta['color'];
+            all.add(mov);
           }
         } catch (e) {
           debugPrint('[SAF] mov cuenta $codigo: $e');
@@ -321,25 +400,79 @@ class _HomeScreenState extends State<HomeScreen>
       }));
     }
     all.sort((a, b) {
-      // Normalize to date-only (first 10 chars) so timestamps don't affect grouping
       final fechaA = (a['fecha'] ?? '').toString();
       final fechaB = (b['fecha'] ?? '').toString();
       final dA = fechaA.length >= 10 ? fechaA.substring(0, 10) : fechaA;
       final dB = fechaB.length >= 10 ? fechaB.substring(0, 10) : fechaB;
-      final cmpFecha = dB.compareTo(dA); // date DESC
+      final cmpFecha = dB.compareTo(dA);
       if (cmpFecha != 0) return cmpFecha;
-      // Within same date: ASC by codigo (matches web order)
-      final idA =
-          int.tryParse((a['codigo'] ?? a['codigo_movimiento'] ?? a['id'] ?? '0').toString()) ??
-              0;
-      final idB =
-          int.tryParse((b['codigo'] ?? b['codigo_movimiento'] ?? b['id'] ?? '0').toString()) ??
-              0;
-      return idA.compareTo(idB);
+      final idA = int.tryParse(
+              (a['codigo_movimiento'] ?? a['codigo'] ?? a['id'] ?? '0')
+                  .toString()) ??
+          0;
+      final idB = int.tryParse(
+              (b['codigo_movimiento'] ?? b['codigo'] ?? b['id'] ?? '0')
+                  .toString()) ??
+          0;
+      return idB.compareTo(idA);
     });
     _movimientos = all;
     _invalidateComputedCache();
     unawaited(_api.saveLocalData('movimientos', _movimientos));
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchMovimientosCuenta(
+      String codigoCuenta, String usuario, {String? desde, String? hasta}) async {
+    final resultado = <Map<String, dynamic>>[];
+    var pagina = 1;
+    var totalPaginas = 1;
+
+    do {
+      final body = <String, dynamic>{
+        'codigo_cuenta': codigoCuenta,
+        'pagina': pagina.toString(),
+        'usuario': usuario,
+      };
+      if (desde != null) body['desde'] = desde;
+      if (hasta != null) body['hasta'] = hasta;
+
+      final r = await _api
+          .post('/ajax/listar_movimientos_cuenta.php', body)
+          .timeout(const Duration(seconds: 15));
+      if (r.statusCode != 200) break;
+
+      final d = _json(r.body);
+      final raw = d['movimientos'] ?? d['datos'] ?? d['data'];
+      if (raw is! List || raw.isEmpty) break;
+
+      resultado.addAll(raw
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e)));
+      totalPaginas =
+          int.tryParse(d['total_paginas']?.toString() ?? '1') ?? 1;
+      pagina++;
+    } while (pagina <= totalPaginas);
+
+    return resultado;
+  }
+
+  String _dateFmt(DateTime d) {
+    String p(int n) => n.toString().padLeft(2, '0');
+    return '${d.year}-${p(d.month)}-${p(d.day)}';
+  }
+
+  Future<void> _onDateFilterChanged() async {
+    final usuario = (_api.user?['codigo_usuario'] ?? '').toString();
+    if (usuario.isEmpty) return;
+    final desde = _filterDesde;
+    final hasta = _filterHasta;
+    await _fetchMovimientosTodasCuentas(
+      usuario,
+      desde: desde != null ? _dateFmt(desde) : null,
+      hasta: hasta != null ? _dateFmt(hasta) : null,
+    );
+    if (mounted) setState(() {});
+    unawaited(_fetchTotalesFiltrados());
   }
 
   Future<void> _fetchTotalesFiltrados() async {
@@ -353,13 +486,18 @@ class _HomeScreenState extends State<HomeScreen>
     final hStr = '${hasta.year}-${pad2(hasta.month)}-${pad2(hasta.day)}';
     String filtro =
         'm.usuario="$usuario" and m.fecha between "$dStr" and "$hStr"';
-    if (_filterTipo.isNotEmpty) filtro += ' and m.tipo_movimiento=$_filterTipo';
+    if (_filterTipo.isNotEmpty) {
+      // tipo '1' (loan transfers) is also Ingreso, same as '3'
+      filtro += _filterTipo == '3'
+          ? ' and m.tipo_movimiento in (1,3)'
+          : ' and m.tipo_movimiento=$_filterTipo';
+    }
     if (_filterCuenta.isNotEmpty) {
       final cuenta = _cuentas.firstWhere(
           (c) => (c['nombre'] ?? '') == _filterCuenta,
           orElse: () => {});
       final cod = (cuenta['codigo'] ?? '').toString();
-      if (cod.isNotEmpty) filtro += ' and m.codigo_cuenta=$cod';
+      if (cod.isNotEmpty) filtro += ' and m.codigo_cuenta="$cod"';
     }
     try {
       final r = await _api.post('/ajax/listado_json_campos.php', {
@@ -436,11 +574,24 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  Future<void> _fetchTotalesCreditos() async {
+  Future<void> _fetchTotalesCreditos({
+    String asesorCodigo = '',
+    String estado = '',
+  }) async {
+    final condiciones = <String>[];
+    final asesorNum = int.tryParse(asesorCodigo);
+    final estadoNum = int.tryParse(estado);
+    if (asesorNum != null && asesorNum > 0) {
+      condiciones.add('d.codigo_asesor=$asesorNum');
+    }
+    if (estadoNum != null && estadoNum > 0) {
+      condiciones.add('c.codigo_estado=$estadoNum');
+    }
+
     try {
       final r = await _api.post('/ajax/listado_json_campos.php', {
         'codigo_consulta': 'json_total_creditos_valores',
-        'filtro': '',
+        'filtro': condiciones.join(' AND '),
         'agrupacion': '',
       });
       if (r.statusCode == 200) {
@@ -459,7 +610,7 @@ class _HomeScreenState extends State<HomeScreen>
           final pagado = parseFmt(row['pagado'] ?? row['total_pagado'] ?? 0);
           final pendiente =
               parseFmt(row['pendiente'] ?? row['total_pendiente'] ?? 0);
-          if (mounted && (pagado > 0 || pendiente > 0)) {
+          if (mounted) {
             setState(() {
               _creditosTotalPagado = pagado;
               _creditosTotalPendiente = pendiente;
@@ -502,11 +653,16 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _fetchCreditos(String filtro) async {
+    final estadoSeleccionado = _creditoFiltroEstado;
+    final asesorCodigo = _codigoAsesorCredito(_creditoFiltroAsesor);
+
     // Lista de créditos — endpoint dedicado con JSON + paginación
     try {
       final r = await _api.post('/ajax/get_creditos_lista.php', {
-        'estado': _creditoFiltroEstado,
-        'asesor': _creditoFiltroAsesor,
+        'estado': estadoSeleccionado,
+        // La web conserva la sigla (JP, VB, etc.), mientras este endpoint
+        // dedicado filtra por codigo_asesor numérico.
+        'asesor': asesorCodigo,
         'pagina': _creditoPagina.toString(),
         'por_pagina': _creditosPorPagina.toString(),
       });
@@ -515,12 +671,6 @@ class _HomeScreenState extends State<HomeScreen>
         if (decoded is Map && decoded['datos'] is List) {
           _creditosTotal =
               int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
-          _creditosTotalPagado = double.tryParse(
-                  decoded['total_pagado_global']?.toString() ?? '0') ??
-              0;
-          _creditosTotalPendiente = double.tryParse(
-                  decoded['total_pendiente_global']?.toString() ?? '0') ??
-              0;
           _creditosLista = (decoded['datos'] as List)
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
@@ -531,6 +681,14 @@ class _HomeScreenState extends State<HomeScreen>
     } catch (e) {
       debugPrint('[SAF] creditos lista: $e');
     }
+
+    // La cabecera de la web usa json_total_creditos_valores. El cálculo
+    // incluido en get_creditos_lista.php puede diferir por ajustes de cuotas,
+    // por lo que nunca debe sobrescribir estos totales oficiales.
+    await _fetchTotalesCreditos(
+      asesorCodigo: asesorCodigo,
+      estado: estadoSeleccionado,
+    );
 
     // Estadística por fuente — endpoint dedicado con campos fijos
     try {
@@ -900,34 +1058,62 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _fetchPendientes() async {
+    if (_pendientesLoading) return;
     if (mounted) setState(() => _pendientesLoading = true);
+    Map<String, dynamic>? payload;
+    Object? lastError;
     try {
-      final r = await _api.post('/ajax/get_pendientes_lista.php', {
-        'asesor': _creditoFiltroAsesor,
-        'estado': _creditoFiltroEstado,
-        'pagina': _pendientesPagina.toString(),
-        'por_pagina': _creditosPorPagina.toString(),
-      });
-      if (r.statusCode == 200) {
-        final decoded = jsonDecode(r.body);
-        if (decoded is Map && decoded['datos'] is List) {
+      for (var intento = 1; intento <= 3; intento++) {
+        try {
+          final r = await _api.post('/ajax/get_pendientes_lista.php', {
+            // Pendientes tiene su propio listado. No debe heredar los
+            // filtros invisibles de la pestaña Aprobados.
+            'asesor': '',
+            'estado': '',
+            'pagina': _pendientesPagina.toString(),
+            'por_pagina': _creditosPorPagina.toString(),
+          }).timeout(const Duration(seconds: 12));
+          if (r.statusCode != 200) {
+            throw Exception('Servidor respondió ${r.statusCode}');
+          }
+          final decoded = jsonDecode(r.body);
+          if (decoded is! Map || decoded['datos'] is! List) {
+            throw const FormatException('Respuesta de pendientes no válida');
+          }
+          payload = Map<String, dynamic>.from(decoded);
+          break;
+        } catch (e) {
+          lastError = e;
+          if (intento < 3) {
+            await Future<void>.delayed(Duration(milliseconds: 350 * intento));
+          }
+        }
+      }
+      if (payload == null) throw lastError ?? Exception('No hubo respuesta');
+
+      final datos = payload['datos'] as List;
+      if (mounted) {
+        setState(() {
           _pendientesTotal =
-              int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
-          _pendientesLista = (decoded['datos'] as List)
+              int.tryParse(payload!['total']?.toString() ?? '0') ?? 0;
+          _pendientesLista = datos
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList();
-        }
+          _pendientesLoaded = true;
+          _pendientesError = null;
+        });
       }
     } catch (e) {
       debugPrint('[SAF] pendientes lista: $e');
-    } finally {
       if (mounted) {
         setState(() {
-          _pendientesLoading = false;
-          _pendientesLoaded = true;
+          _pendientesError =
+              'No fue posible cargar las solicitudes. Intenta nuevamente.';
         });
       }
+    } finally {
+      if (mounted) setState(() => _pendientesLoading = false);
     }
   }
 
@@ -2781,9 +2967,11 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
-                            value: _creditoFiltroAsesor.isEmpty
-                                ? null
-                                : _creditoFiltroAsesor,
+                            value: _asesoresLista.any((a) =>
+                                    (a['sigla'] ?? '').toString() ==
+                                    _creditoFiltroAsesor)
+                                ? _creditoFiltroAsesor
+                                : null,
                             isExpanded: true,
                             dropdownColor: Colors.white,
                             hint: const Text('Todos',
@@ -2802,7 +2990,8 @@ class _HomeScreenState extends State<HomeScreen>
                                         a['codigo_asesor'] ??
                                         a['codigo'] ??
                                         '')
-                                    .toString();
+                                    .toString()
+                                    .trim();
                                 final nombre = ([a['nombres'], a['apellidos']]
                                         .where((x) =>
                                             x != null &&
@@ -2818,8 +3007,24 @@ class _HomeScreenState extends State<HomeScreen>
                                         style: const TextStyle(color: _navy)));
                               }),
                             ],
-                            onChanged: (v) =>
-                                setState(() => _creditoFiltroAsesor = v ?? ''),
+                            onChanged: (v) async {
+                              setState(() {
+                                _creditoFiltroAsesor = v ?? '';
+                                _creditoPagina = 1;
+                                _creditoConsultando = true;
+                              });
+                              try {
+                                if (_creditoSubTab == 0) {
+                                  await _fetchCreditos('');
+                                } else {
+                                  await _fetchPendientes();
+                                }
+                              } finally {
+                                if (mounted) {
+                                  setState(() => _creditoConsultando = false);
+                                }
+                              }
+                            },
                           ),
                         ),
                       ),
@@ -2870,8 +3075,24 @@ class _HomeScreenState extends State<HomeScreen>
                                   child: Text('Pagado',
                                       style: TextStyle(color: _navy))),
                             ],
-                            onChanged: (v) =>
-                                setState(() => _creditoFiltroEstado = v ?? ''),
+                            onChanged: (v) async {
+                              setState(() {
+                                _creditoFiltroEstado = v ?? '';
+                                _creditoPagina = 1;
+                                _creditoConsultando = true;
+                              });
+                              try {
+                                if (_creditoSubTab == 0) {
+                                  await _fetchCreditos('');
+                                } else {
+                                  await _fetchPendientes();
+                                }
+                              } finally {
+                                if (mounted) {
+                                  setState(() => _creditoConsultando = false);
+                                }
+                              }
+                            },
                           ),
                         ),
                       ),
@@ -2990,8 +3211,10 @@ class _HomeScreenState extends State<HomeScreen>
         ],
         // ── Lista Pendientes ──
         if (_creditoSubTab == 1) ...[
-          if (_pendientesLoading || !_pendientesLoaded)
+          if (_pendientesLoading && !_pendientesLoaded)
             _pendientesSkeleton()
+          else if (_pendientesError != null && !_pendientesLoaded)
+            _pendientesRetryCard()
           else if (_pendientesLista.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -3004,6 +3227,17 @@ class _HomeScreenState extends State<HomeScreen>
                   children:
                       _pendientesLista.map((p) => _pendienteCard(p)).toList()),
             ),
+          if (_pendientesLoading && _pendientesLoaded)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          if (_pendientesError != null && _pendientesLoaded)
+            _pendientesRetryCard(compact: true),
           if (_pendientesTotal > _creditosPorPagina)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
@@ -3516,9 +3750,7 @@ class _HomeScreenState extends State<HomeScreen>
     return GestureDetector(
       onTap: () {
         setState(() => _creditoSubTab = index);
-        if (index == 1 && !_pendientesLoaded && !_pendientesLoading) {
-          _fetchPendientes();
-        }
+        if (index == 1) unawaited(_fetchPendientes());
       },
       child: Stack(children: [
         // ── Fondo (primero = detrás) ──────────────────────
@@ -3568,6 +3800,37 @@ class _HomeScreenState extends State<HomeScreen>
       ]),
     );
   }
+
+  Widget _pendientesRetryCard({bool compact = false}) => Container(
+        margin: EdgeInsets.fromLTRB(20, compact ? 0 : 8, 20, 14),
+        padding: EdgeInsets.all(compact ? 10 : 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF7ED),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFED7AA)),
+        ),
+        child: Row(children: [
+          const Icon(Icons.wifi_off_rounded,
+              color: Color(0xFFEA580C), size: 18),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              _pendientesError ??
+                  'No fue posible cargar las solicitudes pendientes.',
+              style: const TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF9A3412),
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
+          TextButton(
+            onPressed: _pendientesLoading
+                ? null
+                : () => unawaited(_fetchPendientes()),
+            child: const Text('Reintentar'),
+          ),
+        ]),
+      );
 
   Widget _simLabel(String text) => Padding(
         padding: const EdgeInsets.only(bottom: 4),
@@ -5667,14 +5930,16 @@ class _HomeScreenState extends State<HomeScreen>
   // ══════════════════════════════════════════════════════════════
 
   List<Map<String, dynamic>> get _movimientosFiltrados {
-    return _movimientos.where((m) {
+    final result = _movimientos.where((m) {
       if (_filterCuenta.isNotEmpty &&
           (m['cuenta_nombre'] ?? '') != _filterCuenta) {
         return false;
       }
-      if (_filterTipo.isNotEmpty &&
-          (m['tipo_movimiento'] ?? '').toString() != _filterTipo) {
-        return false;
+      if (_filterTipo.isNotEmpty) {
+        final t = (m['tipo_movimiento'] ?? '').toString();
+        // tipo '1' (loan transfers) is also Ingreso, same as '3'
+        final matchIngreso = _filterTipo == '3' && (t == '3' || t == '1');
+        if (!matchIngreso && t != _filterTipo) return false;
       }
       final rawFecha = (m['fecha'] ?? '').toString();
       if (rawFecha.length >= 10) {
@@ -5690,6 +5955,29 @@ class _HomeScreenState extends State<HomeScreen>
       }
       return true;
     }).toList();
+
+    // When filtered by a specific account, match the web's per-account sort:
+    // fecha DESC, codigo ASC (same as listar_movimientos_cuenta.php).
+    // Without account filter the global order (codigo DESC) already matches the web.
+    if (_filterCuenta.isNotEmpty) {
+      result.sort((a, b) {
+        final dA = (a['fecha'] ?? '').toString();
+        final dB = (b['fecha'] ?? '').toString();
+        final cmpFecha = dB
+            .substring(0, dB.length >= 10 ? 10 : dB.length)
+            .compareTo(dA.substring(0, dA.length >= 10 ? 10 : dA.length));
+        if (cmpFecha != 0) return cmpFecha;
+        final idA = int.tryParse(
+                (a['codigo'] ?? a['codigo_movimiento'] ?? '0').toString()) ??
+            0;
+        final idB = int.tryParse(
+                (b['codigo'] ?? b['codigo_movimiento'] ?? '0').toString()) ??
+            0;
+        return idA.compareTo(idB); // ASC within same date — matches web
+      });
+    }
+
+    return result;
   }
 
   Widget _movimientosTab() {
@@ -5818,116 +6106,327 @@ class _HomeScreenState extends State<HomeScreen>
           // ── HERO BANNER ────────────────────────────────────
           TweenAnimationBuilder<double>(
             tween: Tween(begin: 0.0, end: 1.0),
-            duration: const Duration(milliseconds: 700),
-            curve: Curves.easeOutCubic,
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutBack,
             builder: (_, t, child) => Transform.translate(
-              offset: Offset(0, 20 * (1 - t)),
-              child: Opacity(opacity: t, child: child),
+              offset: Offset(0, 28 * (1 - t)),
+              child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
             ),
             child: Container(
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               clipBehavior: Clip.hardEdge,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [Color(0xFF0D1B4B), Color(0xFF1E40AF), Color(0xFF0EA5E9)],
+                  colors: [
+                    Color(0xFF060D26),
+                    Color(0xFF0D1B4B),
+                    Color(0xFF163B8C),
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [BoxShadow(
-                    color: const Color(0xFF1E40AF).withValues(alpha: 0.40),
-                    blurRadius: 24, offset: const Offset(0, 10))],
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                      color: const Color(0xFF1E40AF).withValues(alpha: 0.55),
+                      blurRadius: 32,
+                      spreadRadius: -4,
+                      offset: const Offset(0, 14)),
+                  BoxShadow(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.18),
+                      blurRadius: 48,
+                      offset: const Offset(0, 6)),
+                ],
               ),
               child: Stack(children: [
-                Positioned(right: -55, top: -55,
-                  child: Container(width: 160, height: 160,
-                    decoration: BoxDecoration(shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.07)))),
-                Positioned(right: -20, top: -20,
-                  child: Container(width: 90, height: 90,
-                    decoration: BoxDecoration(shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.06)))),
-                Positioned(left: -30, bottom: -30,
-                  child: Container(width: 100, height: 100,
-                    decoration: BoxDecoration(shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.05)))),
+                // Orb top-right
+                Positioned(
+                  right: -70, top: -70,
+                  child: Container(
+                    width: 200, height: 200,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(colors: [
+                        const Color(0xFF6366F1).withValues(alpha: 0.22),
+                        Colors.transparent,
+                      ]),
+                    ),
+                  ),
+                ),
+                // Orb bottom-left
+                Positioned(
+                  left: -40, bottom: -40,
+                  child: Container(
+                    width: 140, height: 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(colors: [
+                        const Color(0xFF0EA5E9).withValues(alpha: 0.18),
+                        Colors.transparent,
+                      ]),
+                    ),
+                  ),
+                ),
+                // Horizontal shimmer line
+                Positioned(
+                  left: 0, right: 0, top: 72,
+                  child: Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [
+                        Colors.transparent,
+                        Colors.white.withValues(alpha: 0.08),
+                        Colors.transparent,
+                      ]),
+                    ),
+                  ),
+                ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(children: [
-                      Container(width: 7, height: 7,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: balance >= 0
-                              ? const Color(0xFF6EE7B7)
-                              : const Color(0xFFFCA5A5),
-                          boxShadow: [BoxShadow(
-                            color: (balance >= 0
-                                ? const Color(0xFF6EE7B7)
-                                : const Color(0xFFFCA5A5)).withValues(alpha: 0.7),
-                            blurRadius: 6, spreadRadius: 1)],
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Header row ──
+                      Row(children: [
+                        Container(
+                          width: 8, height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: balance >= 0
+                                ? const Color(0xFF34D399)
+                                : const Color(0xFFF87171),
+                            boxShadow: [BoxShadow(
+                              color: (balance >= 0
+                                  ? const Color(0xFF34D399)
+                                  : const Color(0xFFF87171))
+                                  .withValues(alpha: 0.85),
+                              blurRadius: 8, spreadRadius: 2)],
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Text('Balance del período',
-                          style: TextStyle(color: Colors.white60,
-                              fontSize: 11, fontWeight: FontWeight.w500)),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                        const SizedBox(width: 7),
+                        const Text('Balance del período',
+                            style: TextStyle(
+                                color: Colors.white60,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.3)),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.18)),
+                          ),
+                          child: Text('${filtrados.length} mov.',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700)),
                         ),
-                        child: Text('${filtrados.length} mov.',
-                            style: const TextStyle(color: Colors.white,
-                                fontSize: 10, fontWeight: FontWeight.w600)),
-                      ),
-                    ]),
-                    const SizedBox(height: 8),
-                    (hasUserFilter && !_filtTotalesLoaded)
-                        ? Container(width: 170, height: 34,
+                      ]),
+                      const SizedBox(height: 10),
+                      // ── Balance amount ──
+                      (hasUserFilter && !_filtTotalesLoaded)
+                          ? Container(
+                              width: 170, height: 36,
+                              decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8)))
+                          : TweenAnimationBuilder<double>(
+                              key: ValueKey(balance),
+                              tween: Tween(begin: 0.0, end: 1.0),
+                              duration: const Duration(milliseconds: 1000),
+                              curve: Curves.easeOutExpo,
+                              builder: (_, t, __) => Text(
+                                _cop(balance * t),
+                                style: TextStyle(
+                                    color: balance >= 0
+                                        ? Colors.white
+                                        : const Color(0xFFF87171),
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -1.2,
+                                    shadows: [
+                                      Shadow(
+                                        color: (balance >= 0
+                                            ? const Color(0xFF6366F1)
+                                            : const Color(0xFFDC2626))
+                                            .withValues(alpha: 0.4),
+                                        blurRadius: 16,
+                                      )
+                                    ]),
+                              ),
+                            ),
+                      const SizedBox(height: 16),
+                      // ── GASTOS / INGRESOS cards ──
+                      Row(children: [
+                        // GASTOS
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
                             decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(8)))
-                        : TweenAnimationBuilder<double>(
-                            key: ValueKey(balance),
-                            tween: Tween(begin: 0.0, end: 1.0),
-                            duration: const Duration(milliseconds: 900),
-                            curve: Curves.easeOutQuart,
-                            builder: (_, t, __) => Text(
-                              _cop(balance * t),
-                              style: TextStyle(
-                                  color: balance >= 0
-                                      ? Colors.white
-                                      : const Color(0xFFFCA5A5),
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -1),
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF7F1D1D),
+                                  Color(0xFFB91C1C),
+                                  Color(0xFFEF4444),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                    color: const Color(0xFFDC2626)
+                                        .withValues(alpha: 0.55),
+                                    blurRadius: 18,
+                                    spreadRadius: -2,
+                                    offset: const Offset(0, 6)),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.18),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                        Icons.arrow_upward_rounded,
+                                        color: Colors.white,
+                                        size: 10),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Text('GASTOS',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.8)),
+                                ]),
+                                const SizedBox(height: 7),
+                                (hasUserFilter && !_filtTotalesLoaded)
+                                    ? Container(
+                                        width: 80, height: 14,
+                                        decoration: BoxDecoration(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.25),
+                                            borderRadius:
+                                                BorderRadius.circular(4)))
+                                    : TweenAnimationBuilder<double>(
+                                        key: ValueKey(gastos),
+                                        tween: Tween(begin: 0.0, end: 1.0),
+                                        duration:
+                                            const Duration(milliseconds: 900),
+                                        curve: Curves.easeOutExpo,
+                                        builder: (_, t, __) => Text(
+                                          _cop(gastos * t),
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: -0.5),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                              ],
                             ),
                           ),
-                    const SizedBox(height: 18),
-                    Container(height: 1, color: Colors.white.withValues(alpha: 0.15)),
-                    const SizedBox(height: 14),
-                    Row(children: [
-                      Expanded(child: _heroStat(
-                        label: 'GASTOS',
-                        value: (hasUserFilter && !_filtTotalesLoaded) ? null : _cop(gastos),
-                        icon: Icons.arrow_upward_rounded,
-                        color: const Color(0xFFFCA5A5),
-                      )),
-                      Container(width: 1, height: 44,
-                          color: Colors.white.withValues(alpha: 0.18)),
-                      Expanded(child: _heroStat(
-                        label: 'INGRESOS',
-                        value: (hasUserFilter && !_filtTotalesLoaded) ? null : _cop(ingresos),
-                        icon: Icons.arrow_downward_rounded,
-                        color: const Color(0xFF6EE7B7),
-                        alignEnd: true,
-                      )),
-                    ]),
-                  ]),
+                        ),
+                        const SizedBox(width: 10),
+                        // INGRESOS
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF064E3B),
+                                  Color(0xFF065F46),
+                                  Color(0xFF10B981),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                    color: const Color(0xFF059669)
+                                        .withValues(alpha: 0.55),
+                                    blurRadius: 18,
+                                    spreadRadius: -2,
+                                    offset: const Offset(0, 6)),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.end,
+                                  children: [
+                                    const Text('INGRESOS',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: 0.8)),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Colors.white.withValues(alpha: 0.18),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                          Icons.arrow_downward_rounded,
+                                          color: Colors.white,
+                                          size: 10),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 7),
+                                (hasUserFilter && !_filtTotalesLoaded)
+                                    ? Align(
+                                        alignment: Alignment.centerRight,
+                                        child: Container(
+                                            width: 80, height: 14,
+                                            decoration: BoxDecoration(
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.25),
+                                                borderRadius:
+                                                    BorderRadius.circular(4))))
+                                    : TweenAnimationBuilder<double>(
+                                        key: ValueKey(ingresos),
+                                        tween: Tween(begin: 0.0, end: 1.0),
+                                        duration:
+                                            const Duration(milliseconds: 900),
+                                        curve: Curves.easeOutExpo,
+                                        builder: (_, t, __) => Text(
+                                          _cop(ingresos * t),
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w900,
+                                              letterSpacing: -0.5),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ]),
+                    ],
+                  ),
                 ),
               ]),
             ),
@@ -6041,6 +6540,7 @@ class _HomeScreenState extends State<HomeScreen>
                         _filterDesde = null;
                         _filterHasta = null;
                         _filtTotalesLoaded = false;
+                        _movsPagina = 1;
                       }),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -6081,6 +6581,7 @@ class _HomeScreenState extends State<HomeScreen>
                     setState(() {
                       _filterCuenta = v ?? '';
                       _filtTotalesLoaded = false;
+                      _movsPagina = 1;
                     });
                     unawaited(_fetchTotalesFiltrados());
                   },
@@ -6099,6 +6600,7 @@ class _HomeScreenState extends State<HomeScreen>
                     setState(() {
                       _filterTipo = v ?? '';
                       _filtTotalesLoaded = false;
+                      _movsPagina = 1;
                     });
                     unawaited(_fetchTotalesFiltrados());
                   },
@@ -6114,8 +6616,9 @@ class _HomeScreenState extends State<HomeScreen>
                     setState(() {
                       _filterDesde = d;
                       _filtTotalesLoaded = false;
+                      _movsPagina = 1;
                     });
-                    unawaited(_fetchTotalesFiltrados());
+                    unawaited(_onDateFilterChanged());
                   },
                 )),
                 const SizedBox(width: 10),
@@ -6127,8 +6630,9 @@ class _HomeScreenState extends State<HomeScreen>
                     setState(() {
                       _filterHasta = d;
                       _filtTotalesLoaded = false;
+                      _movsPagina = 1;
                     });
-                    unawaited(_fetchTotalesFiltrados());
+                    unawaited(_onDateFilterChanged());
                   },
                 )),
               ]),
@@ -6184,28 +6688,64 @@ class _HomeScreenState extends State<HomeScreen>
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: _emptyActivity(),
             )
-          else
-            Container(
-              margin: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4))
-                ],
-              ),
-              child: Column(
-                children: filtrados
-                    .asMap()
-                    .entries
-                    .map((e) => _movimientoItemReal(e.value,
-                        divider: e.key < filtrados.length - 1))
-                    .toList(),
-              ),
-            ),
+          else ...[
+            Builder(builder: (_) {
+              final totalPags =
+                  ((filtrados.length - 1) ~/ _movsPorPagina) + 1;
+              final pag = _movsPagina.clamp(1, totalPags);
+              final desde = (pag - 1) * _movsPorPagina;
+              final hasta =
+                  (desde + _movsPorPagina).clamp(0, filtrados.length);
+              final pagina = filtrados.sublist(desde, hasta);
+              return Column(children: [
+                Container(
+                  margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4))
+                    ],
+                  ),
+                  child: Column(
+                    children: pagina
+                        .asMap()
+                        .entries
+                        .map((e) => _movimientoItemReal(e.value,
+                            divider: e.key < pagina.length - 1))
+                        .toList(),
+                  ),
+                ),
+                if (totalPags > 1)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                    child: Row(children: [
+                      _pgBtn(Icons.chevron_left_rounded, pag > 1, () {
+                        setState(() => _movsPagina = pag - 1);
+                      }),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Center(
+                          child: Text(
+                            'Pág $pag de $totalPags  ·  ${filtrados.length} registros',
+                            style: const TextStyle(
+                                fontSize: 12, color: Color(0xFF8899BB)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _pgBtn(Icons.chevron_right_rounded, pag < totalPags,
+                          () {
+                        setState(() => _movsPagina = pag + 1);
+                      }),
+                    ]),
+                  ),
+              ]);
+            }),
+          ],
         ],
       ],
     );
@@ -7447,18 +7987,9 @@ class _HomeScreenState extends State<HomeScreen>
     final nombreCuenta = (cuenta['nombre'] ?? '').toString();
     final codigoCuenta = (cuenta['codigo'] ?? '').toString();
 
-    // Saldo actual desde movimientos en memoria
-    final saldoActual = _movimientos
-        .where((m) =>
-            (m['codigo_cuenta'] ?? m['cuenta_codigo'] ?? '').toString() ==
-            codigoCuenta)
-        .fold<double>(0.0, (sum, m) {
-      final t = (m['tipo_movimiento'] ?? '').toString();
-      final v = _num(m['valor'] ?? 0);
-      if (t == '3' || t == '1') return sum + v;
-      if (t == '2') return sum - v;
-      return sum;
-    });
+    // Debe ser exactamente el mismo saldo mostrado en la tarjeta. Calcularlo
+    // desde los movimientos cargados puede dar 0 si el listado está paginado.
+    final saldoActual = _saldoCuenta(cuenta);
 
     bool saving = false;
     if (!mounted) return;
@@ -8808,28 +9339,8 @@ class _HomeScreenState extends State<HomeScreen>
           loadingMovs = true;
           Future.microtask(() async {
             try {
-              final r = await _api.post('/ajax/listar_movimientos_cuenta.php', {
-                'codigo_cuenta': codigo,
-                'pagina': '1',
-                'usuario': codigoUsuario,
-              });
-              if (r.statusCode == 200) {
-                final raw = jsonDecode(r.body);
-                if (raw is List) {
-                  movsList = raw
-                      .whereType<Map>()
-                      .map((e) => Map<String, dynamic>.from(e))
-                      .toList();
-                } else if (raw is Map) {
-                  final d = raw['datos'] ?? raw['data'] ?? raw['movimientos'];
-                  if (d is List) {
-                    movsList = d
-                        .whereType<Map>()
-                        .map((e) => Map<String, dynamic>.from(e))
-                        .toList();
-                  }
-                }
-              }
+              movsList =
+                  await _fetchMovimientosCuenta(codigo, codigoUsuario);
             } catch (_) {}
             setS(() {
               loadingMovs = false;
@@ -9437,10 +9948,13 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       );
 
+  double _saldoCuenta(Map<String, dynamic> cuenta) => _num(
+      cuenta['saldo_actual'] ?? cuenta['saldo'] ?? cuenta['balance'] ?? 0);
+
   Widget _cuentaRowReal(Map<String, dynamic> c) {
     final nombre = (c['nombre'] ?? 'Cuenta').toString();
     final tipo = (c['tipo_nombre'] ?? '').toString();
-    final saldo = _num(c['saldo_actual'] ?? 0);
+    final saldo = _saldoCuenta(c);
     final estado = c['estado']?.toString() == '1';
     final hexColor = (c['color'] ?? '#4361EE').toString();
     final color = _hexColor(hexColor);
@@ -9831,8 +10345,8 @@ class _HomeScreenState extends State<HomeScreen>
     }
     try {
       await _api.post('/ajax/actualizar_registro.php', {
-        'tabla': 'tbl_movimientos',
-        'filtro': 'codigo_movimiento=$cod',
+        'tabla': 'tbl_cuentas_movimientos',
+        'filtro': 'codigo=$cod',
         'modo': 'eliminar',
       });
       if (mounted) {
@@ -10970,7 +11484,7 @@ class _HomeScreenState extends State<HomeScreen>
   Widget _cuentaChip(Map<String, dynamic> c, {int index = 0}) {
     final nombre = (c['nombre'] ?? c['name'] ?? 'Cuenta').toString();
     final tipo = (c['tipo'] ?? c['type'] ?? '').toString().toLowerCase();
-    final saldo = _num(c['saldo_actual'] ?? c['saldo'] ?? 0);
+    final saldo = _saldoCuenta(c);
     final hexColor = (c['color'] ?? '').toString();
     final color = hexColor.isNotEmpty
         ? _hexColor(hexColor)
@@ -11085,7 +11599,8 @@ class _HomeScreenState extends State<HomeScreen>
     final asesor = (() {
       final nombre = (c['asesor'] ?? '').toString().trim();
       final aCod = (c['asesor_cod'] ?? '').toString().trim();
-      return nombre.isNotEmpty ? nombre : aCod;
+      final sigla = _siglaAsesorCredito(aCod).trim();
+      return sigla.isNotEmpty ? sigla : nombre;
     })();
     final nombre = (c['cliente'] ?? 'Cliente').toString();
     final monto = _num(c['valor_prestamo'] ?? 0);
@@ -12559,6 +13074,23 @@ class _HomeScreenState extends State<HomeScreen>
     double moraVal = 0;
     bool loadingMora = codigoCuota.isNotEmpty;
     bool saving = false;
+    final fuentesPago = <Map<String, String>>[];
+    final codigosFuente = <String>{};
+    for (final cuenta in _cuentas) {
+      final codigo =
+          (cuenta['codigo'] ?? cuenta['codigo_cuenta'] ?? '').toString().trim();
+      final nombre =
+          (cuenta['nombre'] ?? cuenta['cuenta'] ?? '').toString().trim();
+      final activa = (cuenta['estado'] ?? '1').toString() != '0';
+      if (codigo.isNotEmpty &&
+          nombre.isNotEmpty &&
+          activa &&
+          codigosFuente.add(codigo)) {
+        fuentesPago.add({'codigo': codigo, 'nombre': nombre});
+      }
+    }
+    fuentesPago.sort((a, b) =>
+        a['nombre']!.toLowerCase().compareTo(b['nombre']!.toLowerCase()));
 
     await showDialog(
       context: parentCtx,
@@ -12756,16 +13288,11 @@ class _HomeScreenState extends State<HomeScreen>
                       style: TextStyle(color: Color(0xFF667395)),
                     ),
                   ),
-                  ..._fuentesLista.map((f) {
-                    final label =
-                        (f['fuente'] ?? f['nombre'] ?? f['name'] ?? '')
-                            .toString();
-                    final codigo =
-                        (f['valor'] ?? f['codigo'] ?? f['id'] ?? label)
-                            .toString();
+                  ...fuentesPago.map((f) {
                     return DropdownMenuItem(
-                      value: codigo,
-                      child: Text(label, overflow: TextOverflow.ellipsis),
+                      value: f['codigo'],
+                      child: Text(f['nombre']!,
+                          overflow: TextOverflow.ellipsis),
                     );
                   }),
                 ],
@@ -12863,6 +13390,11 @@ class _HomeScreenState extends State<HomeScreen>
                       final val = double.tryParse(valorCtrl.text.trim()) ?? 0;
                       if (val <= 0) {
                         _showResult(false, 'Ingresa el valor del pago antes de continuar');
+                        return;
+                      }
+                      if (fuente.isEmpty) {
+                        _showResult(
+                            false, 'Selecciona la fuente donde ingresó el pago');
                         return;
                       }
                       setS(() => saving = true);
@@ -13485,55 +14017,850 @@ class _HomeScreenState extends State<HomeScreen>
         ],
       ));
 
-  Widget _ahoradorCard(Map<String, dynamic> a) =>
-      _AhoradorExpandable(data: a, cop: _cop, num: _num);
+  Widget _ahoradorCard(Map<String, dynamic> a) => _AhoradorExpandable(
+      data: a, cop: _cop, num: _num, onCuotaTap: _showAhorroCuotaDialog);
 
-  Widget _heroStat({
-    required String label,
-    required String? value,
-    required IconData icon,
-    required Color color,
-    bool alignEnd = false,
-  }) =>
-      Padding(
-        padding:
-            EdgeInsets.only(left: alignEnd ? 16 : 0, right: alignEnd ? 0 : 16),
-        child: Column(
-          crossAxisAlignment:
-              alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment:
-                  alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
-              children: [
-                if (!alignEnd) Icon(icon, color: color, size: 13),
-                if (!alignEnd) const SizedBox(width: 4),
-                Text(label,
-                    style: TextStyle(
-                        color: color.withValues(alpha: 0.80),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5)),
-                if (alignEnd) const SizedBox(width: 4),
-                if (alignEnd) Icon(icon, color: color, size: 13),
-              ],
+  Future<void> _showAhorroCuotaDialog(
+      Map<String, dynamic> ahorro, Map<String, dynamic> cuota) async {
+    final estado = int.tryParse(cuota['estado']?.toString() ?? '0') ?? 0;
+    final estadoPago = (cuota['estado_pago'] ?? '').toString().toLowerCase();
+    final valorPagado = _num(cuota['valor_pagado'] ?? 0);
+    final pagada =
+        estado > 0 || estadoPago.contains('pagado') || valorPagado > 0;
+    final mes = (cuota['nombre_mes'] ?? 'Cuota').toString();
+    final fechaPago = (cuota['fecha_pago'] ??
+            cuota['fecha_registro_pago'] ??
+            cuota['fecha_cuota'] ??
+            '')
+        .toString();
+
+    if (pagada) {
+      await _showComprobanteAhorroDialog(
+        ahorro: ahorro,
+        cuota: cuota,
+        mes: mes,
+        fechaPago: fechaPago,
+        valorPagado: valorPagado,
+      );
+      return;
+    }
+
+    final codigoCuota = cuota['codigo_cuota']?.toString() ?? '';
+    if (codigoCuota.isEmpty) {
+      await showDialog<void>(
+          context: context,
+          builder: (_) =>
+              _resultDialog('La cuota no tiene un código válido.', false));
+      return;
+    }
+
+    final pactado = _num(ahorro['valor_pactado'] ??
+        ahorro['Valor_pactado'] ??
+        ahorro['valor_Pactado'] ??
+        0);
+    final valorCtrl = TextEditingController(
+        text: pactado > 0 ? pactado.round().toString() : '');
+    final detalleCtrl = TextEditingController();
+    DateTime fecha = _hoyColombia();
+    bool saving = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        String fechaTexto() =>
+            '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}';
+
+        Future<void> guardar() async {
+          final valor = _num(valorCtrl.text.replaceAll(RegExp(r'[^\d.]'), ''));
+          if (valor <= 0) {
+            await showDialog<void>(
+                context: ctx,
+                builder: (_) =>
+                    _resultDialog('Ingresa un valor de pago válido.', false));
+            return;
+          }
+          setS(() => saving = true);
+          try {
+            final usuario =
+                (_api.user?['codigo_usuario'] ?? '').toString().trim();
+            final body = <String, dynamic>{
+              'tabla': 'tbl_ahorradores_cuotas',
+              'filtro': 'codigo_cuota=$codigoCuota',
+              'modo': 'editar',
+              'estado': '1',
+              'valor_pagado': valor.toStringAsFixed(0),
+              'fecha_pago': fechaTexto(),
+              'fecha_registro_pago': fechaTexto(),
+              'detalle': detalleCtrl.text.trim(),
+            };
+            if (usuario.isNotEmpty) body['usuario_registro_pago'] = usuario;
+
+            final r = await _api
+                .post('/ajax/actualizar_registro.php', body)
+                .timeout(const Duration(seconds: 15));
+            final respuesta = r.body.trim();
+            final fallo = r.statusCode != 200 ||
+                respuesta.toLowerCase().contains('error') ||
+                respuesta.toLowerCase().contains('no se');
+            if (fallo) {
+              throw Exception(respuesta.isEmpty
+                  ? 'El servidor no confirmó el pago.'
+                  : respuesta);
+            }
+
+            _api.invalidateCache('/ajax/listado_ahorros.php');
+            await _fetchAhorradores();
+            if (ctx.mounted) Navigator.pop(ctx);
+            if (mounted) {
+              setState(() {});
+              await showDialog<void>(
+                  context: context,
+                  builder: (_) =>
+                      _resultDialog('Cuota registrada correctamente.', true));
+            }
+          } catch (e) {
+            if (ctx.mounted) {
+              setS(() => saving = false);
+              await showDialog<void>(
+                  context: ctx,
+                  builder: (_) => _resultDialog(
+                      'No fue posible registrar la cuota: $e', false));
+            }
+          }
+        }
+
+        return Theme(
+          data: ThemeData.light(useMaterial3: true).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4361EE),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Color(0xFF0D1B4B),
             ),
-            const SizedBox(height: 5),
-            value == null
-                ? Container(
-                    width: 90,
-                    height: 14,
+            inputDecorationTheme: InputDecorationTheme(
+              filled: true,
+              fillColor: const Color(0xFFF8F9FF),
+              labelStyle: const TextStyle(color: Color(0xFF6B7280)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFDDE3F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFDDE3F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide:
+                    const BorderSide(color: Color(0xFF4361EE), width: 2),
+              ),
+            ),
+          ),
+          child: Dialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            // Header with gradient
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF4361EE), Color(0xFF7B5EA7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.savings_rounded,
+                      color: Colors.white, size: 28),
+                ),
+                const SizedBox(height: 8),
+                Text('Registrar cuota de $mes',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white)),
+              ]),
+            ),
+            // Form fields
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                TextField(
+                  controller: valorCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Valor pagado',
+                    prefixText: '\$ ',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: Color(0xFF4361EE), width: 2),
+                    ),
+                    prefixIcon: const Icon(Icons.attach_money_rounded,
+                        color: Color(0xFF4361EE)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: saving
+                      ? null
+                      : () async {
+                          final elegida = await showDatePicker(
+                            context: ctx,
+                            initialDate: fecha,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now(),
+                            builder: (c, child) => Theme(
+                              data: Theme.of(c).copyWith(
+                                  colorScheme: const ColorScheme.light(
+                                      primary: Color(0xFF4361EE),
+                                      onPrimary: Colors.white,
+                                      surface: Colors.white,
+                                      onSurface: Color(0xFF0D1B4B))),
+                              child: child!,
+                            ),
+                          );
+                          if (elegida != null) setS(() => fecha = elegida);
+                        },
+                  borderRadius: BorderRadius.circular(10),
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Fecha de pago',
+                      prefixIcon: const Icon(Icons.calendar_today_outlined,
+                          color: Color(0xFF4361EE)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: Text(fechaTexto()),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: detalleCtrl,
+                  minLines: 2,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    labelText: 'Comentario (opcional)',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: Color(0xFF4361EE), width: 2),
+                    ),
+                    prefixIcon: const Icon(Icons.comment_outlined,
+                        color: Color(0xFF4361EE)),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: saving ? null : () => Navigator.pop(ctx),
+                      child: Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          gradient: saving
+                              ? null
+                              : const LinearGradient(
+                                  colors: [
+                                    Color(0xFFDC2626),
+                                    Color(0xFFEF4444)
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                          color: saving ? Colors.grey.shade300 : null,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Center(
+                          child: Text('Cancelar',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: saving ? null : guardar,
+                      child: Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          gradient: saving
+                              ? null
+                              : const LinearGradient(
+                                  colors: [
+                                    Color(0xFF059669),
+                                    Color(0xFF34D399)
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                          color: saving ? Colors.grey.shade300 : null,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Center(
+                          child: saving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.save_rounded,
+                                        color: Colors.white, size: 16),
+                                    SizedBox(width: 6),
+                                    Text('Registrar',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14)),
+                                  ],
+                                ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ]),
+                const SizedBox(height: 20),
+              ]),
+            ),
+          ]),
+          ),
+        );
+      }),
+    );
+
+    valorCtrl.dispose();
+    detalleCtrl.dispose();
+  }
+
+  Future<void> _showComprobanteAhorroDialog({
+    required Map<String, dynamic> ahorro,
+    required Map<String, dynamic> cuota,
+    required String mes,
+    required String fechaPago,
+    required double valorPagado,
+  }) async {
+    final ahorrador =
+        (ahorro['ahorrador'] ?? ahorro['nombre'] ?? 'Ahorrador').toString();
+    final codigoCuota = (cuota['codigo_cuota'] ?? '').toString();
+    final mesComprobante = _mesComprobante(cuota, mes);
+    final fechaCorta =
+        fechaPago.length >= 10 ? fechaPago.substring(0, 10) : fechaPago;
+    final generado = _fechaHoraComprobante();
+    bool verComprobante = false;
+    bool generandoPdf = false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        Future<void> descargar() async {
+          setS(() => generandoPdf = true);
+          try {
+            final bytes = await _generarComprobanteAhorroPdf(
+              ahorrador: ahorrador,
+              mes: mesComprobante,
+              fechaPago: fechaCorta,
+              valorPagado: valorPagado,
+              codigoCuota: codigoCuota,
+              generado: generado,
+            );
+            final nombreSeguro = ahorrador
+                .toLowerCase()
+                .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+                .replaceAll(RegExp(r'^_|_$'), '');
+            await Printing.sharePdf(
+              bytes: bytes,
+              filename:
+                  'comprobante_${nombreSeguro.isEmpty ? 'ahorro' : nombreSeguro}_$codigoCuota.pdf',
+            );
+          } on MissingPluginException {
+            if (mounted) {
+              _showResult(false,
+                  'La descarga de PDF requiere instalar la nueva versión de SAF. Cierra y reinstala la aplicación; el hot reload no carga este componente.');
+            }
+          } catch (e) {
+            if (mounted) {
+              _showResult(false,
+                  'No fue posible generar el comprobante PDF. Intenta nuevamente.');
+            }
+          } finally {
+            if (ctx.mounted) setS(() => generandoPdf = false);
+          }
+        }
+
+        Widget gradientButton({
+          required String label,
+          required IconData icon,
+          required List<Color> colors,
+          required VoidCallback? onTap,
+          bool loading = false,
+        }) =>
+            Opacity(
+              opacity: onTap == null ? 0.55 : 1,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: onTap,
+                  borderRadius: BorderRadius.circular(13),
+                  child: Ink(
+                    height: 46,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                     decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4)))
-                : Text(value,
-                    style: TextStyle(
-                        color: color,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800),
-                    overflow: TextOverflow.ellipsis),
+                      gradient: LinearGradient(
+                        colors: colors,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(13),
+                      boxShadow: [
+                        BoxShadow(
+                          color: colors.first.withValues(alpha: 0.30),
+                          blurRadius: 12,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (loading)
+                          const SizedBox(
+                            width: 17,
+                            height: 17,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        else
+                          Icon(icon, size: 18, color: Colors.white),
+                        const SizedBox(width: 7),
+                        Flexible(
+                          child: Text(label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                    color: const Color(0xFF4361EE).withValues(alpha: 0.16)),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0D1B4B).withValues(alpha: 0.24),
+                    blurRadius: 30,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(18, 18, 12, 18),
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0xFF0D1B4B),
+                            Color(0xFF3730A3),
+                            Color(0xFF4361EE),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 46,
+                            height: 46,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(13),
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.18)),
+                            ),
+                            child: const Icon(Icons.receipt_long_rounded,
+                                color: Colors.white, size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Detalle del Ahorro',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w800)),
+                                const SizedBox(height: 5),
+                                Text(ahorrador,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.82),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 3),
+                                Text(mesComprobante,
+                                    style: const TextStyle(
+                                        color: Color(0xFF67E8F9),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700)),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFFDC2626),
+                                  Color(0xFFF43F5E),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(11),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFDC2626)
+                                      .withValues(alpha: 0.38),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: IconButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              icon: const Icon(Icons.close_rounded,
+                                  color: Colors.white, size: 20),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFFEEF2FF),
+                              Color(0xFFE0F2FE),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                              color: const Color(0xFF4361EE)
+                                  .withValues(alpha: 0.13)),
+                        ),
+                        child: const Row(children: [
+                          Icon(Icons.verified_rounded,
+                              color: Color(0xFF16A34A), size: 24),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Comprobante de cuota disponible',
+                                    style: TextStyle(
+                                        color: _navy,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w800)),
+                                SizedBox(height: 2),
+                                Text('Consulta o descarga el soporte de pago',
+                                    style: TextStyle(
+                                        color: Color(0xFF64748B),
+                                        fontSize: 10)),
+                              ],
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeInOut,
+                      child: verComprobante
+                          ? Container(
+                              margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFF),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                    color: const Color(0xFFE0E7FF)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF4361EE)
+                                        .withValues(alpha: 0.08),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Row(children: [
+                                    Icon(Icons.description_outlined,
+                                        color: Color(0xFF4361EE), size: 20),
+                                    SizedBox(width: 8),
+                                    Text('Comprobante de Pago',
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            color: _navy,
+                                            fontWeight: FontWeight.w800)),
+                                  ]),
+                                  const SizedBox(height: 12),
+                                  _cuotaInfoRow('Ahorrador', ahorrador),
+                                  _cuotaInfoRow('Mes', mesComprobante),
+                                  _cuotaInfoRow('Fecha de Pago', fechaCorta),
+                                  _cuotaInfoRow(
+                                      'Valor Pagado', _cop(valorPagado)),
+                                  _cuotaInfoRow('Código Cuota', codigoCuota),
+                                  const SizedBox(height: 12),
+                                  Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEEF2FF),
+                                      borderRadius: BorderRadius.circular(9),
+                                    ),
+                                    child: Text(
+                                      'Documento generado: $generado',
+                                      style: const TextStyle(
+                                          fontSize: 9,
+                                          color: Color(0xFF64748B),
+                                          fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+                      child: LayoutBuilder(builder: (_, constraints) {
+                        final compacto = constraints.maxWidth < 430;
+                        final cerrar = gradientButton(
+                          label: 'Cerrar',
+                          icon: Icons.close_rounded,
+                          colors: const [
+                            Color(0xFFDC2626),
+                            Color(0xFFF43F5E),
+                          ],
+                          onTap: () => Navigator.pop(ctx),
+                        );
+                        final ver = gradientButton(
+                          label: verComprobante
+                              ? 'Comprobante visible'
+                              : 'Ver comprobante',
+                          icon: Icons.visibility_rounded,
+                          colors: const [
+                            Color(0xFF0D9488),
+                            Color(0xFF22C1C3),
+                          ],
+                          onTap: () => setS(() => verComprobante = true),
+                        );
+                        final pdf = gradientButton(
+                          label:
+                              generandoPdf ? 'Generando...' : 'Descargar PDF',
+                          icon: Icons.picture_as_pdf_rounded,
+                          colors: const [
+                            Color(0xFF4338CA),
+                            Color(0xFF6366F1),
+                          ],
+                          loading: generandoPdf,
+                          onTap: generandoPdf ? null : descargar,
+                        );
+                        if (compacto) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ver,
+                              const SizedBox(height: 9),
+                              pdf,
+                              const SizedBox(height: 9),
+                              cerrar,
+                            ],
+                          );
+                        }
+                        return Row(children: [
+                          Expanded(child: cerrar),
+                          const SizedBox(width: 9),
+                          Expanded(child: ver),
+                          const SizedBox(width: 9),
+                          Expanded(child: pdf),
+                        ]);
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Future<Uint8List> _generarComprobanteAhorroPdf({
+    required String ahorrador,
+    required String mes,
+    required String fechaPago,
+    required double valorPagado,
+    required String codigoCuota,
+    required String generado,
+  }) async {
+    final documento = pw.Document(
+      title: 'Comprobante de Pago',
+      author: 'SAF',
+      subject: 'Comprobante de cuota de ahorro',
+    );
+
+    pw.Widget fila(String etiqueta, String valor) => pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 10),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.SizedBox(
+                width: 150,
+                child: pw.Text(etiqueta,
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              ),
+              pw.Expanded(child: pw.Text(valor)),
+            ],
+          ),
+        );
+
+    documento.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(36),
+        build: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text('Comprobante de Pago',
+                style:
+                    pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 18),
+            fila('Ahorrador:', ahorrador),
+            fila('Mes:', mes),
+            fila('Fecha de Pago:', fechaPago),
+            fila('Valor Pagado:', _cop(valorPagado)),
+            fila('Código Cuota:', codigoCuota),
+            pw.SizedBox(height: 8),
+            pw.Text('Documento generado: $generado',
+                style:
+                    const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
           ],
         ),
+      ),
+    );
+
+    return documento.save();
+  }
+
+  String _mesComprobante(Map<String, dynamic> cuota, String fallback) {
+    final fecha = DateTime.tryParse((cuota['fecha_cuota'] ?? '').toString());
+    if (fecha == null) return fallback;
+    const meses = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic'
+    ];
+    return '${meses[fecha.month - 1]}-${fecha.year}';
+  }
+
+  String _fechaHoraComprobante() {
+    final ahora = DateTime.now().toUtc().subtract(const Duration(hours: 5));
+    final hora12 = ahora.hour % 12 == 0 ? 12 : ahora.hour % 12;
+    final periodo = ahora.hour < 12 ? 'a. m.' : 'p. m.';
+    String dos(int valor) => valor.toString().padLeft(2, '0');
+    return '${dos(ahora.day)}/${dos(ahora.month)}/${ahora.year}, '
+        '$hora12:${dos(ahora.minute)}:${dos(ahora.second)} $periodo';
+  }
+
+  Widget _cuotaInfoRow(String label, String value) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          SizedBox(
+            width: 105,
+            child: Text(label,
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w600)),
+          ),
+          Expanded(
+            child: Text(value.isEmpty ? 'Sin información' : value,
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: _navy,
+                    fontWeight: FontWeight.w700)),
+          ),
+        ]),
       );
 
   Widget _emptyActivity() => Container(
@@ -14234,10 +15561,13 @@ class _AhoradorExpandable extends StatefulWidget {
     required this.data,
     required this.cop,
     required this.num,
+    required this.onCuotaTap,
   });
   final Map<String, dynamic> data;
   final String Function(double) cop;
   final double Function(dynamic) num;
+  final Future<void> Function(
+      Map<String, dynamic> ahorro, Map<String, dynamic> cuota) onCuotaTap;
 
   @override
   State<_AhoradorExpandable> createState() => _AhoradorExpandableState();
@@ -14277,7 +15607,8 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
     final nombre = (a['ahorrador'] ?? a['nombre'] ?? 'Ahorrador').toString();
     final asesor = (a['asesor'] ?? '').toString();
     final total = widget.num(a['total_ahorrado'] ?? a['valor_pactado'] ?? 0);
-    final pactado = widget.num(a['valor_pactado'] ?? 0);
+    final pactado = widget.num(
+        a['valor_pactado'] ?? a['Valor_pactado'] ?? a['valor_Pactado'] ?? 0);
     final neto = widget.num(a['neto_pagar'] ?? a['neto'] ?? 0);
     final rend = widget.num(a['porcentaje'] ?? 0);
     final fecha = (a['Fecha_ingreso'] ?? a['fecha_ingreso'] ?? '').toString();
@@ -14596,7 +15927,7 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                           itemCount: meses.length,
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (_, i) => _mesChip(meses[i]),
+                          itemBuilder: (_, i) => _mesChip(a, meses[i]),
                         ),
                       ),
                     ],
@@ -14655,7 +15986,7 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
     return DateTime(n.year, n.month, n.day);
   }
 
-  Widget _mesChip(Map<String, dynamic> m) {
+  Widget _mesChip(Map<String, dynamic> ahorro, Map<String, dynamic> m) {
     final mes = (m['nombre_mes'] ?? '').toString();
     final estadoPago = (m['estado_pago'] ?? '').toString();
     final valor = widget.num(m['valor_pagado'] ?? m['valor'] ?? 0);
@@ -14685,43 +16016,50 @@ class _AhoradorExpandableState extends State<_AhoradorExpandable>
             ? [const Color(0xFFFEE2E2), const Color(0xFFFECDD3)]
             : [const Color(0xFFF0F2FA), const Color(0xFFE8ECF4)];
 
-    return Container(
-      width: 84,
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => unawaited(widget.onCuotaTap(ahorro, m)),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: textColor.withValues(alpha: 0.18),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: textColor, size: 20),
-          const SizedBox(height: 5),
-          Text(mes,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: textColor,
-                  letterSpacing: -0.2)),
-          const SizedBox(height: 3),
-          Text(
-            esFuturo ? '—' : widget.cop(valor),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: textColor.withValues(alpha: 0.8)),
+        child: Ink(
+          width: 84,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: gradColors,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: textColor.withValues(alpha: 0.18),
+              width: 1,
+            ),
           ),
-        ],
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: textColor, size: 20),
+              const SizedBox(height: 5),
+              Text(mes,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                      letterSpacing: -0.2)),
+              const SizedBox(height: 3),
+              Text(
+                esFuturo ? '—' : widget.cop(valor),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: textColor.withValues(alpha: 0.8)),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

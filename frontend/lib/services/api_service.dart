@@ -146,6 +146,11 @@ class ApiService {
     return prefs.getString(_lastEmailKey);
   }
 
+  Future<void> clearBackgroundTimestamp() async {
+    final prefs = await _getPrefs();
+    await prefs.remove(_bgTimestampKey);
+  }
+
   Future<void> saveBackgroundTimestamp() async {
     if (_token == null) return;
     final prefs = await _getPrefs();

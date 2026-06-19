@@ -16,8 +16,9 @@ void main() async {
   final prefs = await SharedPreferences.getInstance();
   final onboardingDone = prefs.getBool('onboarding_done') ?? false;
 
-  // Check if session expired while the app was killed
-  final sessionExpired = await ApiService().checkAndHandleSessionTimeout();
+  // Clear any stale background timestamp on cold start.
+  // Session timeout is only checked when resuming from background (see didChangeAppLifecycleState).
+  await ApiService().clearBackgroundTimestamp();
 
   String initialRoute;
   if (!onboardingDone) {
@@ -28,13 +29,12 @@ void main() async {
     initialRoute = '/login';
   }
 
-  runApp(SafApp(initialRoute: initialRoute, sessionExpired: sessionExpired));
+  runApp(SafApp(initialRoute: initialRoute));
 }
 
 class SafApp extends StatefulWidget {
   final String initialRoute;
-  final bool sessionExpired;
-  const SafApp({super.key, required this.initialRoute, this.sessionExpired = false});
+  const SafApp({super.key, required this.initialRoute});
 
   @override
   State<SafApp> createState() => _SafAppState();
@@ -45,9 +45,6 @@ class _SafAppState extends State<SafApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    if (widget.sessionExpired) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _showInactivityDialog());
-    }
   }
 
   @override
