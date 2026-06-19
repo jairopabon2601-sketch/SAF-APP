@@ -91,31 +91,145 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             ]),
           ),
           // Total saldo card
-          Container(
-            margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [Color(0xFF0D1B4B), Color(0xFF1A3A9F)]),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(children: [
-              const Icon(Icons.account_balance_wallet_rounded,
-                  color: Colors.white70, size: 28),
-              const SizedBox(width: 14),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Total de Saldos',
-                    style: TextStyle(color: Colors.white60, fontSize: 12)),
-                const SizedBox(height: 4),
-                Text(
-                    formatCop(accounts.fold(0.0,
-                        (s, c) => s + numberValue(c['saldo_actual'] ?? 0))),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900)),
-              ]),
-            ]),
+          AnimatedBuilder(
+            animation: shimmer,
+            builder: (_, __) {
+              final glow = shimmer.value;
+              final total = accounts.fold(0.0,
+                  (s, c) => s + numberValue(c['saldo_actual'] ?? 0));
+              return Container(
+                margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                clipBehavior: Clip.hardEdge,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF0F0A3C),
+                      Color(0xFF1E1265),
+                      Color(0xFF3730A3),
+                      Color(0xFF4F46E5),
+                    ],
+                    stops: [0.0, 0.3, 0.65, 1.0],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF3730A3)
+                          .withValues(alpha: 0.45 + glow * 0.18),
+                      blurRadius: 20 + glow * 8,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.15),
+                      blurRadius: 32,
+                      spreadRadius: -4,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Stack(children: [
+                  Positioned(
+                    right: -30, top: -30,
+                    child: Container(
+                      width: 110, height: 110,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(colors: [
+                          const Color(0xFF818CF8).withValues(alpha: 0.25),
+                          Colors.transparent,
+                        ]),
+                      ))),
+                  Positioned(
+                    left: -20, bottom: -20,
+                    child: Container(
+                      width: 80, height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF06B6D4).withValues(alpha: 0.12),
+                      ))),
+                  Positioned.fill(
+                    child: OverflowBox(
+                      maxWidth: double.infinity,
+                      child: Transform.translate(
+                        offset: Offset((glow * 2 - 1) * 180, 0),
+                        child: Transform.rotate(
+                          angle: 0.4,
+                          child: Container(
+                            width: 28,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: [
+                                Colors.white.withValues(alpha: 0),
+                                Colors.white.withValues(alpha: 0.09),
+                                Colors.white.withValues(alpha: 0),
+                              ]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 18),
+                    child: Row(children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [
+                            Colors.white.withValues(alpha: 0.20),
+                            Colors.white.withValues(alpha: 0.08),
+                          ], begin: Alignment.topLeft,
+                             end: Alignment.bottomRight),
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.22)),
+                        ),
+                        child: const Icon(
+                            Icons.account_balance_wallet_rounded,
+                            color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Total de Saldos',
+                                style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.65),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.3)),
+                            const SizedBox(height: 4),
+                            Text(formatCop(total),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.8)),
+                          ]),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.18)),
+                        ),
+                        child: Text('${accounts.length} cuentas',
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    ]),
+                  ),
+                ]),
+              );
+            },
           ),
           // Lista de cuentas
           if (accounts.isEmpty)
@@ -784,26 +898,30 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   (desde + movementsPageSize).clamp(0, filtrados.length);
               final pagina = filtrados.sublist(desde, hasta);
               return Column(children: [
-                Container(
-                  margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4))
-                    ],
-                  ),
-                  child: Column(
-                    children: pagina
-                        .asMap()
-                        .entries
-                        .map((e) => buildMovementItem(e.value,
-                            divider: e.key < pagina.length - 1))
-                        .toList(),
-                  ),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  itemCount: pagina.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final delay = (i * 0.07).clamp(0.0, 0.42);
+                    final end = (i * 0.07 + 0.60).clamp(0.5, 1.0);
+                    return TweenAnimationBuilder<double>(
+                      key: ValueKey('mov_${desde + i}'),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 550),
+                      curve: Interval(delay, end, curve: Curves.easeOutBack),
+                      builder: (_, v, child) => Opacity(
+                        opacity: v.clamp(0.0, 1.0),
+                        child: Transform.translate(
+                          offset: Offset(30 * (1 - v.clamp(0.0, 1.0)), 0),
+                          child: child,
+                        ),
+                      ),
+                      child: buildMovementItem(pagina[i]),
+                    );
+                  },
                 ),
                 if (totalPags > 1)
                   Padding(
@@ -1021,17 +1139,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         const SizedBox(height: 4),
         GestureDetector(
           onTap: () async {
-            final picked = await showDatePicker(
-              context: screenContext,
+            final picked = await showLightDatePicker(
+              screenContext,
               initialDate: value ?? DateTime.now(),
               firstDate: DateTime(2020),
               lastDate: DateTime(2030),
-              builder: (ctx, child) => Theme(
-                data: Theme.of(ctx).copyWith(
-                    colorScheme:
-                        const ColorScheme.light(primary: Color(0xFF0D1B4B))),
-                child: child!,
-              ),
             );
             onPick(picked);
           },
@@ -1235,11 +1347,26 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     bool saving = false;
     if (!isMounted) return;
 
+    final hexColor =
+        (cuenta['color'] ?? '#4361EE').toString();
+    final accentColor = parseHexColor(hexColor);
+    final cLight = Color.lerp(accentColor, Colors.white, 0.40)!;
+    final cDark = Color.lerp(accentColor, Colors.black, 0.20)!;
+    final initials = nombreCuenta.trim().isNotEmpty
+        ? nombreCuenta
+            .trim()
+            .split(' ')
+            .take(2)
+            .map((w) => w[0])
+            .join()
+            .toUpperCase()
+        : 'C';
+
     await showDialog(
       context: screenContext,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
-        Widget gradBtn({
+        Widget premBtn({
           required List<Color> colors,
           required VoidCallback? onPressed,
           required Widget child,
@@ -1247,180 +1374,447 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             GestureDetector(
               onTap: onPressed,
               child: Container(
-                height: 46,
+                height: 50,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: colors),
-                  borderRadius: BorderRadius.circular(10),
+                  gradient: LinearGradient(
+                    colors: colors,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: onPressed != null
+                      ? [
+                          BoxShadow(
+                            color: colors.first.withValues(alpha: 0.42),
+                            blurRadius: 14,
+                            offset: const Offset(0, 5),
+                          ),
+                          BoxShadow(
+                            color: colors.first.withValues(alpha: 0.18),
+                            blurRadius: 24,
+                            spreadRadius: -4,
+                            offset: const Offset(0, 10),
+                          ),
+                        ]
+                      : null,
                 ),
                 alignment: Alignment.center,
                 child: child,
               ),
             );
 
-        Widget readonlyField(String label, String value) => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF374151))),
-                const SizedBox(height: 6),
+        Widget infoRow(IconData icon, String label, String value) => Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE0E7FF)),
+              ),
+              child: Row(children: [
                 Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    border: Border.all(color: const Color(0xFFD1D5DB)),
-                    borderRadius: BorderRadius.circular(10),
+                    gradient: LinearGradient(
+                      colors: [cLight, accentColor],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(value,
-                      style: const TextStyle(
-                          fontSize: 14, color: Color(0xFF6B7280))),
+                  child: Icon(icon, size: 15, color: Colors.white),
                 ),
-              ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: const TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFF8899BB),
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(value,
+                          style: const TextStyle(
+                              fontSize: 14,
+                              color: homeNavy,
+                              fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ),
+              ]),
             );
 
         return Dialog(
-          backgroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
           insetPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(22),
+              const EdgeInsets.symmetric(horizontal: 18, vertical: 32),
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(26),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withValues(alpha: 0.20),
+                  blurRadius: 40,
+                  offset: const Offset(0, 16),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.14),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
             child: Form(
               key: formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Ajustar Saldo de Cuenta',
-                          style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0D1B4B))),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: const Icon(Icons.close_rounded,
-                            color: Color(0xFF6B7280)),
+                  // ── Header ─────────────────────────────────────
+                  ClipRRect(
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(26)),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(18, 20, 14, 20),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFF0F0A3C),
+                            const Color(0xFF1E1265),
+                            accentColor.withValues(alpha: 0.85),
+                            accentColor,
+                          ],
+                          stops: const [0.0, 0.3, 0.7, 1.0],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  readonlyField('Cuenta', nombreCuenta),
-                  const SizedBox(height: 14),
-                  readonlyField('Saldo Actual', formatCop(saldoActual)),
-                  const SizedBox(height: 14),
-                  const Text('Nuevo Saldo',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151))),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: nuevoSaldoCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: '0',
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 13),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFD1D5DB))),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFD1D5DB))),
+                      child: Stack(children: [
+                        Positioned(
+                          right: -20, top: -20,
+                          child: Container(
+                            width: 90, height: 90,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(colors: [
+                                cLight.withValues(alpha: 0.28),
+                                Colors.transparent,
+                              ]),
+                            ))),
+                        Positioned(
+                          left: -15, bottom: -15,
+                          child: Container(
+                            width: 60, height: 60,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white.withValues(alpha: 0.08),
+                            ))),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [cLight, accentColor, cDark],
+                                  stops: const [0.0, 0.5, 1.0],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.25),
+                                    width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: accentColor.withValues(alpha: 0.50),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(initials,
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900)),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Ajustar Saldo',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: -0.3)),
+                                  const SizedBox(height: 5),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.25)),
+                                    ),
+                                    child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.account_balance_rounded,
+                                              size: 10, color: Colors.white70),
+                                          const SizedBox(width: 4),
+                                          Flexible(
+                                            child: Text(nombreCuenta,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                    color: Colors.white
+                                                        .withValues(alpha: 0.90),
+                                                    fontSize: 11,
+                                                    fontWeight:
+                                                        FontWeight.w600)),
+                                          ),
+                                        ]),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => Navigator.pop(ctx),
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF991B1B),
+                                      Color(0xFFDC2626),
+                                      Color(0xFFF43F5E)
+                                    ],
+                                    stops: [0.0, 0.5, 1.0],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFDC2626)
+                                          .withValues(alpha: 0.45),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(Icons.close_rounded,
+                                    color: Colors.white, size: 18),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ]),
                     ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Requerido' : null,
                   ),
-                  const SizedBox(height: 22),
-                  Row(children: [
-                    Expanded(
-                      child: gradBtn(
-                        colors: const [Color(0xFFDC2626), Color(0xFFEF4444)],
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancelar',
+                  // ── Form ───────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        infoRow(Icons.account_balance_rounded, 'Cuenta',
+                            nombreCuenta),
+                        infoRow(Icons.savings_rounded, 'Saldo Actual',
+                            formatCop(saldoActual)),
+                        // Nuevo saldo input
+                        const Text('Nuevo Saldo',
                             style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700)),
-                      ),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF374151))),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: nuevoSaldoCtrl,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: homeNavy),
+                          decoration: InputDecoration(
+                            hintText: '0',
+                            hintStyle:
+                                const TextStyle(color: Color(0xFFB0BCCF)),
+                            prefixIcon: Container(
+                              margin: const EdgeInsets.all(10),
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF3730A3),
+                                    Color(0xFF4F46E5)
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.attach_money_rounded,
+                                  size: 16, color: Colors.white),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 14),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: Color(0xFFD1D5DB))),
+                            enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: Color(0xFFE0E7FF))),
+                            focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: Color(0xFF4F46E5), width: 2)),
+                            errorBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                    color: Color(0xFFDC2626))),
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFF),
+                          ),
+                          validator: (v) =>
+                              (v == null || v.trim().isEmpty)
+                                  ? 'Ingresa el nuevo saldo'
+                                  : null,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: gradBtn(
-                        colors: saving
-                            ? [Colors.grey, Colors.grey]
-                            : const [Color(0xFF059669), Color(0xFF34D399)],
-                        onPressed: saving
-                            ? null
-                            : () async {
-                                if (!formKey.currentState!.validate()) return;
-                                setS(() => saving = true);
-                                try {
-                                  final nuevoSaldo = double.tryParse(
-                                          nuevoSaldoCtrl.text
-                                              .trim()
-                                              .replaceAll('.', '')
-                                              .replaceAll(',', '.')) ??
-                                      0.0;
-                                  final diferencia = nuevoSaldo - saldoActual;
-                                  final now = DateTime.now();
-                                  String pad2(int n) =>
-                                      n.toString().padLeft(2, '0');
-                                  final fecha =
-                                      '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
-                                  final r = await repository
-                                      .post('/ajax/ajustar_saldo_cuenta.php', {
-                                    'codigo_cuenta': codigoCuenta,
-                                    'saldo_actual':
-                                        saldoActual.toStringAsFixed(2),
-                                    'nuevo_saldo':
-                                        nuevoSaldo.toStringAsFixed(2),
-                                    'diferencia': diferencia.toStringAsFixed(2),
-                                    'fecha': fecha,
-                                    'usuario': codigoUsuario,
-                                  });
-                                  if (r.statusCode == 200) {
-                                    final d = decodeJsonMap(r.body);
-                                    final ok = d['success'] == true ||
-                                        d['resultado'] == 1;
-                                    if (ctx.mounted) Navigator.pop(ctx);
-                                    showResult(
-                                        ok,
-                                        ok
-                                            ? 'Saldo ajustado correctamente.'
-                                            : friendlyError(d['msg'] ??
-                                                d['mensaje'] ??
-                                                'No se pudo ajustar el saldo'));
-                                    if (ok) unawaited(loadData());
+                  ),
+                  // ── Buttons ────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
+                    child: Row(children: [
+                      Expanded(
+                        child: premBtn(
+                          colors: const [
+                            Color(0xFF7F1D1D),
+                            Color(0xFFDC2626),
+                            Color(0xFFF43F5E)
+                          ],
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.close_rounded,
+                                  color: Colors.white, size: 16),
+                              SizedBox(width: 6),
+                              Text('Cancelar',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: premBtn(
+                          colors: saving
+                              ? [
+                                  const Color(0xFF9CA3AF),
+                                  const Color(0xFF6B7280)
+                                ]
+                              : const [
+                                  Color(0xFF065F46),
+                                  Color(0xFF059669),
+                                  Color(0xFF10B981)
+                                ],
+                          onPressed: saving
+                              ? null
+                              : () async {
+                                  if (!formKey.currentState!.validate()) return;
+                                  setS(() => saving = true);
+                                  try {
+                                    final nuevoSaldo = double.tryParse(
+                                            nuevoSaldoCtrl.text
+                                                .trim()
+                                                .replaceAll('.', '')
+                                                .replaceAll(',', '.')) ??
+                                        0.0;
+                                    final diferencia = nuevoSaldo - saldoActual;
+                                    final now = DateTime.now();
+                                    String pad2(int n) =>
+                                        n.toString().padLeft(2, '0');
+                                    final fecha =
+                                        '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
+                                    final r = await repository.post(
+                                        '/ajax/ajustar_saldo_cuenta.php', {
+                                      'codigo_cuenta': codigoCuenta,
+                                      'saldo_actual':
+                                          saldoActual.toStringAsFixed(2),
+                                      'nuevo_saldo':
+                                          nuevoSaldo.toStringAsFixed(2),
+                                      'diferencia':
+                                          diferencia.toStringAsFixed(2),
+                                      'fecha': fecha,
+                                      'usuario': codigoUsuario,
+                                    });
+                                    if (r.statusCode == 200) {
+                                      final d = decodeJsonMap(r.body);
+                                      final ok = d['success'] == true ||
+                                          d['resultado'] == 1;
+                                      if (ctx.mounted) Navigator.pop(ctx);
+                                      showResult(
+                                          ok,
+                                          ok
+                                              ? 'Saldo ajustado correctamente.'
+                                              : friendlyError(d['msg'] ??
+                                                  d['mensaje'] ??
+                                                  'No se pudo ajustar el saldo'));
+                                      if (ok) unawaited(loadData());
+                                    }
+                                  } catch (e) {
+                                    debugPrint('[SAF] ajustar saldo: $e');
+                                  } finally {
+                                    if (ctx.mounted) setS(() => saving = false);
                                   }
-                                } catch (e) {
-                                  debugPrint('[SAF] ajustar saldo: $e');
-                                } finally {
-                                  if (ctx.mounted) setS(() => saving = false);
-                                }
-                              },
-                        child: saving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white))
-                            : const Text('Guardar Ajuste',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700)),
+                                },
+                          child: saving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2.5, color: Colors.white))
+                              : const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.check_rounded,
+                                        color: Colors.white, size: 16),
+                                    SizedBox(width: 6),
+                                    Text('Guardar Ajuste',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 13)),
+                                  ],
+                                ),
+                        ),
                       ),
-                    ),
-                  ]),
+                    ]),
+                  ),
                 ],
               ),
             ),
@@ -1616,18 +2010,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   const SizedBox(height: 6),
                   GestureDetector(
                     onTap: () async {
-                      final picked = await showDatePicker(
-                        context: ctx,
+                      final picked = await showLightDatePicker(
+                        ctx,
                         initialDate: DateTime.tryParse(selectedFecha) ?? now,
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2030),
-                        builder: (c, w) => Theme(
-                          data: ThemeData.light().copyWith(
-                            colorScheme: const ColorScheme.light(
-                                primary: Color(0xFF0D1B4B)),
-                          ),
-                          child: w!,
-                        ),
                       );
                       if (picked != null) {
                         setS(() {
@@ -2016,18 +2403,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   const SizedBox(height: 6),
                   GestureDetector(
                     onTap: () async {
-                      final picked = await showDatePicker(
-                        context: ctx,
+                      final picked = await showLightDatePicker(
+                        ctx,
                         initialDate: DateTime.tryParse(selectedFecha) ?? now,
                         firstDate: DateTime(2020),
                         lastDate: DateTime(2030),
-                        builder: (c, w) => Theme(
-                          data: ThemeData.light().copyWith(
-                            colorScheme: const ColorScheme.light(
-                                primary: Color(0xFF0D1B4B)),
-                          ),
-                          child: w!,
-                        ),
                       );
                       if (picked != null) {
                         setS(() {
@@ -3230,104 +3610,202 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     final estado = c['estado']?.toString() == '1';
     final hexColor = (c['color'] ?? '#4361EE').toString();
     final color = parseHexColor(hexColor);
+    final initials = nombre.trim().isNotEmpty
+        ? nombre.trim().split(' ').take(2).map((w) => w[0]).join().toUpperCase()
+        : 'C';
+    final cLight = Color.lerp(color, Colors.white, 0.40)!;
+    final cDark = Color.lerp(color, Colors.black, 0.20)!;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.14)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 3))
+              color: color.withValues(alpha: 0.08),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 6,
+              offset: const Offset(0, 2)),
         ],
       ),
-      child: Row(children: [
-        Container(
-          width: 18,
-          height: 18,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(nombre,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: homeNavy)),
-              const SizedBox(height: 2),
-              Row(children: [
-                Flexible(
-                    child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(4),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(children: [
+          // Left accent bar
+          Positioned(left: 0, top: 0, bottom: 0,
+            child: Container(
+              width: 4,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [cLight, color, cDark],
+                  stops: const [0.0, 0.5, 1.0],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            )),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+            child: Row(children: [
+              // Avatar
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [cLight, color, cDark],
+                    stops: const [0.0, 0.5, 1.0],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  child: Text(tipo,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                        color: color.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4)),
+                  ],
+                ),
+                child: Center(
+                  child: Text(initials,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Name + badges
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(nombre,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            color: homeNavy)),
+                    const SizedBox(height: 5),
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                              color: color.withValues(alpha: 0.25), width: 0.8),
+                        ),
+                        child: Text(tipo,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: color,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: estado
+                              ? const Color(0xFFDCFCE7)
+                              : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Container(
+                            width: 5, height: 5,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: estado
+                                  ? const Color(0xFF16A34A)
+                                  : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(estado ? 'Activa' : 'Inactiva',
+                              style: TextStyle(
+                                  color: estado
+                                      ? const Color(0xFF15803D)
+                                      : const Color(0xFF8899BB),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600)),
+                        ]),
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Balance + actions
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(formatCop(saldo),
                       style: TextStyle(
-                          color: color,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600)),
-                )),
-                const SizedBox(width: 6),
-                Text(estado ? 'Activa' : 'Inactiva',
-                    style: TextStyle(
-                        color: estado
-                            ? const Color(0xFF16A34A)
-                            : const Color(0xFF8899BB),
-                        fontSize: 11)),
-              ]),
-            ],
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                          letterSpacing: -0.4,
+                          color: saldo >= 0
+                              ? homeNavy
+                              : const Color(0xFFDC2626))),
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    _iconActionBtn(
+                      icon: Icons.edit_rounded,
+                      colors: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+                      onTap: () => _showEditarCuentaDialog(c),
+                    ),
+                    const SizedBox(width: 6),
+                    _iconActionBtn(
+                      icon: Icons.balance_rounded,
+                      colors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
+                      onTap: () => _showAjustarSaldoDialog(c),
+                    ),
+                  ]),
+                ],
+              ),
+            ]),
           ),
-        ),
-        Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Text(formatCop(saldo),
-              style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                  color: saldo >= 0 ? homeNavy : const Color(0xFFDC2626))),
-          const SizedBox(height: 6),
-          Row(children: [
-            _iconActionBtn(
-              icon: Icons.edit_rounded,
-              color: const Color(0xFF0EA5E9),
-              onTap: () => _showEditarCuentaDialog(c),
-            ),
-            const SizedBox(width: 6),
-            _iconActionBtn(
-              icon: Icons.balance_rounded,
-              color: const Color(0xFFF59E0B),
-              onTap: () => _showAjustarSaldoDialog(c),
-            ),
-          ]),
         ]),
-      ]),
+      ),
     );
   }
 
   Widget _iconActionBtn({
     required IconData icon,
-    required Color color,
+    required List<Color> colors,
     required VoidCallback onTap,
   }) =>
       GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 28,
-          height: 28,
+          width: 34,
+          height: 34,
           decoration: BoxDecoration(
-              color: color, borderRadius: BorderRadius.circular(7)),
-          child: Icon(icon, color: Colors.white, size: 14),
+            gradient: LinearGradient(
+              colors: colors,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: [
+              BoxShadow(
+                  color: colors.first.withValues(alpha: 0.35),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3)),
+            ],
+          ),
+          child: Icon(icon, color: Colors.white, size: 16),
         ),
       );
 
@@ -3337,184 +3815,231 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     final hexColor = (m['cuenta_color'] ?? '#4361EE').toString();
     final color = parseHexColor(hexColor);
     final tipo = (m['tipo_movimiento'] ?? '2').toString();
-    // 2=Gasto, 3=Ingreso/Transferencia, 1=otro
     final isIngreso = tipo == '3' || tipo == '1';
     final valor = numberValue(m['valor'] ?? 0);
     final rawFecha = (m['fecha'] ?? '').toString();
     final fecha = rawFecha.length >= 10 ? rawFecha.substring(0, 10) : rawFecha;
 
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-        child: Row(children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      color,
-                      Color.lerp(color, Colors.white, 0.35)!,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(13),
-                  boxShadow: [
-                    BoxShadow(
-                      color: color.withValues(alpha: 0.30),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  isIngreso
-                      ? Icons.south_west_rounded
-                      : Icons.north_east_rounded,
-                  color: Colors.white,
-                  size: 19,
-                ),
-              ),
-              Positioned(
-                left: -3,
-                bottom: -3,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-            ],
+    final stripColor = isIngreso ? const Color(0xFF059669) : const Color(0xFFDC2626);
+    final amtColor = isIngreso ? const Color(0xFF059669) : const Color(0xFFDC2626);
+    final cLight = Color.lerp(color, Colors.white, 0.40)!;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEEF2FF)),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: 0.07),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(desc,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12.5,
-                        color: homeNavy)),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        cuentaNom.isNotEmpty ? cuentaNom : 'Cuenta SAF',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10.5,
-                          color: Color(0xFF7181A6),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      width: 3,
-                      height: 3,
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFB6C0D5),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    Text(
-                      fecha,
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        color: Color(0xFF9AA7C2),
-                      ),
-                    ),
-                  ],
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(children: [
+          // Left accent strip — ingreso=green / gasto=red
+          Positioned(
+            left: 0, top: 0, bottom: 0,
+            child: Container(
+              width: 4,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: isIngreso
+                      ? [const Color(0xFF34D399), const Color(0xFF059669), const Color(0xFF065F46)]
+                      : [const Color(0xFFF87171), const Color(0xFFDC2626), const Color(0xFF7F1D1D)],
+                  stops: const [0.0, 0.5, 1.0],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
-              ],
+              ),
             ),
           ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                '${isIngreso ? '+' : '-'}${formatCop(valor)}',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12.5,
-                  color: isIngreso
-                      ? const Color(0xFF0E9F6E)
-                      : const Color(0xFFE02424),
-                ),
-              ),
-              const SizedBox(height: 5),
-              Row(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+            child: Row(children: [
+              // Icon container
+              Stack(clipBehavior: Clip.none, children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  width: 46,
+                  height: 46,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: isIngreso
-                          ? [const Color(0xFFD1FAE5), const Color(0xFFA7F3D0)]
-                          : [const Color(0xFFFFE4E6), const Color(0xFFFCA5A5)],
+                      colors: [cLight, color, Color.lerp(color, Colors.black, 0.15)!],
+                      stops: const [0.0, 0.5, 1.0],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: isIngreso
-                          ? const Color(0xFF6EE7B7)
-                          : const Color(0xFFFCA5A5),
-                      width: 0.8,
-                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: color.withValues(alpha: 0.35),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    isIngreso ? 'Ingreso' : 'Gasto',
-                    style: TextStyle(
-                      color: isIngreso
-                          ? const Color(0xFF059669)
-                          : const Color(0xFFDC2626),
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  child: Icon(
+                    isIngreso ? Icons.south_west_rounded : Icons.north_east_rounded,
+                    color: Colors.white,
+                    size: 20,
                   ),
                 ),
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: () => _confirmEliminarMovimiento(m),
+                Positioned(
+                  right: -3, top: -3,
                   child: Container(
-                    padding: const EdgeInsets.all(5),
+                    width: 14,
+                    height: 14,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEE2E2),
-                      borderRadius: BorderRadius.circular(8),
+                      gradient: LinearGradient(
+                        colors: isIngreso
+                            ? [const Color(0xFF34D399), const Color(0xFF059669)]
+                            : [const Color(0xFFF87171), const Color(0xFFDC2626)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1.5),
                     ),
-                    child: const Icon(Icons.delete_outline_rounded,
-                        size: 14, color: Color(0xFFDC2626)),
+                    child: Icon(
+                      isIngreso ? Icons.add_rounded : Icons.remove_rounded,
+                      size: 8,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ]),
-            ],
+              const SizedBox(width: 12),
+              // Description + meta
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(desc,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            color: homeNavy,
+                            letterSpacing: -0.2)),
+                    const SizedBox(height: 5),
+                    Row(children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(5),
+                          border: Border.all(
+                              color: color.withValues(alpha: 0.22), width: 0.8),
+                        ),
+                        child: Text(
+                          cuentaNom.isNotEmpty ? cuentaNom : 'SAF',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: color,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(Icons.calendar_today_rounded,
+                          size: 9, color: Color(0xFFB6C0D5)),
+                      const SizedBox(width: 3),
+                      Text(fecha,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF9AA7C2),
+                            fontWeight: FontWeight.w500,
+                          )),
+                    ]),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Amount + type + delete
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${isIngreso ? '+' : '-'}${formatCop(valor)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                      letterSpacing: -0.4,
+                      color: amtColor,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isIngreso
+                              ? [const Color(0xFF065F46), const Color(0xFF059669)]
+                              : [const Color(0xFF7F1D1D), const Color(0xFFDC2626)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: stripColor.withValues(alpha: 0.30),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Text(
+                        isIngreso ? 'Ingreso' : 'Gasto',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () => _confirmEliminarMovimiento(m),
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFEE2E2), Color(0xFFFECDD3)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: const Color(0xFFDC2626).withValues(alpha: 0.25)),
+                        ),
+                        child: const Icon(Icons.delete_outline_rounded,
+                            size: 14, color: Color(0xFFDC2626)),
+                      ),
+                    ),
+                  ]),
+                ],
+              ),
+            ]),
           ),
         ]),
       ),
-      if (divider)
-        Divider(
-            height: 1,
-            thickness: 1,
-            indent: 70,
-            endIndent: 16,
-            color: const Color(0xFFE9EDF5)),
-    ]);
+    );
   }
 
   Future<void> _confirmEliminarMovimiento(Map<String, dynamic> m) async {

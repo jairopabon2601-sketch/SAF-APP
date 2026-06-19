@@ -81,6 +81,8 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
   List<Map<String, dynamic>> creditStatistics = [];
   String savingsYearFilter = DateTime.now().year.toString();
   String savingsAdvisorFilter = '0';
+  int savingsCurrentPage = 1;
+  static const int savingsPageSize = 10;
   List<Map<String, dynamic>> credits = [];
   final Set<String> expandedCredits = {};
 

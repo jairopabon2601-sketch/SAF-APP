@@ -123,17 +123,11 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                           const SizedBox(height: 6),
                           GestureDetector(
                             onTap: () async {
-                              final d = await showDatePicker(
-                                context: ctx,
+                              final d = await showLightDatePicker(
+                                ctx,
                                 initialDate: fechaInicio ?? DateTime.now(),
                                 firstDate: DateTime(2020),
                                 lastDate: DateTime(2035),
-                                builder: (c, child) => Theme(
-                                  data: Theme.of(c).copyWith(
-                                      colorScheme: const ColorScheme.light(
-                                          primary: homeNavy)),
-                                  child: child!,
-                                ),
                               );
                               if (d != null) setS(() => fechaInicio = d);
                             },
@@ -150,18 +144,12 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                           const SizedBox(height: 6),
                           GestureDetector(
                             onTap: () async {
-                              final d = await showDatePicker(
-                                context: ctx,
+                              final d = await showLightDatePicker(
+                                ctx,
                                 initialDate:
                                     fechaFinal ?? fechaInicio ?? DateTime.now(),
                                 firstDate: DateTime(2020),
                                 lastDate: DateTime(2035),
-                                builder: (c, child) => Theme(
-                                  data: Theme.of(c).copyWith(
-                                      colorScheme: const ColorScheme.light(
-                                          primary: homeNavy)),
-                                  child: child!,
-                                ),
                               );
                               if (d != null) setS(() => fechaFinal = d);
                             },
@@ -725,17 +713,11 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                           const SizedBox(height: 6),
                           GestureDetector(
                             onTap: () async {
-                              final d = await showDatePicker(
-                                context: ctx,
+                              final d = await showLightDatePicker(
+                                ctx,
                                 initialDate: fechaIngreso ?? DateTime.now(),
                                 firstDate: DateTime(2015),
                                 lastDate: DateTime(2035),
-                                builder: (c, child) => Theme(
-                                  data: Theme.of(c).copyWith(
-                                      colorScheme: const ColorScheme.light(
-                                          primary: homeNavy)),
-                                  child: child!,
-                                ),
                               );
                               if (d != null) setS(() => fechaIngreso = d);
                             },
@@ -1889,68 +1871,147 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         const SizedBox(height: 14),
 
         // ── Banner hero ───────────────────────────────────────
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF3730A3), Color(0xFF4361EE), Color(0xFF6366F1)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+        AnimatedBuilder(
+          animation: shimmer,
+          builder: (_, __) => Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [
+                  Color(0xFF0F0A3C),
+                  Color(0xFF1E1265),
+                  Color(0xFF3730A3),
+                  Color(0xFF4F46E5),
+                ],
+                stops: [0.0, 0.30, 0.65, 1.0],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF3730A3)
+                      .withValues(alpha: 0.44 + 0.14 * shimmer.value),
+                  blurRadius: 26 + 10 * shimmer.value,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF4361EE).withValues(alpha: 0.45),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              )
-            ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: Stack(children: [
+                Positioned(
+                  right: -30,
+                  top: -30,
+                  child: Container(
+                    width: 130,
+                    height: 130,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(colors: [
+                        Colors.white.withValues(alpha: 0.14),
+                        Colors.transparent,
+                      ]),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: -20,
+                  bottom: -20,
+                  child: Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.07),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: Transform.translate(
+                    offset: Offset((shimmer.value * 2 - 1) * 280, 0),
+                    child: Transform.rotate(
+                      angle: 0.42,
+                      child: Container(
+                        width: 48,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [
+                            Colors.white.withValues(alpha: 0),
+                            Colors.white.withValues(alpha: 0.07),
+                            Colors.white.withValues(alpha: 0),
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                  child: Column(children: [
+                    Row(children: [
+                      Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.22),
+                                width: 1,
+                              )),
+                          child: const Icon(Icons.savings_rounded,
+                              color: Colors.white, size: 22)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text('${lista.length} Ahorradores',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 20)),
+                            Text('Total: ${formatCop(total)}',
+                                style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.80),
+                                    fontSize: 13)),
+                          ])),
+                      Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('Sistema de',
+                                style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.50),
+                                    fontSize: 10)),
+                            const Text('SAF',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.5)),
+                          ]),
+                    ]),
+                    const SizedBox(height: 14),
+                    Row(children: [
+                      _ahorMiniStat(Icons.check_circle_outline_rounded,
+                          'Al día', '$alDiaCount', const Color(0xFF6EE7B7)),
+                      Container(
+                          width: 1,
+                          height: 30,
+                          color: Colors.white.withValues(alpha: 0.2)),
+                      _ahorMiniStat(Icons.warning_amber_rounded, 'En mora',
+                          '$enMoraCount', const Color(0xFFFCA5A5)),
+                      Container(
+                          width: 1,
+                          height: 30,
+                          color: Colors.white.withValues(alpha: 0.2)),
+                      _ahorMiniStat(Icons.calendar_today_outlined, 'Año',
+                          savingsYearFilter, Colors.white),
+                    ]),
+                  ]),
+                ),
+              ]),
+            ),
           ),
-          child: Column(children: [
-            Row(children: [
-              Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.savings_rounded,
-                      color: Colors.white, size: 22)),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text('${lista.length} Ahorradores',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 20)),
-                    Text('Total: ${formatCop(total)}',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.80),
-                            fontSize: 13)),
-                  ])),
-            ]),
-            const SizedBox(height: 14),
-            // Mini stats row
-            Row(children: [
-              _ahorMiniStat(Icons.check_circle_outline_rounded, 'Al día',
-                  '$alDiaCount', const Color(0xFF6EE7B7)),
-              Container(
-                  width: 1,
-                  height: 30,
-                  color: Colors.white.withValues(alpha: 0.2)),
-              _ahorMiniStat(Icons.warning_amber_rounded, 'En mora',
-                  '$enMoraCount', const Color(0xFFFCA5A5)),
-              Container(
-                  width: 1,
-                  height: 30,
-                  color: Colors.white.withValues(alpha: 0.2)),
-              _ahorMiniStat(Icons.calendar_today_outlined, 'Año',
-                  savingsYearFilter, Colors.white),
-            ]),
-          ]),
         ),
 
         const SizedBox(height: 14),
@@ -1968,7 +2029,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   .toList(),
               onChanged: (v) {
                 if (v == null) return;
-                refresh(() => savingsYearFilter = v);
+                refresh(() { savingsYearFilter = v; savingsCurrentPage = 1; });
                 reloadSavers();
               },
             ),
@@ -1988,7 +2049,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   .toList(),
               onChanged: (v) {
                 if (v == null) return;
-                refresh(() => savingsAdvisorFilter = v);
+                refresh(() { savingsAdvisorFilter = v; savingsCurrentPage = 1; });
               },
             ),
           ]),
@@ -2000,6 +2061,20 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF3730A3), Color(0xFF4F46E5)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(Icons.people_alt_rounded,
+                  color: Colors.white, size: 15),
+            ),
+            const SizedBox(width: 9),
             const Expanded(
                 child: Text('Lista de Ahorradores',
                     style: TextStyle(
@@ -2011,13 +2086,17 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                      color: const Color(0xFF4361EE).withValues(alpha: 0.1),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF3730A3), Color(0xFF4F46E5)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       borderRadius: BorderRadius.circular(20)),
                   child: Text('${lista.length}',
                       style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF4361EE)))),
+                          color: Colors.white))),
           ]),
         ),
         const SizedBox(height: 10),
@@ -2031,14 +2110,151 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                     style: const TextStyle(color: Color(0xFF8899BB)))),
           )
         else
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-            itemCount: lista.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => buildSaverCard(lista[i]),
-          ),
+          Builder(builder: (_) {
+            final totalPags = ((lista.length - 1) ~/ HomeController.savingsPageSize) + 1;
+            final pag = savingsCurrentPage.clamp(1, totalPags);
+            final desde = (pag - 1) * HomeController.savingsPageSize;
+            final hasta = (desde + HomeController.savingsPageSize).clamp(0, lista.length);
+            final pagina = lista.sublist(desde, hasta);
+            return Column(children: [
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                itemCount: pagina.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, i) {
+                  final delay = (i * 0.08).clamp(0.0, 0.45);
+                  final end = (i * 0.08 + 0.70).clamp(0.5, 1.0);
+                  return TweenAnimationBuilder<double>(
+                    key: ValueKey('saver_${desde + i}'),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 600),
+                    curve: Interval(delay, end, curve: Curves.easeOutBack),
+                    builder: (_, v, child) => Opacity(
+                      opacity: v.clamp(0.0, 1.0),
+                      child: Transform.translate(
+                        offset: Offset(0, 24 * (1 - v.clamp(0.0, 1.0))),
+                        child: child,
+                      ),
+                    ),
+                    child: buildSaverCard(pagina[i]),
+                  );
+                },
+              ),
+              if (totalPags > 1)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF8FAFF), Color(0xFFEEF2FF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.15)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF4F46E5).withValues(alpha: 0.07),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Row(children: [
+                      // Prev button
+                      GestureDetector(
+                        onTap: pag > 1 ? () => refresh(() => savingsCurrentPage = pag - 1) : null,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            gradient: pag > 1
+                                ? const LinearGradient(
+                                    colors: [Color(0xFF3730A3), Color(0xFF4F46E5)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  )
+                                : null,
+                            color: pag > 1 ? null : const Color(0xFFE2E8F0),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: pag > 1
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Icon(Icons.chevron_left_rounded,
+                              color: pag > 1 ? Colors.white : const Color(0xFF9CA3AF),
+                              size: 22),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Page info
+                      Expanded(
+                        child: Column(children: [
+                          Text('Página $pag de $totalPags',
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0D1B4B))),
+                          const SizedBox(height: 2),
+                          Text('${lista.length} ahorradores · ${pagina.length} en esta página',
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF8899BB),
+                                  fontWeight: FontWeight.w500)),
+                        ]),
+                      ),
+                      const SizedBox(width: 10),
+                      // Next button
+                      GestureDetector(
+                        onTap: pag < totalPags
+                            ? () => refresh(() => savingsCurrentPage = pag + 1)
+                            : null,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            gradient: pag < totalPags
+                                ? const LinearGradient(
+                                    colors: [Color(0xFF3730A3), Color(0xFF4F46E5)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  )
+                                : null,
+                            color: pag < totalPags ? null : const Color(0xFFE2E8F0),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: pag < totalPags
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Icon(Icons.chevron_right_rounded,
+                              color: pag < totalPags ? Colors.white : const Color(0xFF9CA3AF),
+                              size: 22),
+                        ),
+                      ),
+                    ]),
+                  ),
+                )
+              else
+                const SizedBox(height: 20),
+            ]);
+          }),
       ],
     );
   }
@@ -2281,168 +2497,257 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         return Theme(
           data: ThemeData.light(useMaterial3: true).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: Color(0xFF4361EE),
+              primary: Color(0xFF4F46E5),
               onPrimary: Colors.white,
               surface: Colors.white,
               onSurface: Color(0xFF0D1B4B),
             ),
             inputDecorationTheme: InputDecorationTheme(
               filled: true,
-              fillColor: const Color(0xFFF8F9FF),
-              labelStyle: const TextStyle(color: Color(0xFF6B7280)),
+              fillColor: const Color(0xFFF4F6FF),
+              labelStyle: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: Color(0xFFDDE3F0)),
               ),
               enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: Color(0xFFDDE3F0)),
               ),
               focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide:
-                    const BorderSide(color: Color(0xFF4361EE), width: 2),
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 2),
               ),
+              prefixIconColor: const Color(0xFF4F46E5),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
           ),
           child: Dialog(
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            elevation: 0,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              // Header with gradient
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF4361EE), Color(0xFF7B5EA7)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                ),
-                child: Column(children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
+              // ── Premium header ──────────────────────────────────────────
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0xFF0F0A3C),
+                        Color(0xFF1E1265),
+                        Color(0xFF3730A3),
+                        Color(0xFF4F46E5),
+                      ],
+                      stops: [0.0, 0.3, 0.65, 1.0],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    child: const Icon(Icons.savings_rounded,
-                        color: Colors.white, size: 28),
                   ),
-                  const SizedBox(height: 8),
-                  Text('Registrar cuota de $mes',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white)),
-                ]),
+                  child: Stack(children: [
+                    // Orb top-right
+                    Positioned(right: -20, top: -20,
+                      child: Container(width: 90, height: 90,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(colors: [
+                            const Color(0xFF818CF8).withValues(alpha: 0.25),
+                            Colors.transparent,
+                          ]),
+                        ))),
+                    // Orb bottom-left
+                    Positioned(left: -10, bottom: -15,
+                      child: Container(width: 60, height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(colors: [
+                            const Color(0xFF6366F1).withValues(alpha: 0.20),
+                            Colors.transparent,
+                          ]),
+                        ))),
+                    // Shimmer sweep
+                    Positioned.fill(
+                      child: OverflowBox(
+                        maxWidth: double.infinity,
+                        child: Transform.translate(
+                          offset: const Offset(80, 0),
+                          child: Transform.rotate(angle: 0.4,
+                            child: Container(
+                              width: 40,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(colors: [
+                                  Colors.white.withValues(alpha: 0),
+                                  Colors.white.withValues(alpha: 0.10),
+                                  Colors.white.withValues(alpha: 0),
+                                ]),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Content
+                    Center(child: Column(children: [
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF818CF8), Color(0xFF4F46E5), Color(0xFF3730A3)],
+                            stops: [0.0, 0.5, 1.0],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF4F46E5).withValues(alpha: 0.50),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.savings_rounded, color: Colors.white, size: 28),
+                      ),
+                      const SizedBox(height: 12),
+                      Text('Registrar cuota',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white.withValues(alpha: 0.70),
+                              letterSpacing: 1.2)),
+                      const SizedBox(height: 2),
+                      Text(mes,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                              letterSpacing: -0.5)),
+                    ])),
+                  ]),
+                ),
               ),
-              // Form fields
+
+              // ── Form fields ────────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  // Valor pagado
                   TextField(
                     controller: valorCtrl,
                     keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
+                    style: const TextStyle(color: Color(0xFF0D1B4B), fontWeight: FontWeight.w600, fontSize: 15),
+                    decoration: const InputDecoration(
                       labelText: 'Valor pagado',
                       prefixText: '\$ ',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                            color: Color(0xFF4361EE), width: 2),
-                      ),
-                      prefixIcon: const Icon(Icons.attach_money_rounded,
-                          color: Color(0xFF4361EE)),
+                      prefixIcon: Icon(Icons.attach_money_rounded),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  InkWell(
+
+                  // Fecha de pago — styled row
+                  GestureDetector(
                     onTap: saving
                         ? null
                         : () async {
-                            final elegida = await showDatePicker(
-                              context: ctx,
+                            final elegida = await showLightDatePicker(
+                              ctx,
                               initialDate: fecha,
                               firstDate: DateTime(2020),
                               lastDate: DateTime.now(),
-                              builder: (c, child) => Theme(
-                                data: Theme.of(c).copyWith(
-                                    colorScheme: const ColorScheme.light(
-                                        primary: Color(0xFF4361EE),
-                                        onPrimary: Colors.white,
-                                        surface: Colors.white,
-                                        onSurface: Color(0xFF0D1B4B))),
-                                child: child!,
-                              ),
                             );
                             if (elegida != null) setS(() => fecha = elegida);
                           },
-                    borderRadius: BorderRadius.circular(10),
-                    child: InputDecorator(
-                      decoration: InputDecoration(
-                        labelText: 'Fecha de pago',
-                        prefixIcon: const Icon(Icons.calendar_today_outlined,
-                            color: Color(0xFF4361EE)),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10)),
+                    child: Container(
+                      height: 54,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF4F6FF),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFDDE3F0)),
                       ),
-                      child: Text(fechaTexto()),
+                      child: Row(children: [
+                        const Icon(Icons.calendar_today_outlined,
+                            color: Color(0xFF4F46E5), size: 18),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('Fecha de pago',
+                                  style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF6B7280))),
+                              Text(fechaTexto(),
+                                  style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF0D1B4B))),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.edit_calendar_rounded,
+                            color: Color(0xFF4F46E5), size: 16),
+                      ]),
                     ),
                   ),
                   const SizedBox(height: 12),
+
+                  // Comentario
                   TextField(
                     controller: detalleCtrl,
                     minLines: 2,
                     maxLines: 3,
-                    decoration: InputDecoration(
+                    style: const TextStyle(color: Color(0xFF0D1B4B), fontSize: 13),
+                    decoration: const InputDecoration(
                       labelText: 'Comentario (opcional)',
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(
-                            color: Color(0xFF4361EE), width: 2),
-                      ),
-                      prefixIcon: const Icon(Icons.comment_outlined,
-                          color: Color(0xFF4361EE)),
+                      prefixIcon: Icon(Icons.comment_outlined),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
+
+                  // Buttons
                   Row(children: [
                     Expanded(
                       child: GestureDetector(
                         onTap: saving ? null : () => Navigator.pop(ctx),
                         child: Container(
-                          height: 44,
+                          height: 50,
                           decoration: BoxDecoration(
                             gradient: saving
                                 ? null
                                 : const LinearGradient(
-                                    colors: [
-                                      Color(0xFFDC2626),
-                                      Color(0xFFEF4444)
-                                    ],
+                                    colors: [Color(0xFF991B1B), Color(0xFFDC2626), Color(0xFFEF4444)],
+                                    stops: [0.0, 0.5, 1.0],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
-                            color: saving ? Colors.grey.shade300 : null,
-                            borderRadius: BorderRadius.circular(10),
+                            color: saving ? const Color(0xFFE5E7EB) : null,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: saving ? null : [
+                              BoxShadow(
+                                color: const Color(0xFFDC2626).withValues(alpha: 0.40),
+                                blurRadius: 14,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
                           ),
                           child: const Center(
-                            child: Text('Cancelar',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14)),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.close_rounded, color: Colors.white, size: 16),
+                              SizedBox(width: 6),
+                              Text('Cancelar',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14)),
+                            ]),
                           ),
                         ),
                       ),
@@ -2452,41 +2757,47 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                       child: GestureDetector(
                         onTap: saving ? null : guardar,
                         child: Container(
-                          height: 44,
+                          height: 50,
                           decoration: BoxDecoration(
                             gradient: saving
                                 ? null
                                 : const LinearGradient(
-                                    colors: [
-                                      Color(0xFF059669),
-                                      Color(0xFF34D399)
-                                    ],
+                                    colors: [Color(0xFF065F46), Color(0xFF059669), Color(0xFF34D399)],
+                                    stops: [0.0, 0.55, 1.0],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
-                            color: saving ? Colors.grey.shade300 : null,
-                            borderRadius: BorderRadius.circular(10),
+                            color: saving ? const Color(0xFFE5E7EB) : null,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: saving ? null : [
+                              BoxShadow(
+                                color: const Color(0xFF059669).withValues(alpha: 0.45),
+                                blurRadius: 16,
+                                offset: const Offset(0, 5),
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFF34D399).withValues(alpha: 0.20),
+                                blurRadius: 28,
+                                spreadRadius: -4,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
                           ),
                           child: Center(
                             child: saving
                                 ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
+                                    width: 20, height: 20,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white))
-                                : const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.save_rounded,
-                                          color: Colors.white, size: 16),
-                                      SizedBox(width: 6),
-                                      Text('Registrar',
-                                          style: TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 14)),
-                                    ],
-                                  ),
+                                        strokeWidth: 2.5, color: Colors.white))
+                                : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                    Icon(Icons.save_rounded, color: Colors.white, size: 17),
+                                    SizedBox(width: 7),
+                                    Text('Registrar',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 14)),
+                                  ]),
                           ),
                         ),
                       ),
@@ -2560,86 +2871,91 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
           }
         }
 
-        Widget gradientButton({
+        Widget premiumButton({
           required String label,
           required IconData icon,
           required List<Color> colors,
           required VoidCallback? onTap,
           bool loading = false,
-        }) =>
-            Opacity(
-              opacity: onTap == null ? 0.55 : 1,
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: onTap,
-                  borderRadius: BorderRadius.circular(13),
-                  child: Ink(
-                    height: 46,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: colors,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(13),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colors.first.withValues(alpha: 0.30),
-                          blurRadius: 12,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (loading)
-                          const SizedBox(
-                            width: 17,
-                            height: 17,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white),
-                          )
-                        else
-                          Icon(icon, size: 18, color: Colors.white),
-                        const SizedBox(width: 7),
-                        Flexible(
-                          child: Text(label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700)),
-                        ),
-                      ],
-                    ),
+        }) {
+          final shadow = colors.first;
+          return Opacity(
+            opacity: onTap == null ? 0.55 : 1,
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: colors,
+                    stops: colors.length == 3
+                        ? const [0.0, 0.55, 1.0]
+                        : null,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: shadow.withValues(alpha: 0.42),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                    BoxShadow(
+                      color: shadow.withValues(alpha: 0.18),
+                      blurRadius: 24,
+                      spreadRadius: -4,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  if (loading)
+                    const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: Colors.white),
+                    )
+                  else
+                    Icon(icon, size: 17, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800)),
+                  ),
+                ]),
               ),
-            );
+            ),
+          );
+        }
 
         return Dialog(
           backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
             child: Container(
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(
-                    color: const Color(0xFF4361EE).withValues(alpha: 0.16)),
+                borderRadius: BorderRadius.circular(26),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0D1B4B).withValues(alpha: 0.24),
-                    blurRadius: 30,
-                    offset: const Offset(0, 12),
+                    color: const Color(0xFF0D1B4B).withValues(alpha: 0.30),
+                    blurRadius: 40,
+                    offset: const Offset(0, 16),
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                    blurRadius: 60,
+                    spreadRadius: -8,
+                    offset: const Offset(0, 20),
                   ),
                 ],
               ),
@@ -2648,91 +2964,156 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(18, 18, 12, 18),
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color(0xFF0D1B4B),
-                            Color(0xFF3730A3),
-                            Color(0xFF4361EE),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 46,
-                            height: 46,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(13),
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.18)),
-                            ),
-                            child: const Icon(Icons.receipt_long_rounded,
-                                color: Colors.white, size: 24),
+                    // ── Premium header ──────────────────────────────
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(18, 20, 14, 20),
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color(0xFF0F0A3C),
+                              Color(0xFF1E1265),
+                              Color(0xFF3730A3),
+                              Color(0xFF4F46E5),
+                            ],
+                            stops: [0.0, 0.3, 0.65, 1.0],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
+                        ),
+                        child: Stack(children: [
+                          // Orb top-right
+                          Positioned(right: -18, top: -18,
+                            child: Container(width: 80, height: 80,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: RadialGradient(colors: [
+                                  const Color(0xFF818CF8).withValues(alpha: 0.28),
+                                  Colors.transparent,
+                                ]),
+                              ))),
+                          // Orb bottom-left
+                          Positioned(left: -12, bottom: -16,
+                            child: Container(width: 55, height: 55,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                              ))),
+                          // Shimmer
+                          Positioned.fill(
+                            child: OverflowBox(
+                              maxWidth: double.infinity,
+                              child: Transform.translate(
+                                offset: const Offset(60, 0),
+                                child: Transform.rotate(angle: 0.4,
+                                  child: Container(width: 32,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(colors: [
+                                        Colors.white.withValues(alpha: 0),
+                                        Colors.white.withValues(alpha: 0.10),
+                                        Colors.white.withValues(alpha: 0),
+                                      ]),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Content
+                          Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF818CF8), Color(0xFF4F46E5), Color(0xFF3730A3)],
+                                  stops: [0.0, 0.5, 1.0],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF4F46E5).withValues(alpha: 0.50),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.receipt_long_rounded,
+                                  color: Colors.white, size: 24),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                 const Text('Detalle del Ahorro',
                                     style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 17,
-                                        fontWeight: FontWeight.w800)),
-                                const SizedBox(height: 5),
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -0.3)),
+                                const SizedBox(height: 4),
                                 Text(ahorrador,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                        color: Colors.white
-                                            .withValues(alpha: 0.82),
+                                        color: Colors.white.withValues(alpha: 0.80),
                                         fontSize: 12,
                                         fontWeight: FontWeight.w500)),
-                                const SizedBox(height: 3),
-                                Text(mesComprobante,
-                                    style: const TextStyle(
-                                        color: Color(0xFF67E8F9),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700)),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFFDC2626),
-                                  Color(0xFFF43F5E),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(11),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFFDC2626)
-                                      .withValues(alpha: 0.38),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
+                                const SizedBox(height: 5),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF06B6D4).withValues(alpha: 0.20),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: const Color(0xFF67E8F9).withValues(alpha: 0.40)),
+                                  ),
+                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    const Icon(Icons.calendar_month_rounded,
+                                        size: 10, color: Color(0xFF67E8F9)),
+                                    const SizedBox(width: 4),
+                                    Text(mesComprobante,
+                                        style: const TextStyle(
+                                            color: Color(0xFF67E8F9),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700)),
+                                  ]),
                                 ),
-                              ],
+                              ]),
                             ),
-                            child: IconButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              icon: const Icon(Icons.close_rounded,
-                                  color: Colors.white, size: 20),
-                              visualDensity: VisualDensity.compact,
+                            const SizedBox(width: 8),
+                            GestureDetector(
+                              onTap: () => Navigator.pop(ctx),
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFF991B1B), Color(0xFFDC2626), Color(0xFFF43F5E)],
+                                    stops: [0.0, 0.5, 1.0],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFDC2626).withValues(alpha: 0.45),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(Icons.close_rounded,
+                                    color: Colors.white, size: 18),
+                              ),
                             ),
-                          ),
-                        ],
+                          ]),
+                        ]),
                       ),
                     ),
+
+                    // ── Verified badge ──────────────────────────────
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                       child: Container(
@@ -2740,160 +3121,188 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [
-                              Color(0xFFEEF2FF),
-                              Color(0xFFE0F2FE),
-                            ],
+                            colors: [Color(0xFFDCFCE7), Color(0xFFBBF7D0), Color(0xFFD1FAE5)],
+                            stops: [0.0, 0.5, 1.0],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                              color: const Color(0xFF4361EE)
-                                  .withValues(alpha: 0.13)),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.30)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF059669).withValues(alpha: 0.10),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                        child: const Row(children: [
-                          Icon(Icons.verified_rounded,
-                              color: Color(0xFF16A34A), size: 24),
-                          SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Comprobante de cuota disponible',
-                                    style: TextStyle(
-                                        color: homeNavy,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w800)),
-                                SizedBox(height: 2),
-                                Text('Consulta o descarga el soporte de pago',
-                                    style: TextStyle(
-                                        color: Color(0xFF64748B),
-                                        fontSize: 10)),
+                        child: Row(children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF065F46), Color(0xFF059669)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF059669).withValues(alpha: 0.40),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
                               ],
                             ),
+                            child: const Icon(Icons.verified_rounded,
+                                color: Colors.white, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('Comprobante de cuota disponible',
+                                  style: TextStyle(
+                                      color: Color(0xFF064E3B),
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800)),
+                              SizedBox(height: 2),
+                              Text('Consulta o descarga el soporte de pago',
+                                  style: TextStyle(
+                                      color: Color(0xFF065F46),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w500)),
+                            ]),
                           ),
                         ]),
                       ),
                     ),
+
+                    // ── Detail table (expandable) ───────────────────
                     AnimatedSize(
-                      duration: const Duration(milliseconds: 260),
-                      curve: Curves.easeInOut,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOutCubic,
                       child: verComprobante
                           ? Container(
                               margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                              padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFF),
-                                borderRadius: BorderRadius.circular(16),
-                                border:
-                                    Border.all(color: const Color(0xFFE0E7FF)),
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFFF8FAFF), Color(0xFFEEF2FF)],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                ),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.15)),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF4361EE)
-                                        .withValues(alpha: 0.08),
-                                    blurRadius: 14,
-                                    offset: const Offset(0, 5),
+                                    color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 6),
                                   ),
                                 ],
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Row(children: [
-                                    Icon(Icons.description_outlined,
-                                        color: Color(0xFF4361EE), size: 20),
-                                    SizedBox(width: 8),
-                                    Text('Comprobante de Pago',
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                // Table header
+                                Container(
+                                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [Color(0xFF3730A3), Color(0xFF4F46E5)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                                  ),
+                                  child: Row(children: [
+                                    Container(
+                                      width: 30, height: 30,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.18),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.description_outlined,
+                                          color: Colors.white, size: 16),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    const Text('Comprobante de Pago',
                                         style: TextStyle(
-                                            fontSize: 16,
-                                            color: homeNavy,
+                                            fontSize: 14,
+                                            color: Colors.white,
                                             fontWeight: FontWeight.w800)),
                                   ]),
-                                  const SizedBox(height: 12),
-                                  _cuotaInfoRow('Ahorrador', ahorrador),
-                                  _cuotaInfoRow('Mes', mesComprobante),
-                                  _cuotaInfoRow('Fecha de Pago', fechaCorta),
-                                  _cuotaInfoRow(
-                                      'Valor Pagado', formatCop(valorPagado)),
-                                  _cuotaInfoRow('Código Cuota', codigoCuota),
-                                  const SizedBox(height: 12),
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFEEF2FF),
-                                      borderRadius: BorderRadius.circular(9),
+                                ),
+                                // Rows
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                                  child: Column(children: [
+                                    _cuotaInfoRow('Ahorrador', ahorrador),
+                                    _cuotaInfoRow('Mes', mesComprobante),
+                                    _cuotaInfoRow('Fecha de Pago', fechaCorta),
+                                    _cuotaInfoRow('Valor Pagado', formatCop(valorPagado)),
+                                    _cuotaInfoRow('Código Cuota', codigoCuota),
+                                  ]),
+                                ),
+                                // Footer
+                                Container(
+                                  margin: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
                                     ),
-                                    child: Text(
-                                      'Documento generado: $generado',
-                                      style: const TextStyle(
-                                          fontSize: 9,
-                                          color: Color(0xFF64748B),
-                                          fontWeight: FontWeight.w500),
-                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: const Color(0xFF4F46E5).withValues(alpha: 0.18)),
                                   ),
-                                ],
-                              ),
+                                  child: Row(children: [
+                                    const Icon(Icons.schedule_rounded,
+                                        size: 12, color: Color(0xFF4F46E5)),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text('Generado: $generado',
+                                          style: const TextStyle(
+                                              fontSize: 9,
+                                              color: Color(0xFF4338CA),
+                                              fontWeight: FontWeight.w600)),
+                                    ),
+                                  ]),
+                                ),
+                              ]),
                             )
                           : const SizedBox.shrink(),
                     ),
+
+                    // ── Action buttons ──────────────────────────────
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-                      child: LayoutBuilder(builder: (_, constraints) {
-                        final compacto = constraints.maxWidth < 430;
-                        final cerrar = gradientButton(
-                          label: 'Cerrar',
-                          icon: Icons.close_rounded,
-                          colors: const [
-                            Color(0xFFDC2626),
-                            Color(0xFFF43F5E),
-                          ],
-                          onTap: () => Navigator.pop(ctx),
-                        );
-                        final ver = gradientButton(
-                          label: verComprobante
-                              ? 'Comprobante visible'
-                              : 'Ver comprobante',
-                          icon: Icons.visibility_rounded,
-                          colors: const [
-                            Color(0xFF0D9488),
-                            Color(0xFF22C1C3),
-                          ],
-                          onTap: () => setS(() => verComprobante = true),
-                        );
-                        final pdf = gradientButton(
-                          label:
-                              generandoPdf ? 'Generando...' : 'Descargar PDF',
-                          icon: Icons.picture_as_pdf_rounded,
-                          colors: const [
-                            Color(0xFF4338CA),
-                            Color(0xFF6366F1),
-                          ],
-                          loading: generandoPdf,
-                          onTap: generandoPdf ? null : descargar,
-                        );
-                        if (compacto) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              ver,
-                              const SizedBox(height: 9),
-                              pdf,
-                              const SizedBox(height: 9),
-                              cerrar,
-                            ],
-                          );
-                        }
-                        return Row(children: [
-                          Expanded(child: cerrar),
-                          const SizedBox(width: 9),
-                          Expanded(child: ver),
-                          const SizedBox(width: 9),
-                          Expanded(child: pdf),
-                        ]);
-                      }),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          premiumButton(
+                            label: verComprobante ? 'Comprobante visible' : 'Ver comprobante',
+                            icon: Icons.visibility_rounded,
+                            colors: const [Color(0xFF065F46), Color(0xFF059669), Color(0xFF10B981)],
+                            onTap: () => setS(() => verComprobante = true),
+                          ),
+                          const SizedBox(height: 10),
+                          premiumButton(
+                            label: generandoPdf ? 'Generando...' : 'Descargar PDF',
+                            icon: Icons.picture_as_pdf_rounded,
+                            colors: const [Color(0xFF1E1265), Color(0xFF3730A3), Color(0xFF6366F1)],
+                            loading: generandoPdf,
+                            onTap: generandoPdf ? null : descargar,
+                          ),
+                          const SizedBox(height: 10),
+                          premiumButton(
+                            label: 'Cerrar',
+                            icon: Icons.close_rounded,
+                            colors: const [Color(0xFF7F1D1D), Color(0xFFDC2626), Color(0xFFF43F5E)],
+                            onTap: () => Navigator.pop(ctx),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -2991,23 +3400,30 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         '$hora12:${dos(ahora.minute)}:${dos(ahora.second)} $periodo';
   }
 
-  Widget _cuotaInfoRow(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
+  Widget _cuotaInfoRow(String label, String value) => Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE0E7FF)),
+        ),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(
             width: 105,
             child: Text(label,
                 style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
+                    fontSize: 11,
+                    color: Color(0xFF6B7280),
                     fontWeight: FontWeight.w600)),
           ),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(value.isEmpty ? 'Sin información' : value,
                 style: const TextStyle(
                     fontSize: 12,
                     color: homeNavy,
-                    fontWeight: FontWeight.w700)),
+                    fontWeight: FontWeight.w800)),
           ),
         ]),
       );
@@ -3032,10 +3448,11 @@ class ExpandableSaverCard extends StatefulWidget {
 }
 
 class _ExpandableSaverCardState extends State<ExpandableSaverCard>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   bool _expanded = false;
   late final AnimationController _ctrl;
   late final Animation<double> _anim;
+  late final AnimationController _shimmer;
 
   @override
   void initState() {
@@ -3043,11 +3460,15 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
     _ctrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 260));
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+    _shimmer = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _shimmer.dispose();
     super.dispose();
   }
 
@@ -3130,13 +3551,31 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(17)),
               child: Container(
-                height: 4,
+                height: 5,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: enMora
-                        ? [const Color(0xFFDC2626), const Color(0xFFF87171)]
-                        : [const Color(0xFF4361EE), const Color(0xFF6366F1)],
+                        ? [
+                            const Color(0xFF991B1B),
+                            const Color(0xFFDC2626),
+                            const Color(0xFFF87171)
+                          ]
+                        : [
+                            const Color(0xFF3730A3),
+                            const Color(0xFF4361EE),
+                            const Color(0xFF6366F1)
+                          ],
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: (enMora
+                              ? const Color(0xFFDC2626)
+                              : const Color(0xFF4361EE))
+                          .withValues(alpha: 0.55),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -3148,20 +3587,33 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 // Avatar
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4361EE), Color(0xFF6366F1)],
+                    gradient: LinearGradient(
+                      colors: enMora
+                          ? [
+                              const Color(0xFFEF4444),
+                              const Color(0xFFDC2626),
+                              const Color(0xFF991B1B)
+                            ]
+                          : [
+                              const Color(0xFF818CF8),
+                              const Color(0xFF4361EE),
+                              const Color(0xFF3730A3)
+                            ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(13),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF4361EE).withValues(alpha: 0.30),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                        color: (enMora
+                                ? const Color(0xFFDC2626)
+                                : const Color(0xFF4361EE))
+                            .withValues(alpha: 0.45),
+                        blurRadius: 12,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
@@ -3198,13 +3650,20 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                             decoration: BoxDecoration(
                               color: _purple.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                  color: _purple.withValues(alpha: 0.20)),
                             ),
                             child:
                                 Row(mainAxisSize: MainAxisSize.min, children: [
-                              Icon(Icons.person_outline_rounded,
-                                  size: 10,
-                                  color: _purple.withValues(alpha: 0.8)),
-                              const SizedBox(width: 3),
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(
+                                  color: _purple,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
                               Text(asesor,
                                   style: TextStyle(
                                       fontSize: 10,
@@ -3217,21 +3676,27 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                               horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
                             color: enMora
-                                ? const Color(0xFFFEE2E2)
-                                : const Color(0xFFDCFCE7),
+                                ? const Color(0xFFDC2626).withValues(alpha: 0.08)
+                                : const Color(0xFF16A34A).withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: enMora
+                                  ? const Color(0xFFDC2626).withValues(alpha: 0.25)
+                                  : const Color(0xFF16A34A).withValues(alpha: 0.25),
+                            ),
                           ),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(
-                              enMora
-                                  ? Icons.warning_amber_rounded
-                                  : Icons.check_circle_rounded,
-                              size: 10,
-                              color: enMora
-                                  ? const Color(0xFFDC2626)
-                                  : const Color(0xFF16A34A),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: enMora
+                                    ? const Color(0xFFDC2626)
+                                    : const Color(0xFF16A34A),
+                                shape: BoxShape.circle,
+                              ),
                             ),
-                            const SizedBox(width: 3),
+                            const SizedBox(width: 4),
                             Text(
                               enMora ? 'En mora' : 'Al día',
                               style: TextStyle(
@@ -3255,41 +3720,105 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                   children: [
                     RotationTransition(
                       turns: Tween(begin: 0.0, end: 0.5).animate(_anim),
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 260),
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF0F2FA),
+                          gradient: LinearGradient(
+                            colors: _expanded
+                                ? [
+                                    const Color(0xFF3730A3).withValues(alpha: 0.2),
+                                    const Color(0xFF4F46E5).withValues(alpha: 0.3)
+                                  ]
+                                : [
+                                    const Color(0xFFE8ECF4),
+                                    const Color(0xFFF0F2FA)
+                                  ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(7),
                         ),
-                        child: const Icon(Icons.keyboard_arrow_down_rounded,
-                            size: 15, color: Color(0xFF8899BB)),
+                        child: Icon(Icons.keyboard_arrow_down_rounded,
+                            size: 15,
+                            color: _expanded
+                                ? const Color(0xFF4361EE)
+                                : const Color(0xFF8899BB)),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 9, vertical: 6),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF4361EE), Color(0xFF6366F1)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                    AnimatedBuilder(
+                      animation: _shimmer,
+                      builder: (_, __) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 9, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF0F0A3C),
+                              Color(0xFF3730A3),
+                              Color(0xFF4361EE),
+                              Color(0xFF6366F1),
+                            ],
+                            stops: [0.0, 0.35, 0.70, 1.0],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF4361EE)
+                                  .withValues(alpha: 0.38 + 0.18 * _shimmer.value),
+                              blurRadius: 10 + 6 * _shimmer.value,
+                              offset: const Offset(0, 3),
+                            ),
+                            BoxShadow(
+                              color: const Color(0xFF3730A3)
+                                  .withValues(alpha: 0.18 + 0.08 * _shimmer.value),
+                              blurRadius: 16 + 6 * _shimmer.value,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(widget.cop(total),
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 12,
-                                  color: Colors.white)),
-                          Text('ahorrado',
-                              style: TextStyle(
-                                  fontSize: 9,
-                                  color: Colors.white.withValues(alpha: 0.75))),
-                        ],
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Stack(children: [
+                            Positioned.fill(
+                              child: Transform.translate(
+                                offset: Offset(
+                                    (_shimmer.value * 2 - 1) * 60, 0),
+                                child: Transform.rotate(
+                                  angle: 0.5,
+                                  child: Container(
+                                    width: 20,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(colors: [
+                                        Colors.white.withValues(alpha: 0),
+                                        Colors.white.withValues(alpha: 0.15),
+                                        Colors.white.withValues(alpha: 0),
+                                      ]),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(widget.cop(total),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12,
+                                        color: Colors.white)),
+                                Text('ahorrado',
+                                    style: TextStyle(
+                                        fontSize: 9,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.75))),
+                              ],
+                            ),
+                          ]),
+                        ),
                       ),
                     ),
                   ],
@@ -3301,12 +3830,37 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
             SizeTransition(
               sizeFactor: _anim,
               child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFF),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFFF0F3FF),
+                      Color(0xFFF5F0FF),
+                      Color(0xFFF8FAFF),
+                    ],
+                    stops: [0.0, 0.5, 1.0],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius:
-                      const BorderRadius.vertical(bottom: Radius.circular(17)),
+                      BorderRadius.vertical(bottom: Radius.circular(17)),
                 ),
-                child: Column(
+                child: Stack(children: [
+                  Positioned(
+                    right: -18,
+                    bottom: -18,
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(colors: [
+                          const Color(0xFF4361EE).withValues(alpha: 0.12),
+                          Colors.transparent,
+                        ]),
+                      ),
+                    ),
+                  ),
+                  Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
@@ -3387,19 +3941,40 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                         ]),
                       ),
                       SizedBox(
-                        height: 90,
+                        height: 96,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
                           itemCount: meses.length,
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (_, i) => _mesChip(a, meses[i]),
+                          itemBuilder: (_, i) {
+                            final interval = Interval(
+                              (i * 0.07).clamp(0.0, 0.50),
+                              (i * 0.07 + 0.55).clamp(0.40, 1.0),
+                              curve: Curves.easeOutBack,
+                            );
+                            return TweenAnimationBuilder<double>(
+                              key: ValueKey('mes_${a['codigo'] ?? ''}_$i'),
+                              tween: Tween(begin: 0.0, end: 1.0),
+                              duration: const Duration(milliseconds: 700),
+                              curve: interval,
+                              builder: (_, t, child) => Opacity(
+                                opacity: t.clamp(0.0, 1.0),
+                                child: Transform.translate(
+                                  offset: Offset(0, 14 * (1 - t)),
+                                  child: child,
+                                ),
+                              ),
+                              child: _mesChip(a, meses[i]),
+                            );
+                          },
                         ),
                       ),
                     ],
                     const SizedBox(height: 14),
                   ],
                 ),
+                ]),
               ),
             ),
           ],
@@ -3409,42 +3984,71 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
   }
 
   Widget _detailChip(
-          IconData icon, String label, String value, Color c1, Color c2) =>
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [c1.withValues(alpha: 0.08), c2.withValues(alpha: 0.15)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+      IconData icon, String label, String value, Color c1, Color c2) =>
+      ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Stack(children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(15, 10, 12, 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [c1.withValues(alpha: 0.15), c2.withValues(alpha: 0.25)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: c1.withValues(alpha: 0.25)),
+              boxShadow: [
+                BoxShadow(
+                    color: c1.withValues(alpha: 0.12),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3)),
+              ],
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: c1.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(icon, size: 11, color: c1),
+                ),
+                const SizedBox(width: 5),
+                Flexible(
+                  child: Text(label,
+                      style: TextStyle(
+                          fontSize: 10,
+                          color: c1.withValues(alpha: 0.8),
+                          fontWeight: FontWeight.w600)),
+                ),
+              ]),
+              const SizedBox(height: 6),
+              Text(value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: c1.withValues(alpha: 0.95))),
+            ]),
           ),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: c1.withValues(alpha: 0.20)),
-          boxShadow: [
-            BoxShadow(
-                color: c1.withValues(alpha: 0.08),
-                blurRadius: 6,
-                offset: const Offset(0, 2)),
-          ],
-        ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            Icon(icon, size: 12, color: c1),
-            const SizedBox(width: 4),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 10,
-                    color: c1.withValues(alpha: 0.8),
-                    fontWeight: FontWeight.w600)),
-          ]),
-          const SizedBox(height: 5),
-          Text(value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: c1.withValues(alpha: 0.9))),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: Container(
+              width: 3,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [c1, c2],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+          ),
         ]),
       );
 
@@ -3463,71 +4067,144 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
         !DateTime(fc.year, fc.month, fc.day).isAfter(_hoyColombia());
 
     final esPagado = estadoPago.toLowerCase().contains('pagado');
-    // Vencida y sin pagar → roja; futura sin pagar → gris (pendiente).
     final esNoPago = !esPagado && vencida;
     final esFuturo = !esPagado && !vencida;
 
-    final textColor = esPagado
-        ? const Color(0xFF16A34A)
-        : esNoPago
-            ? const Color(0xFFDC2626)
-            : const Color(0xFF8899BB);
     final icon = esPagado
         ? Icons.check_circle_rounded
         : esNoPago
             ? Icons.cancel_rounded
             : Icons.radio_button_unchecked_rounded;
 
-    final gradColors = esPagado
-        ? [const Color(0xFFDCFCE7), const Color(0xFFBBF7D0)]
+    final List<Color> gradColors = esPagado
+        ? [const Color(0xFF064E3B), const Color(0xFF059669), const Color(0xFF34D399)]
         : esNoPago
-            ? [const Color(0xFFFEE2E2), const Color(0xFFFECDD3)]
-            : [const Color(0xFFF0F2FA), const Color(0xFFE8ECF4)];
+            ? [const Color(0xFF7F1D1D), const Color(0xFFDC2626), const Color(0xFFF87171)]
+            : [
+                const Color(0xFFEEF2FF),
+                const Color(0xFFE0E7FF),
+              ];
+
+    final iconColor = esFuturo ? const Color(0xFF4F46E5) : Colors.white;
+    final textColor = esFuturo ? const Color(0xFF3730A3) : Colors.white;
+    final borderColor = esPagado
+        ? const Color(0xFF059669).withValues(alpha: 0.50)
+        : esNoPago
+            ? const Color(0xFFDC2626).withValues(alpha: 0.50)
+            : const Color(0xFF4F46E5).withValues(alpha: 0.20);
+
+    final glowColor = esPagado
+        ? const Color(0xFF059669)
+        : esNoPago
+            ? const Color(0xFFDC2626)
+            : const Color(0xFF4361EE);
+
+    Widget chipContent = AnimatedBuilder(
+      animation: _shimmer,
+      builder: (_, child) => Container(
+        width: 88,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: (esPagado || esNoPago)
+              ? [
+                  BoxShadow(
+                    color: glowColor.withValues(
+                        alpha: (esPagado ? 0.30 : 0.25) +
+                            (esPagado ? 0.20 : 0.12) * _shimmer.value),
+                    blurRadius:
+                        (esPagado ? 10.0 : 8.0) + 5 * _shimmer.value,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: child,
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          width: 88,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: gradColors,
+              stops: esPagado || esNoPago ? const [0.0, 0.55, 1.0] : null,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(color: borderColor, width: 1.2),
+          ),
+          child: Stack(children: [
+            // Shimmer sweep for paid chips
+            if (esPagado)
+              Positioned.fill(
+                child: OverflowBox(
+                  maxWidth: double.infinity,
+                  child: Transform.translate(
+                    offset: Offset((_shimmer.value * 2 - 1) * 100, 0),
+                    child: Transform.rotate(
+                      angle: 0.5,
+                      child: Container(
+                        width: 24,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [
+                            Colors.white.withValues(alpha: 0),
+                            Colors.white.withValues(alpha: 0.20),
+                            Colors.white.withValues(alpha: 0),
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            Positioned.fill(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: esFuturo
+                          ? const Color(0xFF4361EE).withValues(alpha: 0.12)
+                          : Colors.white.withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(icon, color: iconColor, size: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(mes,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
+                          letterSpacing: -0.2)),
+                  const SizedBox(height: 2),
+                  Text(
+                    esFuturo ? '—' : widget.cop(valor),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        color: textColor.withValues(alpha: 0.85)),
+                  ),
+                ],
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: () => unawaited(widget.onCuotaTap(ahorro, m)),
-        borderRadius: BorderRadius.circular(14),
-        child: Ink(
-          width: 84,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: gradColors,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: textColor.withValues(alpha: 0.18),
-              width: 1,
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: textColor, size: 20),
-              const SizedBox(height: 5),
-              Text(mes,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                      letterSpacing: -0.2)),
-              const SizedBox(height: 3),
-              Text(
-                esFuturo ? '—' : widget.cop(valor),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                    color: textColor.withValues(alpha: 0.8)),
-              ),
-            ],
-          ),
-        ),
+        borderRadius: BorderRadius.circular(16),
+        child: chipContent,
       ),
     );
   }

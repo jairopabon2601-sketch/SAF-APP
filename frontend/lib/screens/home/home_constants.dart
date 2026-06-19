@@ -144,6 +144,42 @@ String formatCop(double amount) {
   return '${negative ? '-' : ''}\$ $formatted';
 }
 
+Future<DateTime?> showLightDatePicker(
+  BuildContext context, {
+  required DateTime initialDate,
+  required DateTime firstDate,
+  required DateTime lastDate,
+}) =>
+    showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      builder: (ctx, child) => Theme(
+        data: ThemeData.light().copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: Color(0xFF4F46E5),
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: Color(0xFF0D1B4B),
+            onSurfaceVariant: Color(0xFF4A5578),
+          ),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF4F46E5),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+          dialogTheme: const DialogThemeData(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(20)),
+            ),
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
 IconData accountIcon(String accountType) {
   final normalized = accountType.toLowerCase();
   if (normalized.contains('efectivo') || normalized.contains('caja')) {
