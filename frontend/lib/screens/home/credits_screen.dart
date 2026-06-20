@@ -2829,37 +2829,50 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
   }
 
   // ── Diálogo de resultado (éxito / error) ─────────────────────────
-  Widget buildResultDialog(String msg, bool ok) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(screenContext).size.height * 0.78,
-          ),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
+  Widget buildResultDialog(String msg, bool ok,
+      {String? title, IconData? icon}) {
+    final Color colorA =
+        ok ? const Color(0xFF059669) : const Color(0xFFDC2626);
+    final Color colorB =
+        ok ? const Color(0xFF34D399) : const Color(0xFFEF4444);
+    final String heading =
+        title ?? (ok ? '¡Operación exitosa!' : 'Algo salió mal');
+    final IconData icono =
+        icon ?? (ok ? Icons.check_rounded : Icons.error_outline_rounded);
+
+    return Dialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(screenContext).size.height * 0.78,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: ok
-                      ? [const Color(0xFF059669), const Color(0xFF34D399)]
-                      : [const Color(0xFFDC2626), const Color(0xFFEF4444)],
+                  colors: [colorA, colorB],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: colorA.withValues(alpha: 0.30),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
               ),
-              child: Icon(
-                ok ? Icons.check_rounded : Icons.error_outline_rounded,
-                color: Colors.white,
-                size: 28,
-              ),
+              child: Icon(icono, color: Colors.white, size: 30),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             Text(
-              ok ? '¡Operación exitosa!' : 'Algo salió mal',
+              heading,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
@@ -2868,28 +2881,24 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             const SizedBox(height: 8),
             Text(msg,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
-            const SizedBox(height: 22),
+                style:
+                    const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+            const SizedBox(height: 24),
             GestureDetector(
               onTap: () => Navigator.pop(screenContext),
               child: Container(
                 width: double.infinity,
-                height: 44,
+                height: 46,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: ok
-                        ? [const Color(0xFF059669), const Color(0xFF34D399)]
-                        : [const Color(0xFFDC2626), const Color(0xFFEF4444)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                    colors: [colorA, colorB],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: (ok
-                              ? const Color(0xFF059669)
-                              : const Color(0xFFDC2626))
-                          .withValues(alpha: 0.35),
+                      color: colorA.withValues(alpha: 0.35),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -2904,10 +2913,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
               ),
             ),
-            ]),
-          ),
+          ]),
         ),
-      );
+      ),
+    );
+  }
 
   String friendlyError(dynamic e) {
     final raw = e.toString().replaceFirst('Exception: ', '').trim();
@@ -5021,8 +5031,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       });
                       setS(() => saving = false);
                       if (!ctx.mounted) return;
+                      final bodyLowerCuota = r.body.toLowerCase();
+                      final decodedCuota = decodeJsonMap(r.body);
                       final ok = r.statusCode == 200 &&
-                          r.body.contains('Pago Registrado');
+                          (decodedCuota['success'] == true ||
+                              decodedCuota['resultado'] == 1 ||
+                              bodyLowerCuota.contains('pago registrado') ||
+                              bodyLowerCuota.contains('registrado') ||
+                              bodyLowerCuota.contains('exitoso') ||
+                              bodyLowerCuota.contains('success'));
                       if (ok) {
                         Navigator.pop(ctx);
                         onSaved();
@@ -5407,18 +5424,31 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final r = await repository
         .post('/ajax/eliminar_credito.php', {'codigo_credito': cod});
     if (!isMounted) return;
-    final exito =
-        r.statusCode == 200 && r.body.toLowerCase().contains('eliminado');
-    showResult(
-        exito,
-        exito
-            ? 'Crédito #$cod eliminado exitosamente'
-            : 'No se pudo eliminar el crédito. Por favor intenta de nuevo.');
+    final bodyLowerDel = r.body.toLowerCase();
+    final decodedDel = decodeJsonMap(r.body);
+    final exito = r.statusCode == 200 &&
+        (decodedDel['success'] == true ||
+            decodedDel['resultado'] == 1 ||
+            bodyLowerDel.contains('eliminado') ||
+            bodyLowerDel.contains('exitoso') ||
+            bodyLowerDel.contains('success'));
     if (exito) {
       repository.invalidateCache('/ajax/get_creditos_lista.php');
       await fetchCredits('');
       if (isMounted) refresh(() {});
     }
+    if (!isMounted) return;
+    showDialog(
+      context: screenContext,
+      builder: (_) => buildResultDialog(
+        exito
+            ? 'El crédito #$cod de $cliente fue eliminado.'
+            : 'No se pudo eliminar el crédito. Por favor intenta de nuevo.',
+        exito,
+        title: exito ? 'Crédito eliminado' : 'Algo salió mal',
+        icon: exito ? Icons.delete_forever_rounded : Icons.error_outline_rounded,
+      ),
+    );
   }
 
   void _showPazYSalvoDialog(Map<String, dynamic> credito) {

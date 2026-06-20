@@ -1168,6 +1168,11 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                                   if (ctx.mounted) {
                                     Navigator.pop(ctx, true);
                                   }
+                                  showResult(
+                                      true,
+                                      editing
+                                          ? 'Usuario actualizado exitosamente'
+                                          : 'Usuario registrado exitosamente');
                                 } catch (e) {
                                   if (ctx.mounted) setS(() => saving = false);
                                   showResult(false, friendlyError(e));
