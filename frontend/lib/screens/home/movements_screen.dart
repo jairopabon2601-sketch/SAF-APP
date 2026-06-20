@@ -1865,219 +1865,358 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               ),
             );
 
-        Widget cuentaPicker({
-          required String label,
-          required String? nombre,
-          required ValueChanged<Map<String, dynamic>> onPicked,
+        // ── helpers visuales ────────────────────────────────
+        InputDecoration fieldDeco({
+          String hint = '',
+          IconData? icon,
         }) =>
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF374151))),
-              const SizedBox(height: 6),
-              GestureDetector(
-                onTap: () async {
-                  if (cuentasOpts.isEmpty) return;
-                  final picked = await showDialog<Map<String, dynamic>>(
-                    context: ctx,
-                    builder: (dCtx) => SimpleDialog(
-                      backgroundColor: Colors.white,
-                      title: Text(label,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF0D1B4B))),
-                      children: cuentasOpts
-                          .map((c) => SimpleDialogOption(
-                                onPressed: () => Navigator.pop(dCtx, c),
-                                child: Text(
-                                  (c['nombre'] ?? '').toString(),
-                                  style: const TextStyle(
-                                      color: Color(0xFF374151),
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                  );
-                  if (picked != null) onPicked(picked);
-                },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            InputDecoration(
+              hintText: hint,
+              hintStyle:
+                  const TextStyle(color: Color(0xFFB0BCCF), fontSize: 14),
+              prefixIcon: icon != null
+                  ? Icon(icon, size: 18, color: const Color(0xFF4361EE))
+                  : null,
+              filled: true,
+              fillColor: const Color(0xFFF5F7FB),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(
+                      color: Color(0xFF4361EE), width: 1.5)),
+            );
+
+        Widget fieldLabel(String label) => Padding(
+              padding: const EdgeInsets.only(bottom: 7),
+              child: Row(children: [
+                Container(
+                  width: 3,
+                  height: 13,
                   decoration: BoxDecoration(
-                    border: Border.all(color: const Color(0xFFD1D5DB)),
-                    borderRadius: BorderRadius.circular(10),
+                    color: const Color(0xFFF59E0B),
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  child: Row(children: [
-                    Expanded(
-                        child: Text(nombre ?? '[Seleccione]',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: nombre != null
-                                    ? const Color(0xFF0D1B4B)
-                                    : const Color(0xFF9CA3AF),
-                                fontSize: 14))),
-                    const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: Color(0xFF6B7280)),
-                  ]),
                 ),
+                const SizedBox(width: 7),
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0D1B4B),
+                        letterSpacing: 0.2)),
+              ]),
+            );
+
+        Widget pickerField({
+          required String? value,
+          required String hint,
+          required IconData icon,
+          required VoidCallback onTap,
+        }) =>
+            GestureDetector(
+              onTap: onTap,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F7FB),
+                  border: Border.all(
+                    color: value != null
+                        ? const Color(0xFFF59E0B)
+                        : const Color(0xFFE0E7FF),
+                    width: value != null ? 1.5 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(children: [
+                  Icon(icon,
+                      size: 18,
+                      color: value != null
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFF9CA3AF)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(value ?? hint,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 14,
+                            color: value != null
+                                ? const Color(0xFF0D1B4B)
+                                : const Color(0xFF9CA3AF))),
+                  ),
+                  Icon(Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: value != null
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFF9CA3AF)),
+                ]),
               ),
-            ]);
+            );
 
         return Dialog(
-          backgroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
           insetPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(22),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(children: [
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                    blurRadius: 32,
+                    offset: const Offset(0, 12)),
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.10),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Header ──────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0xFF78350F),
+                        Color(0xFFB45309),
+                        Color(0xFFF59E0B),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.25)),
+                      ),
+                      child: const Icon(Icons.compare_arrows_rounded,
+                          color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 13),
                     const Expanded(
-                        child: Text('Transferir entre Cuentas',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0D1B4B)))),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Transferir entre Cuentas',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800)),
+                          SizedBox(height: 2),
+                          Text('Mover saldo de una cuenta a otra',
+                              style: TextStyle(
+                                  color: Colors.white60, fontSize: 11)),
+                        ],
+                      ),
+                    ),
                     GestureDetector(
                       onTap: () => Navigator.pop(ctx),
-                      child: const Icon(Icons.close_rounded,
-                          color: Color(0xFF6B7280)),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.close_rounded,
+                            color: Colors.white, size: 18),
+                      ),
                     ),
                   ]),
-                  const SizedBox(height: 20),
-                  cuentaPicker(
-                    label: 'Cuenta Origen',
-                    nombre: origenNom,
-                    onPicked: (c) => setS(() {
-                      origenCod = (c['codigo'] ?? '').toString();
-                      origenNom = (c['nombre'] ?? '').toString();
-                    }),
-                  ),
-                  const SizedBox(height: 14),
-                  cuentaPicker(
-                    label: 'Cuenta Destino',
-                    nombre: destinoNom,
-                    onPicked: (c) => setS(() {
-                      destinoCod = (c['codigo'] ?? '').toString();
-                      destinoNom = (c['nombre'] ?? '').toString();
-                    }),
-                  ),
-                  const SizedBox(height: 14),
-                  const Text('Valor a Transferir',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151))),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: valorCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: '0',
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 13),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFD1D5DB))),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFD1D5DB))),
-                    ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Requerido' : null,
-                  ),
-                  const SizedBox(height: 14),
-                  const Text('Fecha de Transferencia',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151))),
-                  const SizedBox(height: 6),
-                  GestureDetector(
-                    onTap: () async {
-                      final picked = await showLightDatePicker(
-                        ctx,
-                        initialDate: DateTime.tryParse(selectedFecha) ?? now,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) {
-                        setS(() {
-                          selectedFecha =
-                              '${picked.year}-${pad2(picked.month)}-${pad2(picked.day)}';
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 13),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFD1D5DB)),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                ),
+
+                // ── Form body ────────────────────────────────
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                    child: Form(
+                      key: formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            () {
+                          // Cuenta Origen
+                          fieldLabel('Cuenta Origen'),
+                          pickerField(
+                            value: origenNom,
+                            hint: 'Selecciona cuenta de origen',
+                            icon: Icons.logout_rounded,
+                            onTap: () async {
+                              if (cuentasOpts.isEmpty) return;
+                              final picked =
+                                  await showDialog<Map<String, dynamic>>(
+                                context: ctx,
+                                builder: (dCtx) => SimpleDialog(
+                                  backgroundColor: Colors.white,
+                                  title: const Text('Cuenta Origen',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF0D1B4B))),
+                                  children: cuentasOpts
+                                      .map((c) => SimpleDialogOption(
+                                            onPressed: () =>
+                                                Navigator.pop(dCtx, c),
+                                            child: Text(
+                                              (c['nombre'] ?? '').toString(),
+                                              style: const TextStyle(
+                                                  color: Color(0xFF374151),
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w500),
+                                            ),
+                                          ))
+                                      .toList(),
+                                ),
+                              );
+                              if (picked != null) {
+                                setS(() {
+                                  origenCod =
+                                      (picked['codigo'] ?? '').toString();
+                                  origenNom =
+                                      (picked['nombre'] ?? '').toString();
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Cuenta Destino
+                          fieldLabel('Cuenta Destino'),
+                          pickerField(
+                            value: destinoNom,
+                            hint: 'Selecciona cuenta de destino',
+                            icon: Icons.login_rounded,
+                            onTap: () async {
+                              if (cuentasOpts.isEmpty) return;
+                              final picked =
+                                  await showDialog<Map<String, dynamic>>(
+                                context: ctx,
+                                builder: (dCtx) => SimpleDialog(
+                                  backgroundColor: Colors.white,
+                                  title: const Text('Cuenta Destino',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF0D1B4B))),
+                                  children: cuentasOpts
+                                      .map((c) => SimpleDialogOption(
+                                            onPressed: () =>
+                                                Navigator.pop(dCtx, c),
+                                            child: Text(
+                                              (c['nombre'] ?? '').toString(),
+                                              style: const TextStyle(
+                                                  color: Color(0xFF374151),
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w500),
+                                            ),
+                                          ))
+                                      .toList(),
+                                ),
+                              );
+                              if (picked != null) {
+                                setS(() {
+                                  destinoCod =
+                                      (picked['codigo'] ?? '').toString();
+                                  destinoNom =
+                                      (picked['nombre'] ?? '').toString();
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Valor
+                          fieldLabel('Valor a Transferir'),
+                          TextFormField(
+                            controller: valorCtrl,
+                            keyboardType: TextInputType.number,
+                            style: const TextStyle(
+                                color: Color(0xFF0D1B4B),
+                                fontWeight: FontWeight.w600),
+                            decoration: fieldDeco(
+                                hint: '0',
+                                icon: Icons.attach_money_rounded),
+                            validator: (v) =>
+                                (v == null || v.trim().isEmpty)
+                                    ? 'Ingresa el valor'
+                                    : null,
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Fecha
+                          fieldLabel('Fecha de Transferencia'),
+                          pickerField(
+                            value: () {
                               final p = selectedFecha.split('-');
                               return p.length == 3
                                   ? '${p[2]}/${p[1]}/${p[0]}'
                                   : selectedFecha;
                             }(),
+                            hint: 'DD/MM/AAAA',
+                            icon: Icons.calendar_today_rounded,
+                            onTap: () async {
+                              final picked = await showLightDatePicker(
+                                ctx,
+                                initialDate:
+                                    DateTime.tryParse(selectedFecha) ?? now,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null) {
+                                setS(() {
+                                  selectedFecha =
+                                      '${picked.year}-${pad2(picked.month)}-${pad2(picked.day)}';
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Descripción
+                          fieldLabel('Descripción (opcional)'),
+                          TextFormField(
+                            controller: descCtrl,
+                            maxLines: 3,
                             style: const TextStyle(
                                 color: Color(0xFF0D1B4B), fontSize: 14),
+                            decoration: fieldDeco(
+                              hint: 'Ej: Transferencia para gastos...',
+                              icon: Icons.notes_rounded,
+                            ),
                           ),
-                          const Icon(Icons.calendar_today_rounded,
-                              size: 18, color: Color(0xFF6B7280)),
+                          const SizedBox(height: 6),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  const Text('Descripción (opcional)',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151))),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: descCtrl,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: 'Ej: Transferencia para gastos de oficina',
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 13),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFD1D5DB))),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFD1D5DB))),
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  Row(children: [
+                ),
+
+                // ── Botones ──────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                  child: Row(children: [
                     Expanded(
                       child: gradBtn(
-                        colors: const [Color(0xFFDC2626), Color(0xFFEF4444)],
+                        colors: const [Color(0xFF6B7280), Color(0xFF9CA3AF)],
                         onPressed: () => Navigator.pop(ctx),
                         child: const Text('Cancelar',
                             style: TextStyle(
@@ -2095,13 +2234,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                             ? null
                             : () async {
                                 if (origenCod == null) {
-                                  showResult(
-                                      false, 'Seleccione la cuenta de origen');
+                                  showResult(false,
+                                      'Seleccione la cuenta de origen');
                                   return;
                                 }
                                 if (destinoCod == null) {
-                                  showResult(
-                                      false, 'Seleccione la cuenta de destino');
+                                  showResult(false,
+                                      'Seleccione la cuenta de destino');
                                   return;
                                 }
                                 if (origenCod == destinoCod) {
@@ -2154,8 +2293,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       ),
                     ),
                   ]),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -2205,276 +2344,369 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               ),
             );
 
+        // ── helpers visuales ────────────────────────────────
+        InputDecoration fieldDeco({
+          String hint = '',
+          IconData? icon,
+          Widget? suffix,
+        }) =>
+            InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(color: Color(0xFFB0BCCF), fontSize: 14),
+              prefixIcon: icon != null
+                  ? Icon(icon, size: 18, color: const Color(0xFF4361EE))
+                  : null,
+              suffixIcon: suffix,
+              filled: true,
+              fillColor: const Color(0xFFF5F7FB),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide:
+                      const BorderSide(color: Color(0xFF4361EE), width: 1.5)),
+              errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFEF4444))),
+            );
+
+        Widget fieldLabel(String label) => Padding(
+              padding: const EdgeInsets.only(bottom: 7),
+              child: Row(children: [
+                Container(
+                  width: 3,
+                  height: 13,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4361EE),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0D1B4B),
+                        letterSpacing: 0.2)),
+              ]),
+            );
+
+        Widget pickerField({
+          required String? value,
+          required String hint,
+          required IconData icon,
+          required VoidCallback onTap,
+          Color? valueColor,
+        }) =>
+            GestureDetector(
+              onTap: onTap,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F7FB),
+                  border: Border.all(
+                    color: value != null
+                        ? const Color(0xFF4361EE)
+                        : const Color(0xFFE0E7FF),
+                    width: value != null ? 1.5 : 1,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(children: [
+                  Icon(icon,
+                      size: 18,
+                      color: value != null
+                          ? valueColor ?? const Color(0xFF4361EE)
+                          : const Color(0xFF9CA3AF)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(value ?? hint,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 14,
+                            color: value != null
+                                ? const Color(0xFF0D1B4B)
+                                : const Color(0xFF9CA3AF))),
+                  ),
+                  Icon(Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: value != null
+                          ? const Color(0xFF4361EE)
+                          : const Color(0xFF9CA3AF)),
+                ]),
+              ),
+            );
+
         return Dialog(
-          backgroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
           insetPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(22),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Registrar Movimiento',
-                          style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0D1B4B))),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                    color: const Color(0xFF4361EE).withValues(alpha: 0.15),
+                    blurRadius: 32,
+                    offset: const Offset(0, 12)),
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.10),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Header ──────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0xFF0D1B4B),
+                        Color(0xFF1E3A8A),
+                        Color(0xFF4361EE),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.25)),
+                      ),
+                      child: const Icon(Icons.swap_vert_rounded,
+                          color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 13),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Registrar Movimiento',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800)),
+                          SizedBox(height: 2),
+                          Text('Nuevo gasto o ingreso',
+                              style: TextStyle(
+                                  color: Colors.white60, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                         child: const Icon(Icons.close_rounded,
-                            color: Color(0xFF6B7280)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ── Cuenta ──────────────────────────────────
-                  const Text('Cuenta',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151))),
-                  const SizedBox(height: 6),
-                  GestureDetector(
-                    onTap: () async {
-                      if (cuentasOpts.isEmpty) return;
-                      final picked = await showDialog<Map<String, dynamic>>(
-                        context: ctx,
-                        builder: (dCtx) => SimpleDialog(
-                          backgroundColor: Colors.white,
-                          title: const Text('Seleccionar Cuenta',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF0D1B4B))),
-                          children: cuentasOpts
-                              .map((c) => SimpleDialogOption(
-                                    onPressed: () => Navigator.pop(dCtx, c),
-                                    child: Text(
-                                      (c['nombre'] ?? '').toString(),
-                                      style: const TextStyle(
-                                          color: Color(0xFF374151),
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w500),
-                                    ),
-                                  ))
-                              .toList(),
-                        ),
-                      );
-                      if (picked != null) {
-                        setS(() {
-                          selectedCuenta = (picked['codigo'] ?? '').toString();
-                          selectedCuentaNombre =
-                              (picked['nombre'] ?? '').toString();
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 13),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFD1D5DB)),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(selectedCuentaNombre ?? '[Seleccione]',
-                              style: TextStyle(
-                                  color: selectedCuenta != null
-                                      ? const Color(0xFF0D1B4B)
-                                      : const Color(0xFF9CA3AF),
-                                  fontSize: 14)),
-                          const Icon(Icons.keyboard_arrow_down_rounded,
-                              color: Color(0xFF6B7280)),
-                        ],
+                            color: Colors.white, size: 18),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
+                  ]),
+                ),
 
-                  // ── Tipo de movimiento ───────────────────────
-                  const Text('Tipo de movimiento',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151))),
-                  const SizedBox(height: 6),
-                  GestureDetector(
-                    onTap: () async {
-                      final tiposM = [
-                        {'codigo': '2', 'nombre': 'Gasto'},
-                        {'codigo': '3', 'nombre': 'Ingreso'},
-                      ];
-                      final picked = await showDialog<Map<String, dynamic>>(
-                        context: ctx,
-                        builder: (dCtx) => SimpleDialog(
-                          backgroundColor: Colors.white,
-                          title: const Text('Tipo de movimiento',
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF0D1B4B))),
-                          children: tiposM
-                              .map((t) => SimpleDialogOption(
-                                    onPressed: () => Navigator.pop(dCtx, t),
-                                    child: Text(
-                                      (t['nombre'] ?? '').toString(),
-                                      style: const TextStyle(
-                                          color: Color(0xFF374151),
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w500),
-                                    ),
-                                  ))
-                              .toList(),
-                        ),
-                      );
-                      if (picked != null) {
-                        setS(() {
-                          selectedTipo = picked['codigo'];
-                          selectedTipoNombre = picked['nombre'];
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 13),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFD1D5DB)),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                // ── Form body ────────────────────────────────
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                    child: Form(
+                      key: formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(selectedTipoNombre ?? '[Seleccione]',
-                              style: TextStyle(
-                                  color: selectedTipo != null
-                                      ? const Color(0xFF0D1B4B)
-                                      : const Color(0xFF9CA3AF),
-                                  fontSize: 14)),
-                          const Icon(Icons.keyboard_arrow_down_rounded,
-                              color: Color(0xFF6B7280)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
+                          // Cuenta
+                          fieldLabel('Cuenta'),
+                          pickerField(
+                            value: selectedCuentaNombre,
+                            hint: 'Selecciona una cuenta',
+                            icon: Icons.account_balance_wallet_rounded,
+                            onTap: () async {
+                              if (cuentasOpts.isEmpty) return;
+                              final picked =
+                                  await showDialog<Map<String, dynamic>>(
+                                context: ctx,
+                                builder: (dCtx) => SimpleDialog(
+                                  backgroundColor: Colors.white,
+                                  title: const Text('Seleccionar Cuenta',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF0D1B4B))),
+                                  children: cuentasOpts
+                                      .map((c) => SimpleDialogOption(
+                                            onPressed: () =>
+                                                Navigator.pop(dCtx, c),
+                                            child: Text(
+                                              (c['nombre'] ?? '').toString(),
+                                              style: const TextStyle(
+                                                  color: Color(0xFF374151),
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w500),
+                                            ),
+                                          ))
+                                      .toList(),
+                                ),
+                              );
+                              if (picked != null) {
+                                setS(() {
+                                  selectedCuenta =
+                                      (picked['codigo'] ?? '').toString();
+                                  selectedCuentaNombre =
+                                      (picked['nombre'] ?? '').toString();
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 14),
 
-                  // ── Valor ────────────────────────────────────
-                  const Text('Valor',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151))),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: valorCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      hintText: '0',
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 13),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFD1D5DB))),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFD1D5DB))),
-                    ),
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Requerido' : null,
-                  ),
-                  const SizedBox(height: 14),
+                          // Tipo de movimiento
+                          fieldLabel('Tipo de movimiento'),
+                          pickerField(
+                            value: selectedTipoNombre,
+                            hint: 'Gasto o Ingreso',
+                            icon: selectedTipo == '2'
+                                ? Icons.arrow_upward_rounded
+                                : selectedTipo == '3'
+                                    ? Icons.arrow_downward_rounded
+                                    : Icons.swap_horiz_rounded,
+                            valueColor: selectedTipo == '2'
+                                ? const Color(0xFFDC2626)
+                                : const Color(0xFF059669),
+                            onTap: () async {
+                              final tiposM = [
+                                {'codigo': '2', 'nombre': 'Gasto'},
+                                {'codigo': '3', 'nombre': 'Ingreso'},
+                              ];
+                              final picked =
+                                  await showDialog<Map<String, dynamic>>(
+                                context: ctx,
+                                builder: (dCtx) => SimpleDialog(
+                                  backgroundColor: Colors.white,
+                                  title: const Text('Tipo de movimiento',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF0D1B4B))),
+                                  children: tiposM
+                                      .map((t) => SimpleDialogOption(
+                                            onPressed: () =>
+                                                Navigator.pop(dCtx, t),
+                                            child: Text(
+                                              (t['nombre'] ?? '').toString(),
+                                              style: const TextStyle(
+                                                  color: Color(0xFF374151),
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w500),
+                                            ),
+                                          ))
+                                      .toList(),
+                                ),
+                              );
+                              if (picked != null) {
+                                setS(() {
+                                  selectedTipo = picked['codigo'];
+                                  selectedTipoNombre = picked['nombre'];
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 14),
 
-                  // ── Fecha ────────────────────────────────────
-                  const Text('Fecha',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151))),
-                  const SizedBox(height: 6),
-                  GestureDetector(
-                    onTap: () async {
-                      final picked = await showLightDatePicker(
-                        ctx,
-                        initialDate: DateTime.tryParse(selectedFecha) ?? now,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
-                      if (picked != null) {
-                        setS(() {
-                          selectedFecha =
-                              '${picked.year}-${pad2(picked.month)}-${pad2(picked.day)}';
-                        });
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 13),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFD1D5DB)),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            () {
+                          // Valor
+                          fieldLabel('Valor'),
+                          TextFormField(
+                            controller: valorCtrl,
+                            keyboardType: TextInputType.number,
+                            style: const TextStyle(
+                                color: Color(0xFF0D1B4B),
+                                fontWeight: FontWeight.w600),
+                            decoration: fieldDeco(
+                                hint: '0',
+                                icon: Icons.attach_money_rounded),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Ingresa el valor'
+                                : null,
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Fecha
+                          fieldLabel('Fecha'),
+                          pickerField(
+                            value: () {
                               final p = selectedFecha.split('-');
                               return p.length == 3
                                   ? '${p[2]}/${p[1]}/${p[0]}'
                                   : selectedFecha;
                             }(),
+                            hint: 'DD/MM/AAAA',
+                            icon: Icons.calendar_today_rounded,
+                            onTap: () async {
+                              final picked = await showLightDatePicker(
+                                ctx,
+                                initialDate:
+                                    DateTime.tryParse(selectedFecha) ?? now,
+                                firstDate: DateTime(2020),
+                                lastDate: DateTime(2030),
+                              );
+                              if (picked != null) {
+                                setS(() {
+                                  selectedFecha =
+                                      '${picked.year}-${pad2(picked.month)}-${pad2(picked.day)}';
+                                });
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Descripción
+                          fieldLabel('Descripción'),
+                          TextFormField(
+                            controller: descCtrl,
+                            maxLines: 3,
                             style: const TextStyle(
                                 color: Color(0xFF0D1B4B), fontSize: 14),
+                            decoration: fieldDeco(
+                                hint: 'Ej: Pago de servicios...',
+                                icon: Icons.notes_rounded),
                           ),
-                          const Icon(Icons.calendar_today_rounded,
-                              size: 18, color: Color(0xFF6B7280)),
+                          const SizedBox(height: 6),
                         ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                ),
 
-                  // ── Descripción ──────────────────────────────
-                  const Text('Descripción',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151))),
-                  const SizedBox(height: 6),
-                  TextFormField(
-                    controller: descCtrl,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: '',
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 13),
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFD1D5DB))),
-                      enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          borderSide:
-                              const BorderSide(color: Color(0xFFD1D5DB))),
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-
-                  // ── Botones ──────────────────────────────────
-                  Row(children: [
+                // ── Botones ──────────────────────────────────
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                  child: Row(children: [
                     Expanded(
                       child: gradBtn(
-                        colors: const [Color(0xFFDC2626), Color(0xFFEF4444)],
+                        colors: const [Color(0xFF6B7280), Color(0xFF9CA3AF)],
                         onPressed: () => Navigator.pop(ctx),
                         child: const Text('Cancelar',
                             style: TextStyle(
@@ -2546,8 +2778,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       ),
                     ),
                   ]),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -4145,26 +4377,35 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     if (confirmed != true) return;
     debugPrint('[SAF] eliminar movimiento keys: ${m.keys.toList()} cod=$cod');
     if (cod.isEmpty) {
-      debugPrint('[SAF] No se encontró el código del movimiento');
+      showResult(false, 'No se pudo identificar el movimiento a eliminar');
       return;
     }
     try {
-      await repository.post('/ajax/actualizar_registro.php', {
-        'tabla': 'tbl_cuentas_movimientos',
-        'filtro': 'codigo=$cod',
-        'modo': 'eliminar',
+      final r = await repository.post('/ajax/eliminar_movimiento.php', {
+        'codigo': cod,
       });
+      final d = decodeJsonMap(r.body);
+      final ok = r.statusCode == 200 && d['success'] == true;
       if (isMounted) {
-        refresh(() {
-          movements.removeWhere((x) =>
-              (x['codigo'] ?? x['codigo_movimiento'] ?? x['id'] ?? '')
-                  .toString()
-                  .trim() ==
-              cod);
-        });
+        if (ok) {
+          refresh(() {
+            bool matchCod(Map<String, dynamic> x) =>
+                (x['codigo'] ?? x['codigo_movimiento'] ?? x['id'] ?? '')
+                    .toString()
+                    .trim() ==
+                cod;
+            movements.removeWhere(matchCod);
+            selectedAccountMovements.removeWhere(matchCod);
+          });
+          showResult(true, 'Movimiento eliminado correctamente');
+        } else {
+          final msg = d['msg']?.toString() ?? 'No se pudo eliminar el movimiento';
+          showResult(false, msg);
+        }
       }
     } catch (e) {
       debugPrint('[SAF] eliminar movimiento: $e');
+      if (isMounted) showResult(false, 'Error al eliminar el movimiento');
     }
   }
 }

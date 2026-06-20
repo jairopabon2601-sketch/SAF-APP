@@ -3323,22 +3323,58 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
     required String generado,
   }) async {
     final documento = pw.Document(
-      title: 'Comprobante de Pago',
-      author: 'SAF',
+      title: 'Comprobante de Pago SAF',
+      author: 'SAF – Sistema de Ahorro y Financiamiento',
       subject: 'Comprobante de cuota de ahorro',
     );
 
-    pw.Widget fila(String etiqueta, String valor) => pw.Padding(
-          padding: const pw.EdgeInsets.only(bottom: 10),
+    // Logo SAF
+    final logoBytes = (await rootBundle.load('assets/icon/app_icon.png'))
+        .buffer
+        .asUint8List();
+    final logoImage = pw.MemoryImage(logoBytes);
+
+    // Paleta corporativa
+    const navy     = PdfColor(0.051, 0.106, 0.294);   // #0D1B4B
+    const accent   = PdfColor(0.263, 0.380, 0.933);   // #4361EE
+    const green    = PdfColor(0.022, 0.588, 0.412);   // #059669
+    const bgLight  = PdfColor(0.961, 0.969, 0.988);   // #F5F7FC
+    const border   = PdfColor(0.882, 0.894, 0.937);   // #E1E4EF
+
+    // Iniciales del ahorrador para el avatar
+    final partes = ahorrador.trim().split(RegExp(r'\s+'));
+    final iniciales = partes.length >= 2
+        ? '${partes.first[0]}${partes.last[0]}'.toUpperCase()
+        : ahorrador.isNotEmpty
+            ? ahorrador[0].toUpperCase()
+            : 'A';
+
+    // Fila de datos estilizada con fondo alternado
+    pw.Widget filaDato(String etiqueta, String valor, {bool shade = false}) =>
+        pw.Container(
+          color: shade ? bgLight : PdfColors.white,
+          padding: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 11),
           child: pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               pw.SizedBox(
-                width: 150,
+                width: 130,
                 child: pw.Text(etiqueta,
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    style: pw.TextStyle(
+                      fontSize: 10,
+                      color: PdfColors.grey700,
+                      fontWeight: pw.FontWeight.bold,
+                    )),
               ),
-              pw.Expanded(child: pw.Text(valor)),
+              pw.Container(width: 1, height: 16, color: border),
+              pw.SizedBox(width: 16),
+              pw.Expanded(
+                child: pw.Text(valor,
+                    style: pw.TextStyle(
+                      fontSize: 11,
+                      color: navy,
+                      fontWeight: pw.FontWeight.bold,
+                    )),
+              ),
             ],
           ),
         );
@@ -3346,23 +3382,297 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
     documento.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(36),
+        margin: pw.EdgeInsets.zero,
         build: (_) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
-            pw.Text('Comprobante de Pago',
-                style:
-                    pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-            pw.SizedBox(height: 18),
-            fila('Ahorrador:', ahorrador),
-            fila('Mes:', mes),
-            fila('Fecha de Pago:', fechaPago),
-            fila('Valor Pagado:', formatCop(valorPagado)),
-            fila('Código Cuota:', codigoCuota),
-            pw.SizedBox(height: 8),
-            pw.Text('Documento generado: $generado',
-                style:
-                    const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+
+            // ── HEADER ──────────────────────────────────────────────
+            pw.Container(
+              color: navy,
+              padding: const pw.EdgeInsets.fromLTRB(36, 32, 36, 32),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Branding
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(children: [
+                        pw.ClipRRect(
+                          horizontalRadius: 8,
+                          verticalRadius: 8,
+                          child: pw.Image(logoImage, width: 36, height: 36,
+                              fit: pw.BoxFit.cover),
+                        ),
+                        pw.SizedBox(width: 10),
+                        pw.Column(
+                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                          children: [
+                            pw.Text('SAF',
+                                style: pw.TextStyle(
+                                  color: PdfColors.white,
+                                  fontSize: 20,
+                                  fontWeight: pw.FontWeight.bold,
+                                )),
+                            pw.Text('Sistema de Ahorro y Financiamiento',
+                                style: pw.TextStyle(
+                                  color: PdfColor(1, 1, 1, 0.6),
+                                  fontSize: 8,
+                                )),
+                          ],
+                        ),
+                      ]),
+                    ],
+                  ),
+                  // Título del documento
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text('COMPROBANTE DE PAGO',
+                          style: pw.TextStyle(
+                            color: PdfColors.white,
+                            fontSize: 14,
+                            fontWeight: pw.FontWeight.bold,
+                            letterSpacing: 1.5,
+                          )),
+                      pw.SizedBox(height: 4),
+                      pw.Text('Cuota de Ahorro',
+                          style: pw.TextStyle(
+                            color: PdfColor(1, 1, 1, 0.6),
+                            fontSize: 9,
+                          )),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // ── FRANJA VERDE: PAGO CONFIRMADO ───────────────────────
+            pw.Container(
+              color: green,
+              padding: const pw.EdgeInsets.symmetric(horizontal: 36, vertical: 12),
+              child: pw.Row(
+                children: [
+                  pw.Container(
+                    width: 20, height: 20,
+                    decoration: pw.BoxDecoration(
+                      color: PdfColors.white,
+                      shape: pw.BoxShape.circle,
+                    ),
+                    alignment: pw.Alignment.center,
+                    child: pw.Text('✓',
+                        style: pw.TextStyle(
+                          color: green,
+                          fontSize: 11,
+                          fontWeight: pw.FontWeight.bold,
+                        )),
+                  ),
+                  pw.SizedBox(width: 10),
+                  pw.Text('PAGO REGISTRADO EXITOSAMENTE',
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 11,
+                        fontWeight: pw.FontWeight.bold,
+                        letterSpacing: 0.8,
+                      )),
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 28),
+
+            // ── AVATAR + NOMBRE AHORRADOR ────────────────────────────
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 36),
+              child: pw.Row(
+                children: [
+                  pw.Container(
+                    width: 56, height: 56,
+                    decoration: pw.BoxDecoration(
+                      color: accent,
+                      borderRadius: pw.BorderRadius.circular(14),
+                    ),
+                    alignment: pw.Alignment.center,
+                    child: pw.Text(iniciales,
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontSize: 22,
+                          fontWeight: pw.FontWeight.bold,
+                        )),
+                  ),
+                  pw.SizedBox(width: 16),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(ahorrador,
+                          style: pw.TextStyle(
+                            fontSize: 15,
+                            color: navy,
+                            fontWeight: pw.FontWeight.bold,
+                          )),
+                      pw.SizedBox(height: 3),
+                      pw.Text('Titular del ahorro',
+                          style: const pw.TextStyle(
+                            fontSize: 9,
+                            color: PdfColors.grey600,
+                          )),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 24),
+
+            // ── TABLA DE DATOS ───────────────────────────────────────
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 36),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                children: [
+                  // Encabezado tabla
+                  pw.Container(
+                    decoration: pw.BoxDecoration(
+                      color: navy,
+                      borderRadius: const pw.BorderRadius.only(
+                        topLeft: pw.Radius.circular(8),
+                        topRight: pw.Radius.circular(8),
+                      ),
+                    ),
+                    padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    child: pw.Text('DETALLE DEL PAGO',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                          letterSpacing: 1,
+                        )),
+                  ),
+                  // Filas
+                  pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: border),
+                      borderRadius: const pw.BorderRadius.only(
+                        bottomLeft: pw.Radius.circular(8),
+                        bottomRight: pw.Radius.circular(8),
+                      ),
+                    ),
+                    child: pw.ClipRRect(
+                      horizontalRadius: 8,
+                      verticalRadius: 8,
+                      child: pw.Column(
+                        children: [
+                          filaDato('Ahorrador', ahorrador, shade: false),
+                          pw.Divider(height: 0, color: border),
+                          filaDato('Mes', mes, shade: true),
+                          pw.Divider(height: 0, color: border),
+                          filaDato('Fecha de Pago', fechaPago, shade: false),
+                          pw.Divider(height: 0, color: border),
+                          // Fila valor destacada
+                          pw.Container(
+                            color: const PdfColor(0.925, 0.976, 0.953), // verde muy suave
+                            padding: const pw.EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 13),
+                            child: pw.Row(
+                              children: [
+                                pw.SizedBox(
+                                  width: 130,
+                                  child: pw.Text('Valor Pagado',
+                                      style: pw.TextStyle(
+                                        fontSize: 10,
+                                        color: PdfColors.grey700,
+                                        fontWeight: pw.FontWeight.bold,
+                                      )),
+                                ),
+                                pw.Container(width: 1, height: 16, color: border),
+                                pw.SizedBox(width: 16),
+                                pw.Text(formatCop(valorPagado),
+                                    style: pw.TextStyle(
+                                      fontSize: 16,
+                                      color: green,
+                                      fontWeight: pw.FontWeight.bold,
+                                    )),
+                              ],
+                            ),
+                          ),
+                          pw.Divider(height: 0, color: border),
+                          filaDato('Código Cuota', '#$codigoCuota', shade: true),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            pw.SizedBox(height: 28),
+
+            // ── SELLO DE AUTENTICIDAD ────────────────────────────────
+            pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(horizontal: 36),
+              child: pw.Container(
+                decoration: pw.BoxDecoration(
+                  color: bgLight,
+                  borderRadius: pw.BorderRadius.circular(8),
+                  border: pw.Border.all(color: border),
+                ),
+                padding: const pw.EdgeInsets.all(14),
+                child: pw.Row(
+                  children: [
+                    pw.ClipRRect(
+                      horizontalRadius: 8,
+                      verticalRadius: 8,
+                      child: pw.Image(logoImage, width: 34, height: 34,
+                          fit: pw.BoxFit.cover),
+                    ),
+                    pw.SizedBox(width: 12),
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('Documento oficial verificado',
+                            style: pw.TextStyle(
+                              fontSize: 9,
+                              color: navy,
+                              fontWeight: pw.FontWeight.bold,
+                            )),
+                        pw.SizedBox(height: 2),
+                        pw.Text('Este comprobante es válido como constancia de pago.',
+                            style: const pw.TextStyle(
+                              fontSize: 8,
+                              color: PdfColors.grey600,
+                            )),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            pw.Spacer(),
+
+            // ── FOOTER ───────────────────────────────────────────────
+            pw.Container(
+              color: navy,
+              padding: const pw.EdgeInsets.symmetric(horizontal: 36, vertical: 14),
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('SAF – Sistema de Ahorro y Financiamiento',
+                      style: pw.TextStyle(
+                        color: PdfColor(1, 1, 1, 0.6),
+                        fontSize: 8,
+                      )),
+                  pw.Text('Generado: $generado',
+                      style: pw.TextStyle(
+                        color: PdfColor(1, 1, 1, 0.6),
+                        fontSize: 8,
+                      )),
+                ],
+              ),
+            ),
           ],
         ),
       ),

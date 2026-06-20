@@ -2355,14 +2355,23 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               'fuente_credito_reg': selectedFuente ?? '',
               'total_pagar': totalAPagar.toStringAsFixed(0),
             });
-            final ok =
-                r.statusCode == 200 && r.body.toLowerCase().contains('creado');
+            final bodyLower = r.body.toLowerCase();
+            final isPhpError = bodyLower.contains('<b>') ||
+                bodyLower.contains('fatal error') ||
+                bodyLower.contains('warning:') ||
+                bodyLower.contains('require_once');
+            final ok = r.statusCode == 200 &&
+                bodyLower.contains('creado') &&
+                !isPhpError;
             if (ctx.mounted) Navigator.pop(ctx);
             if (isMounted) {
+              final errMsg = isPhpError
+                  ? 'Error del servidor al procesar el crédito. Por favor intente de nuevo.'
+                  : friendlyError(r.body);
               showDialog(
                 context: screenContext,
                 builder: (_) => buildResultDialog(
-                  ok ? 'Crédito creado exitosamente' : r.body.trim(),
+                  ok ? 'Crédito creado exitosamente' : errMsg,
                   ok,
                 ),
               );
@@ -2388,34 +2397,101 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         final fuentes = fuenteOpciones();
 
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-                maxWidth: min(460, MediaQuery.of(ctx).size.width - 40),
-                maxHeight: MediaQuery.of(ctx).size.height * 0.9),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Form(
-                key: formKey,
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  // Título
-                  Row(children: [
-                    const Expanded(
-                        child: Text('Crear Crédito',
-                            style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0D1B4B)))),
-                    IconButton(
-                        icon: const Icon(Icons.close, size: 20),
-                        onPressed: () => Navigator.pop(ctx),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints()),
-                  ]),
-                  const Divider(height: 20),
+                maxWidth: min(460, MediaQuery.of(ctx).size.width - 32),
+                maxHeight: MediaQuery.of(ctx).size.height * 0.92),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                      color: homeNavy.withValues(alpha: 0.18),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12)),
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6)),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Header ──────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          homeNavy,
+                          const Color(0xFF1E3A8A),
+                          homeAccent,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20)),
+                    ),
+                    child: Row(children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(11),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.25)),
+                        ),
+                        child: const Icon(Icons.add_card_rounded,
+                            color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 13),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Crear Crédito',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800)),
+                            SizedBox(height: 2),
+                            Text('Nuevo préstamo a un deudor',
+                                style: TextStyle(
+                                    color: Colors.white60, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.close_rounded,
+                              color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ]),
+                  ),
+                  // ── Form body ────────────────────────────────
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Form(
+                        key: formKey,
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const SizedBox(height: 4),
                   // Deudor — campo buscable
                   buildDialogRow(
                     'Deudor:',
@@ -2668,6 +2744,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             : const Text('Grabar')),
                   ]),
                 ]),
+              ),
+            ),
+          ),
+                ],
               ),
             ),
           ),
