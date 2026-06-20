@@ -2146,25 +2146,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                               final picked =
                                   await showDialog<Map<String, dynamic>>(
                                 context: ctx,
-                                builder: (dCtx) => SimpleDialog(
-                                  backgroundColor: Colors.white,
-                                  title: const Text('Cuenta Origen',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF0D1B4B))),
-                                  children: cuentasOpts
-                                      .map((c) => SimpleDialogOption(
-                                            onPressed: () =>
-                                                Navigator.pop(dCtx, c),
-                                            child: Text(
-                                              (c['nombre'] ?? '').toString(),
-                                              style: const TextStyle(
-                                                  color: Color(0xFF374151),
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w500),
-                                            ),
-                                          ))
-                                      .toList(),
+                                builder: (dCtx) =>
+                                    AppPickerDialog<Map<String, dynamic>>(
+                                  title: 'Cuenta Origen',
+                                  titleIcon: Icons.logout_rounded,
+                                  items: cuentasOpts,
+                                  labelBuilder: (c) =>
+                                      (c['nombre'] ?? '').toString(),
                                 ),
                               );
                               if (picked != null) {
@@ -2190,25 +2178,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                               final picked =
                                   await showDialog<Map<String, dynamic>>(
                                 context: ctx,
-                                builder: (dCtx) => SimpleDialog(
-                                  backgroundColor: Colors.white,
-                                  title: const Text('Cuenta Destino',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF0D1B4B))),
-                                  children: cuentasOpts
-                                      .map((c) => SimpleDialogOption(
-                                            onPressed: () =>
-                                                Navigator.pop(dCtx, c),
-                                            child: Text(
-                                              (c['nombre'] ?? '').toString(),
-                                              style: const TextStyle(
-                                                  color: Color(0xFF374151),
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w500),
-                                            ),
-                                          ))
-                                      .toList(),
+                                builder: (dCtx) =>
+                                    AppPickerDialog<Map<String, dynamic>>(
+                                  title: 'Cuenta Destino',
+                                  titleIcon: Icons.login_rounded,
+                                  items: cuentasOpts,
+                                  labelBuilder: (c) =>
+                                      (c['nombre'] ?? '').toString(),
                                 ),
                               );
                               if (picked != null) {
@@ -2680,25 +2656,14 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                               final picked =
                                   await showDialog<Map<String, dynamic>>(
                                 context: ctx,
-                                builder: (dCtx) => SimpleDialog(
-                                  backgroundColor: Colors.white,
-                                  title: const Text('Seleccionar Cuenta',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF0D1B4B))),
-                                  children: cuentasOpts
-                                      .map((c) => SimpleDialogOption(
-                                            onPressed: () =>
-                                                Navigator.pop(dCtx, c),
-                                            child: Text(
-                                              (c['nombre'] ?? '').toString(),
-                                              style: const TextStyle(
-                                                  color: Color(0xFF374151),
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w500),
-                                            ),
-                                          ))
-                                      .toList(),
+                                builder: (dCtx) =>
+                                    AppPickerDialog<Map<String, dynamic>>(
+                                  title: 'Seleccionar Cuenta',
+                                  titleIcon:
+                                      Icons.account_balance_wallet_rounded,
+                                  items: cuentasOpts,
+                                  labelBuilder: (c) =>
+                                      (c['nombre'] ?? '').toString(),
                                 ),
                               );
                               if (picked != null) {
@@ -2734,25 +2699,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                               final picked =
                                   await showDialog<Map<String, dynamic>>(
                                 context: ctx,
-                                builder: (dCtx) => SimpleDialog(
-                                  backgroundColor: Colors.white,
-                                  title: const Text('Tipo de movimiento',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF0D1B4B))),
-                                  children: tiposM
-                                      .map((t) => SimpleDialogOption(
-                                            onPressed: () =>
-                                                Navigator.pop(dCtx, t),
-                                            child: Text(
-                                              (t['nombre'] ?? '').toString(),
-                                              style: const TextStyle(
-                                                  color: Color(0xFF374151),
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w500),
-                                            ),
-                                          ))
-                                      .toList(),
+                                builder: (dCtx) =>
+                                    AppPickerDialog<Map<String, dynamic>>(
+                                  title: 'Tipo de movimiento',
+                                  titleIcon: Icons.swap_horiz_rounded,
+                                  items: tiposM,
+                                  labelBuilder: (t) =>
+                                      (t['nombre'] ?? '').toString(),
                                 ),
                               );
                               if (picked != null) {
@@ -3218,25 +3171,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                     onTap: () async {
                       final picked = await showDialog<Map<String, dynamic>>(
                         context: ctx,
-                        builder: (dCtx) => SimpleDialog(
-                          backgroundColor: Colors.white,
-                          title: const Text('Seleccionar Tipo',
-                              style: TextStyle(
-                                  color: homeNavy,
-                                  fontWeight: FontWeight.w700)),
-                          children: tipos
-                              .map((t) => SimpleDialogOption(
-                                    onPressed: () => Navigator.pop(dCtx, t),
-                                    child: Text(
-                                      (t['nombre'] ?? '').toString(),
-                                      style: const TextStyle(
-                                        color: Color(0xFF374151),
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ))
-                              .toList(),
+                        builder: (dCtx) =>
+                            AppPickerDialog<Map<String, dynamic>>(
+                          title: 'Seleccionar Tipo',
+                          titleIcon: Icons.category_outlined,
+                          items: tipos,
+                          labelBuilder: (t) =>
+                              (t['nombre'] ?? '').toString(),
                         ),
                       );
                       if (picked != null) {
@@ -3716,29 +3657,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                     final picked =
                                         await showDialog<Map<String, dynamic>>(
                                       context: ctx,
-                                      builder: (dCtx) => SimpleDialog(
-                                        backgroundColor: Colors.white,
-                                        title: const Text('Seleccionar Tipo',
-                                            style: TextStyle(
-                                                color: homeNavy,
-                                                fontWeight: FontWeight.w700)),
-                                        children: tiposOpts
-                                            .map((t) => SimpleDialogOption(
-                                                  onPressed: () =>
-                                                      Navigator.pop(dCtx, t),
-                                                  child: Padding(
-                                                    padding: const EdgeInsets
-                                                        .symmetric(vertical: 4),
-                                                    child: Text(
-                                                      (t.values.last ?? '')
-                                                          .toString(),
-                                                      style: const TextStyle(
-                                                          color: homeNavy,
-                                                          fontSize: 14),
-                                                    ),
-                                                  ),
-                                                ))
-                                            .toList(),
+                                      builder: (dCtx) =>
+                                          AppPickerDialog<Map<String, dynamic>>(
+                                        title: 'Seleccionar Tipo',
+                                        titleIcon: Icons.category_outlined,
+                                        items: tiposOpts,
+                                        labelBuilder: (t) =>
+                                            (t.values.last ?? '').toString(),
                                       ),
                                     );
                                     if (picked != null) {
@@ -3763,34 +3688,12 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                             onTap: () async {
                               final picked = await showDialog<String>(
                                 context: ctx,
-                                builder: (dCtx) => SimpleDialog(
-                                  backgroundColor: Colors.white,
-                                  title: const Text('Estado',
-                                      style: TextStyle(
-                                          color: homeNavy,
-                                          fontWeight: FontWeight.w700)),
-                                  children: [
-                                    SimpleDialogOption(
-                                      onPressed: () => Navigator.pop(dCtx, '1'),
-                                      child: const Padding(
-                                          padding:
-                                              EdgeInsets.symmetric(vertical: 4),
-                                          child: Text('Activa',
-                                              style: TextStyle(
-                                                  color: homeNavy,
-                                                  fontSize: 14))),
-                                    ),
-                                    SimpleDialogOption(
-                                      onPressed: () => Navigator.pop(dCtx, '0'),
-                                      child: const Padding(
-                                          padding:
-                                              EdgeInsets.symmetric(vertical: 4),
-                                          child: Text('Inactiva',
-                                              style: TextStyle(
-                                                  color: homeNavy,
-                                                  fontSize: 14))),
-                                    ),
-                                  ],
+                                builder: (dCtx) => AppPickerDialog<String>(
+                                  title: 'Estado',
+                                  titleIcon: Icons.toggle_on_rounded,
+                                  items: const ['1', '0'],
+                                  labelBuilder: (s) =>
+                                      s == '1' ? 'Activa' : 'Inactiva',
                                 ),
                               );
                               if (picked != null) {
@@ -3817,116 +3720,16 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                             : () async {
                                 final confirm = await showDialog<bool>(
                                   context: ctx,
-                                  builder: (c2) => Dialog(
-                                    backgroundColor: Colors.transparent,
-                                    insetPadding: const EdgeInsets.symmetric(
-                                        horizontal: 40),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(20),
-                                        boxShadow: [
-                                          BoxShadow(
-                                              color: Colors.black
-                                                  .withValues(alpha: 0.15),
-                                              blurRadius: 20,
-                                              offset: const Offset(0, 8)),
-                                        ],
-                                      ),
-                                      padding: const EdgeInsets.all(24),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Container(
-                                            width: 56,
-                                            height: 56,
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFFFEE2E2),
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(
-                                                Icons.warning_amber_rounded,
-                                                color: Color(0xFFDC2626),
-                                                size: 30),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          const Text('¿Desactivar cuenta?',
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                  fontSize: 17,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: Color(0xFF0D1B4B))),
-                                          const SizedBox(height: 8),
-                                          const Text(
-                                              'La cuenta quedará inactiva.',
-                                              textAlign: TextAlign.center,
-                                              style: TextStyle(
-                                                  fontSize: 13,
-                                                  color: Color(0xFF6B7280))),
-                                          const SizedBox(height: 24),
-                                          Row(children: [
-                                            Expanded(
-                                              child: GestureDetector(
-                                                onTap: () =>
-                                                    Navigator.pop(c2, false),
-                                                child: Container(
-                                                  height: 44,
-                                                  decoration: BoxDecoration(
-                                                    gradient: const LinearGradient(
-                                                        colors: [
-                                                          Color(0xFF991B1B),
-                                                          Color(0xFFDC2626),
-                                                          Color(0xFFEF4444),
-                                                        ]),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            10),
-                                                  ),
-                                                  child: const Center(
-                                                      child: Text('Cancelar',
-                                                          style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                              fontSize: 14))),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: GestureDetector(
-                                                onTap: () =>
-                                                    Navigator.pop(c2, true),
-                                                child: Container(
-                                                  height: 44,
-                                                  decoration: BoxDecoration(
-                                                    gradient: const LinearGradient(
-                                                        colors: [
-                                                          Color(0xFFDC2626),
-                                                          Color(0xFFEF4444)
-                                                        ]),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            10),
-                                                  ),
-                                                  child: const Center(
-                                                      child: Text('Desactivar',
-                                                          style: TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                              fontSize: 14))),
-                                                ),
-                                              ),
-                                            ),
-                                          ]),
-                                        ],
-                                      ),
-                                    ),
+                                  builder: (c2) => AppConfirmDialog(
+                                    title: '¿Desactivar cuenta?',
+                                    message: 'La cuenta quedará inactiva y no podrás registrar movimientos en ella.',
+                                    icon: Icons.block_rounded,
+                                    confirmLabel: 'Desactivar',
+                                    infoText: 'Esta acción es reversible',
+                                    gradientColors: const [
+                                      Color(0xFF92400E),
+                                      Color(0xFFF59E0B),
+                                    ],
                                   ),
                                 );
                                 if (confirm == true) {
@@ -4788,97 +4591,15 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
 
     final confirmed = await showDialog<bool>(
       context: ctx,
-      builder: (dCtx) => Dialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.delete_outline_rounded,
-                  color: Colors.white, size: 28),
-            ),
-            const SizedBox(height: 16),
-            const Text('¿Eliminar movimiento?',
-                style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0D1B4B))),
-            const SizedBox(height: 8),
-            Text(
-              desc,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
-            ),
-            const SizedBox(height: 6),
-            const Text('Esta acción no se puede deshacer.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF))),
-            const SizedBox(height: 22),
-            Row(children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(dCtx, false),
-                  child: Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [
-                        Color(0xFF991B1B),
-                        Color(0xFFDC2626),
-                        Color(0xFFEF4444),
-                      ]),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Center(
-                      child: Text('Cancelar',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white)),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(dCtx, true),
-                  child: Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                          colors: [Color(0xFFDC2626), Color(0xFFEF4444)]),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                            color:
-                                const Color(0xFFDC2626).withValues(alpha: 0.35),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4))
-                      ],
-                    ),
-                    child: const Center(
-                      child: Text('Eliminar',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white)),
-                    ),
-                  ),
-                ),
-              ),
-            ]),
-          ]),
-        ),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (dCtx) => AppConfirmDialog(
+        title: '¿Eliminar movimiento?',
+        message: desc.isNotEmpty
+            ? desc
+            : 'Esta acción eliminará el movimiento de forma permanente.',
+        icon: Icons.delete_outline_rounded,
+        confirmLabel: 'Eliminar',
+        infoText: 'Esta acción no se puede deshacer',
       ),
     );
 

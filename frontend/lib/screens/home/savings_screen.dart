@@ -180,28 +180,12 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                             onTap: () async {
                               final picked = await showDialog<String>(
                                 context: ctx,
-                                builder: (dCtx) => SimpleDialog(
-                                  backgroundColor: Colors.white,
-                                  title: const Text('Seleccionar Tipo',
-                                      style: TextStyle(
-                                          color: homeNavy,
-                                          fontWeight: FontWeight.w700)),
-                                  children: tipos.entries
-                                      .map((entry) => SimpleDialogOption(
-                                            onPressed: () =>
-                                                Navigator.pop(
-                                                    dCtx, entry.key),
-                                            child: Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      vertical: 4),
-                                              child: Text(entry.value,
-                                                  style: const TextStyle(
-                                                      color: homeNavy,
-                                                      fontSize: 14)),
-                                            ),
-                                          ))
-                                      .toList(),
+                                builder: (dCtx) => AppPickerDialog<String>(
+                                  title: 'Seleccionar Tipo',
+                                  titleIcon: Icons.category_rounded,
+                                  items: tipos.keys.toList(),
+                                  labelBuilder: (k) =>
+                                      tipos[k] ?? k,
                                 ),
                               );
                               if (picked != null) {

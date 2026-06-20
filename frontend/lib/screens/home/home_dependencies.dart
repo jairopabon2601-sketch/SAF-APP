@@ -12,4 +12,5 @@ export 'package:printing/printing.dart';
 export '../../controllers/home_controller.dart';
 export '../../services/api_service.dart';
 export '../../widgets/saf_logo.dart';
+export '../../widgets/home/app_dialogs.dart';
 export 'home_constants.dart';

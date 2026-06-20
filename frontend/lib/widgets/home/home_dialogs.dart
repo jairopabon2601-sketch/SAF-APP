@@ -151,140 +151,10 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        contentPadding: EdgeInsets.zero,
-        titlePadding: EdgeInsets.zero,
-        title: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 32, 24, 8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 84,
-                height: 84,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF4A0010),
-                      Color(0xFF9B0028),
-                      Color(0xFFE5003A),
-                      Color(0xFFFF4D6D),
-                    ],
-                    stops: [0.0, 0.30, 0.65, 1.0],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                        color: const Color(0xFFE5003A).withValues(alpha: 0.50),
-                        blurRadius: 24,
-                        spreadRadius: 2,
-                        offset: const Offset(0, 8)),
-                    BoxShadow(
-                        color: const Color(0xFFFF4D6D).withValues(alpha: 0.25),
-                        blurRadius: 40,
-                        spreadRadius: -2,
-                        offset: const Offset(0, 14)),
-                  ],
-                ),
-                child: const Icon(Icons.logout_rounded,
-                    color: Colors.white, size: 38),
-              ),
-              const SizedBox(height: 20),
-              const Text('¿Cerrar sesión?',
-                  style: TextStyle(
-                      color: homeNavy,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4)),
-              const SizedBox(height: 8),
-              const Text(
-                'Se cerrará tu sesión activa y tendrás que\nvolver a iniciar sesión para continuar.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: Color(0xFF8899BB), fontSize: 13, height: 1.6),
-              ),
-              const SizedBox(height: 28),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF4A0010),
-                      Color(0xFF9B0028),
-                      Color(0xFFE5003A),
-                      Color(0xFFFF4D6D),
-                    ],
-                    stops: [0.0, 0.30, 0.65, 1.0],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                        color: const Color(0xFFE5003A).withValues(alpha: 0.50),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6)),
-                    BoxShadow(
-                        color: const Color(0xFFFF4D6D).withValues(alpha: 0.25),
-                        blurRadius: 32,
-                        spreadRadius: -4,
-                        offset: const Offset(0, 12)),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => Navigator.pop(ctx, true),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 15),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.logout_rounded,
-                              color: Colors.white, size: 18),
-                          SizedBox(width: 8),
-                          Text('Sí, cerrar sesión',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 15)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF8899BB),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: const BorderSide(
-                          color: Color(0xFFE2E8F0), width: 1.5),
-                    ),
-                  ),
-                  child: const Text('No, quedarse',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 14)),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-        actions: const [],
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (ctx) => _LogoutConfirmDialog(
+        onConfirm: () => Navigator.pop(ctx, true),
+        onCancel: () => Navigator.pop(ctx, false),
       ),
     );
     if (confirm == true && mounted) {
@@ -620,5 +490,198 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
       ),
     ),
   );
+  }
+}
+
+// ── Animated logout confirmation dialog ─────────────────────────────────────
+class _LogoutConfirmDialog extends StatefulWidget {
+  const _LogoutConfirmDialog({
+    required this.onConfirm,
+    required this.onCancel,
+  });
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  @override
+  State<_LogoutConfirmDialog> createState() => _LogoutConfirmDialogState();
+}
+
+class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
+    with TickerProviderStateMixin {
+  late final AnimationController _entryCtrl = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 460));
+  late final AnimationController _iconCtrl = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 620));
+  late final Animation<double> _scale = Tween(begin: 0.78, end: 1.0).animate(
+      CurvedAnimation(parent: _entryCtrl, curve: Curves.elasticOut));
+  late final Animation<double> _fade = Tween(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+          parent: _entryCtrl,
+          curve: const Interval(0.0, 0.45, curve: Curves.easeOut)));
+  late final Animation<double> _iconScale =
+      Tween(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(parent: _iconCtrl, curve: Curves.elasticOut));
+
+  @override
+  void initState() {
+    super.initState();
+    _entryCtrl.forward();
+    Future.delayed(const Duration(milliseconds: 190),
+        () { if (mounted) _iconCtrl.forward(); });
+  }
+
+  @override
+  void dispose() {
+    _entryCtrl.dispose();
+    _iconCtrl.dispose();
+    super.dispose();
+  }
+
+  static const _grad = LinearGradient(
+    colors: [Color(0xFF4A0010), Color(0xFF9B0028), Color(0xFFE5003A), Color(0xFFFF4D6D)],
+    stops: [0.0, 0.30, 0.65, 1.0],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                    color: const Color(0xFFE5003A).withValues(alpha: 0.18),
+                    blurRadius: 48,
+                    offset: const Offset(0, 20)),
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8)),
+              ],
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // ── Gradient header ──────────────────────────────
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                decoration: const BoxDecoration(
+                  gradient: _grad,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Column(children: [
+                  ScaleTransition(
+                    scale: _iconScale,
+                    child: Container(
+                      width: 74,
+                      height: 74,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.35),
+                            width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                              color: const Color(0xFFE5003A)
+                                  .withValues(alpha: 0.40),
+                              blurRadius: 20,
+                              offset: const Offset(0, 6)),
+                        ],
+                      ),
+                      child: const Icon(Icons.logout_rounded,
+                          color: Colors.white, size: 36),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text('¿Cerrar sesión?',
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.4)),
+                ]),
+              ),
+              // ── Body ────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
+                child: Column(children: [
+                  Text(
+                    'Se cerrará tu sesión activa y tendrás que\nvolver a iniciar sesión para continuar.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF8899BB),
+                        height: 1.6),
+                  ),
+                  const SizedBox(height: 22),
+                  // Confirm button (full width, gradient)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: _grad,
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                            color: const Color(0xFFE5003A)
+                                .withValues(alpha: 0.40),
+                            blurRadius: 14,
+                            offset: const Offset(0, 5)),
+                      ],
+                    ),
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 50),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                      onPressed: widget.onConfirm,
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.logout_rounded, size: 18),
+                          SizedBox(width: 8),
+                          Text('Sí, cerrar sesión',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w800, fontSize: 15)),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Cancel button
+                  OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF8899BB),
+                      minimumSize: const Size(double.infinity, 46),
+                      side: const BorderSide(
+                          color: Color(0xFFE2E8F0), width: 1.5),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: widget.onCancel,
+                    child: const Text('No, quedarse',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w600, fontSize: 14)),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
   }
 }
