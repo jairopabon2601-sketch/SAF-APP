@@ -383,6 +383,13 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                             '/ajax/listado_select.php');
                                         repository.invalidateCache(
                                             '/ajax/listado_ahorros.php');
+                                        await fetchSavers();
+                                        if (isMounted) {
+                                          refresh(() {
+                                            cachedFilteredSavers = null;
+                                            savingsCurrentPage = 1;
+                                          });
+                                        }
                                         showDialog(
                                           context: screenContext,
                                           builder: (_) => buildResultDialog(

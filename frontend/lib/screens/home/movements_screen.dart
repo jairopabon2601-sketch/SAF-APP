@@ -1862,7 +1862,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                               : friendlyError(d['msg'] ??
                                                   d['mensaje'] ??
                                                   'No se pudo ajustar el saldo'));
-                                      if (ok) unawaited(loadData());
+                                      if (ok) {
+                                        repository.invalidateCache('/ajax/listar_cuentas_gasto.php');
+                                        repository.invalidateCache('/ajax/listar_movimientos_usuario.php');
+                                        unawaited(loadData());
+                                      }
                                     }
                                   } catch (e) {
                                     debugPrint('[SAF] ajustar saldo: $e');
@@ -2839,7 +2843,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                             : friendlyError(d['msg'] ??
                                                 d['mensaje'] ??
                                                 'No se pudo guardar el movimiento'));
-                                    if (ok) unawaited(loadData());
+                                    if (ok) {
+                                      repository.invalidateCache('/ajax/listar_cuentas_gasto.php');
+                                      repository.invalidateCache('/ajax/listar_movimientos_usuario.php');
+                                      unawaited(loadData());
+                                    }
                                   }
                                 } catch (e) {
                                   debugPrint('[SAF] guardar movimiento: $e');
