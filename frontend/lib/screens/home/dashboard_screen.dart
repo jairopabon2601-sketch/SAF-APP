@@ -57,7 +57,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                             icon: Icons.trending_down_rounded,
                             label: 'Total gastos',
                             value: formatCop(egresos),
-                            color: const Color(0xFFE53935),
+                            color: const Color(0xFFDC003A),
                             ratioValue: total > 0 ? egresos / total : null,
                             index: 1,
                           ),
@@ -841,9 +841,11 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     double? ratioValue,
     int index = 0,
   }) {
-    final cTop = Color.lerp(color, Colors.white, 0.22)!;
-    final cMid = color;
-    final cBot = Color.lerp(color, Colors.black, 0.42)!;
+    // 4-stop gradient: tint → base → shade → deep
+    final cA = Color.lerp(color, Colors.white, 0.20)!;
+    final cB = color;
+    final cC = Color.lerp(color, Colors.black, 0.22)!;
+    final cD = Color.lerp(color, Colors.black, 0.52)!;
 
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
@@ -868,8 +870,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [cTop, cMid, cBot],
-              stops: const [0.0, 0.46, 1.0],
+              colors: [cA, cB, cC, cD],
+              stops: const [0.0, 0.30, 0.65, 1.0],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),

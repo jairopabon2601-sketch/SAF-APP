@@ -49,12 +49,19 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       children: [
         // ── Sub-tab switcher ─────────────────────────────────
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
           child: Container(
-            height: 42,
+            height: 46,
             decoration: BoxDecoration(
-              color: const Color(0xFFE8EAF6),
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFEEF0FB),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: homeNavy.withValues(alpha: 0.07),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Row(children: [
               _subTab(0, 'Cuentas'),
@@ -64,32 +71,104 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         ),
 
         if (movementSubTab == 0) ...[
-          // ── CUENTAS: botones de acción ────────────────────
+          // ── CUENTAS: tarjeta de acciones ─────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-            child: Column(children: [
-              buildActionButton(
-                label: '+ Nueva Cuenta/Fuente',
-                color: const Color(0xFF10B981),
-                onTap: () => _showNuevaCuentaDialog(),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFFE8EDF5)),
+                boxShadow: [
+                  BoxShadow(
+                    color: homeNavy.withValues(alpha: 0.09),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              Row(children: [
-                Expanded(
-                    child: buildActionButton(
-                  label: '⇄ Movimientos',
-                  color: homeNavy,
-                  onTap: () => _showRegistrarMovimientoDialog(),
-                )),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: buildActionButton(
-                  label: '⇄ Transferir',
-                  color: const Color(0xFFF59E0B),
-                  onTap: () => _showTransferirDialog(),
-                )),
-              ]),
-            ]),
+              child: Column(
+                children: [
+                  // ── CTA principal ──────────────────────────
+                  _ActionTile(
+                    onTap: () => _showNuevaCuentaDialog(),
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFF37AB87), // lerp(#059669, white, 0.20)
+                        Color(0xFF059669), // base
+                        Color(0xFF047552), // lerp(#059669, black, 0.22)
+                        Color(0xFF024832), // lerp(#059669, black, 0.52)
+                      ],
+                      stops: [0.0, 0.30, 0.65, 1.0],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    iconColor: const Color(0xFF059669),
+                    icon: Icons.add_card_rounded,
+                    title: 'Nueva Cuenta / Fuente',
+                    subtitle: 'Agregar fuente de dinero',
+                    borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(22)),
+                    trailing: true,
+                    entranceDelay: 0,
+                  ),
+                  // ── Fila secundaria ────────────────────────
+                  IntrinsicHeight(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _ActionTile(
+                            onTap: () => _showRegistrarMovimientoDialog(),
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF4D6DB5), // lerp(#1E3A8A, white, 0.20)
+                                Color(0xFF1E3A8A), // base
+                                Color(0xFF17296C), // lerp(#1E3A8A, black, 0.22)
+                                Color(0xFF0C1542), // lerp(#1E3A8A, black, 0.52)
+                              ],
+                              stops: [0.0, 0.30, 0.65, 1.0],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            iconColor: const Color(0xFF1E3A8A),
+                            icon: Icons.swap_vert_rounded,
+                            title: 'Movimiento',
+                            subtitle: 'Ingreso / Gasto',
+                            borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(22)),
+                            entranceDelay: 120,
+                          ),
+                        ),
+                        Container(width: 1, color: const Color(0xFFE8EDF5)),
+                        Expanded(
+                          child: _ActionTile(
+                            onTap: () => _showTransferirDialog(),
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFFF8C04C), // lerp(#F59E0B, white, 0.20)
+                                Color(0xFFF59E0B), // base
+                                Color(0xFFC07C09), // lerp(#F59E0B, black, 0.22)
+                                Color(0xFF745C05), // lerp(#F59E0B, black, 0.52)
+                              ],
+                              stops: [0.0, 0.30, 0.65, 1.0],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            iconColor: const Color(0xFFF59E0B),
+                            icon: Icons.compare_arrows_rounded,
+                            title: 'Transferir',
+                            subtitle: 'Entre cuentas',
+                            borderRadius: const BorderRadius.only(
+                                bottomRight: Radius.circular(22)),
+                            entranceDelay: 220,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
           // Total saldo card
           AnimatedBuilder(
@@ -596,124 +675,134 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               ]),
             ),
           ),
-          // ── Botones de acción ─────────────────────────────
+          // ── Botones de acción (Movimientos tab) ──────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-            child: Row(children: [
-              Expanded(
-                child: GestureDetector(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFFE8EDF5)),
+                boxShadow: [
+                  BoxShadow(
+                    color: homeNavy.withValues(alpha: 0.09),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(children: [
+                _ActionTile(
                   onTap: () => _showRegistrarMovimientoDialog(),
-                  child: Container(
-                    height: 50,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                          colors: [Color(0xFF059669), Color(0xFF10B981)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight),
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                            color:
-                                const Color(0xFF059669).withValues(alpha: 0.35),
-                            blurRadius: 14,
-                            offset: const Offset(0, 5))
-                      ],
-                    ),
-                    child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.add_circle_outline_rounded,
-                              color: Colors.white, size: 20),
-                          SizedBox(width: 7),
-                          Text('Nuevo Movimiento',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13)),
-                        ]),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              GestureDetector(
-                onTap: () => _showTransferirDialog(),
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                        colors: [Color(0xFFF59E0B), Color(0xFFFBBF24)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight),
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                          color:
-                              const Color(0xFFF59E0B).withValues(alpha: 0.40),
-                          blurRadius: 14,
-                          offset: const Offset(0, 5))
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF37AB87),
+                      Color(0xFF059669),
+                      Color(0xFF047552),
+                      Color(0xFF024832),
                     ],
-                  ),
-                  child: const Icon(Icons.swap_horiz_rounded,
-                      color: Colors.white, size: 24),
-                ),
-              ),
-            ]),
-          ),
-          // ── Filtros ──────────────────────────────────────
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [
-                BoxShadow(
-                    color: const Color(0xFF4361EE).withValues(alpha: 0.08),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4))
-              ],
-            ),
-            child: Column(children: [
-              // Gradient header bar
-              Container(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF0D1B4B), Color(0xFF1A3170)],
+                    stops: [0.0, 0.30, 0.65, 1.0],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(17)),
+                  iconColor: const Color(0xFF059669),
+                  icon: Icons.add_circle_outline_rounded,
+                  title: 'Nuevo Movimiento',
+                  subtitle: 'Registrar ingreso o gasto',
+                  borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(22)),
+                  trailing: true,
+                  entranceDelay: 0,
+                ),
+                _ActionTile(
+                  onTap: () => _showTransferirDialog(),
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFFF8C04C),
+                      Color(0xFFF59E0B),
+                      Color(0xFFC07C09),
+                      Color(0xFF745C05),
+                    ],
+                    stops: [0.0, 0.30, 0.65, 1.0],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  iconColor: const Color(0xFFF59E0B),
+                  icon: Icons.compare_arrows_rounded,
+                  title: 'Transferir',
+                  subtitle: 'Mover entre cuentas',
+                  borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(22)),
+                  entranceDelay: 100,
+                ),
+              ]),
+            ),
+          ),
+          // ── Filtros ──────────────────────────────────────
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE8EDF5)),
+              boxShadow: [
+                BoxShadow(
+                    color: homeNavy.withValues(alpha: 0.07),
+                    blurRadius: 18,
+                    offset: const Offset(0, 5))
+              ],
+            ),
+            child: Column(children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF0B0F2E),
+                      Color(0xFF1E3A8A),
+                      Color(0xFF3B82F6),
+                    ],
+                    stops: [0.0, 0.55, 1.0],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(19)),
                 ),
                 child: Row(children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(7),
                     decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8)),
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(9)),
                     child: const Icon(Icons.tune_rounded,
                         size: 14, color: Colors.white),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   const Text('Filtros',
                       style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white)),
+                          color: Colors.white,
+                          letterSpacing: 0.2)),
                   if (hasUserFilter) ...[
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 2),
+                          horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                          color:
-                              const Color(0xFF6EE7B7).withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(10)),
+                          color: const Color(0xFF34D399).withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                              color: const Color(0xFF34D399)
+                                  .withValues(alpha: 0.4))),
                       child: const Text('activo',
                           style: TextStyle(
                               fontSize: 9,
                               color: Color(0xFF6EE7B7),
-                              fontWeight: FontWeight.w700)),
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5)),
                     ),
                   ],
                   const Spacer(),
@@ -729,12 +818,12 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       }),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                            horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.2))),
+                                color: Colors.white.withValues(alpha: 0.22))),
                         child: const Row(children: [
                           Icon(Icons.close_rounded,
                               size: 11, color: Colors.white70),
@@ -749,10 +838,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                     ),
                 ]),
               ),
+              // Campos de filtro
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                 child: Column(children: [
-                  const SizedBox(height: 10),
                   Row(children: [
                     Expanded(
                         child: _filterDropdown<String>(
@@ -829,10 +918,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       },
                     )),
                   ]),
-                  const SizedBox(height: 4),
                 ]),
               ),
-              // closes outer Column + Container
             ]),
           ),
           // ── Lista movimientos header ──────────────────────
@@ -844,40 +931,52 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 Row(children: [
                   Container(
                     width: 4,
-                    height: 18,
+                    height: 20,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                          colors: [Color(0xFF4361EE), Color(0xFF0EA5E9)],
+                          colors: [Color(0xFF3B82F6), Color(0xFF06B6D4)],
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 10),
                   const Text('Movimientos',
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF0D1B4B))),
+                          color: Color(0xFF0D1B4B),
+                          letterSpacing: -0.3)),
                 ]),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEEF2FF),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.30),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
                   child: isMovementsLoading
                       ? _movementSkeletonBox(
                           width: 54,
                           height: 11,
-                          color: const Color(0xFFCBD5F5),
+                          color: Colors.white.withValues(alpha: 0.4),
                         )
                       : Text('${filtrados.length} registros',
                           style: const TextStyle(
                               fontSize: 11,
-                              color: Color(0xFF4361EE),
-                              fontWeight: FontWeight.w600)),
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700)),
                 ),
               ],
             ),
@@ -905,24 +1004,12 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                   itemCount: pagina.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) {
-                    final delay = (i * 0.07).clamp(0.0, 0.42);
-                    final end = (i * 0.07 + 0.60).clamp(0.5, 1.0);
-                    return TweenAnimationBuilder<double>(
-                      key: ValueKey('mov_${desde + i}'),
-                      tween: Tween(begin: 0.0, end: 1.0),
-                      duration: const Duration(milliseconds: 550),
-                      curve: Interval(delay, end, curve: Curves.easeOutBack),
-                      builder: (_, v, child) => Opacity(
-                        opacity: v.clamp(0.0, 1.0),
-                        child: Transform.translate(
-                          offset: Offset(30 * (1 - v.clamp(0.0, 1.0)), 0),
-                          child: child,
-                        ),
-                      ),
-                      child: buildMovementItem(pagina[i]),
-                    );
-                  },
+                  itemBuilder: (_, i) => _AnimatedMovementCard(
+                    key: ValueKey('mov_${desde + i}'),
+                    data: pagina[i],
+                    index: i,
+                    onDelete: () => _confirmEliminarMovimiento(pagina[i]),
+                  ),
                 ),
                 if (totalPags > 1)
                   Padding(
@@ -1047,46 +1134,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     required Color color,
     required VoidCallback onTap,
     IconData? icon,
-  }) {
-    final colorDark = Color.lerp(color, Colors.black, 0.22) ?? color;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 44,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-              colors: [color, colorDark],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight),
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-                color: colorDark.withValues(alpha: 0.45),
-                blurRadius: 12,
-                spreadRadius: 0,
-                offset: const Offset(0, 5)),
-            BoxShadow(
-                color: color.withValues(alpha: 0.15),
-                blurRadius: 4,
-                offset: const Offset(0, 1)),
-          ],
-        ),
-        alignment: Alignment.center,
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          if (icon != null) ...[
-            Icon(icon, color: Colors.white, size: 15),
-            const SizedBox(width: 6),
-          ],
-          Text(label,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3)),
-        ]),
-      ),
-    );
-  }
+  }) =>
+      _AnimatedActionButton(
+          label: label, color: color, onTap: onTap, icon: icon);
 
   Widget _filterDropdown<ValueType>({
     required String label,
@@ -1273,37 +1323,64 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             : null,
       );
 
-  Widget _subTab(int index, String label) => Expanded(
-        child: GestureDetector(
-          onTap: () => refresh(() => movementSubTab = index),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 220),
-            margin: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color:
-                  movementSubTab == index ? Colors.white : Colors.transparent,
-              borderRadius: BorderRadius.circular(9),
-              boxShadow: movementSubTab == index
-                  ? [
-                      BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 6,
-                          offset: const Offset(0, 2))
-                    ]
-                  : null,
-            ),
-            alignment: Alignment.center,
-            child: Text(label,
+  Widget _subTab(int index, String label) {
+    const icons = [Icons.account_balance_wallet_rounded, Icons.receipt_long_rounded];
+    final active = movementSubTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => refresh(() => movementSubTab = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            gradient: active
+                ? const LinearGradient(
+                    colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: active ? null : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: homeNavy.withValues(alpha: 0.30),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    )
+                  ]
+                : null,
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  icons[index],
+                  key: ValueKey(active),
+                  size: 14,
+                  color: active ? Colors.white : const Color(0xFF8899BB),
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: movementSubTab == index
-                      ? homeNavy
-                      : const Color(0xFF8899BB),
-                )),
+                  color: active ? Colors.white : const Color(0xFF8899BB),
+                ),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
 
   // ── Colores predefinidos para el picker de cuenta ────────────────
   static const _presetColors = [
@@ -4838,5 +4915,712 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       debugPrint('[SAF] eliminar movimiento: $e');
       if (isMounted) showResult(false, 'Error al eliminar el movimiento');
     }
+  }
+}
+
+// ── Botón de acción con animación de escala al presionar ─────────────────────
+class _AnimatedActionButton extends StatefulWidget {
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  const _AnimatedActionButton({
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.icon,
+  });
+
+  @override
+  State<_AnimatedActionButton> createState() => _AnimatedActionButtonState();
+}
+
+class _AnimatedActionButtonState extends State<_AnimatedActionButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 100),
+    lowerBound: 0.94,
+    upperBound: 1.0,
+  )..value = 1.0;
+
+  Color get _light =>
+      Color.lerp(widget.color, Colors.white, 0.18) ?? widget.color;
+  Color get _mid => widget.color;
+  Color get _shade =>
+      Color.lerp(widget.color, Colors.black, 0.22) ?? widget.color;
+  Color get _deep =>
+      Color.lerp(widget.color, Colors.black, 0.48) ?? widget.color;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _ctrl.reverse(),
+      onTapUp: (_) {
+        _ctrl.forward();
+        widget.onTap();
+      },
+      onTapCancel: () => _ctrl.forward(),
+      child: ScaleTransition(
+        scale: _ctrl,
+        child: Container(
+          height: 48,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [_light, _mid, _shade, _deep],
+              stops: const [0.0, 0.30, 0.65, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: _shade.withValues(alpha: 0.45),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+              BoxShadow(
+                color: widget.color.withValues(alpha: 0.18),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (widget.icon != null) ...[
+                Icon(widget.icon, color: Colors.white, size: 17),
+                const SizedBox(width: 7),
+              ],
+              Text(
+                widget.label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Tile de acción: gradiente + entrada escalonada + shimmer sweep ────────────
+class _ActionTile extends StatefulWidget {
+  final VoidCallback onTap;
+  final LinearGradient gradient;
+  final Color iconColor;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final BorderRadius borderRadius;
+  final bool trailing;
+  final int entranceDelay; // ms
+
+  const _ActionTile({
+    required this.onTap,
+    required this.gradient,
+    required this.iconColor,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.borderRadius,
+    this.trailing = false,
+    this.entranceDelay = 0,
+  });
+
+  @override
+  State<_ActionTile> createState() => _ActionTileState();
+}
+
+class _ActionTileState extends State<_ActionTile>
+    with TickerProviderStateMixin {
+  // Press scale
+  late final AnimationController _press = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 110),
+    lowerBound: 0.96,
+    upperBound: 1.0,
+  )..value = 1.0;
+
+  // Entrance slide+fade
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 550),
+  );
+  late final Animation<Offset> _slide = Tween<Offset>(
+    begin: const Offset(0, 0.4),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _entrance, curve: Curves.easeOutCubic));
+  late final Animation<double> _fade =
+      CurvedAnimation(parent: _entrance, curve: Curves.easeOut);
+
+  // Shimmer sweep (0 → 1 → pause → repeat)
+  late final AnimationController _shimmer = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  );
+
+  bool _disposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(Duration(milliseconds: widget.entranceDelay), () {
+      if (!_disposed && mounted) _entrance.forward();
+    });
+    _loopShimmer();
+  }
+
+  Future<void> _loopShimmer() async {
+    while (!_disposed) {
+      await Future.delayed(const Duration(milliseconds: 3200));
+      if (_disposed || !mounted) break;
+      await _shimmer.forward(from: 0);
+      if (_disposed || !mounted) break;
+      _shimmer.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _press.dispose();
+    _entrance.dispose();
+    _shimmer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _slide,
+      child: FadeTransition(
+        opacity: _fade,
+        child: GestureDetector(
+          onTapDown: (_) => _press.reverse(),
+          onTapUp: (_) {
+            _press.forward();
+            widget.onTap();
+          },
+          onTapCancel: () => _press.forward(),
+          child: ScaleTransition(
+            scale: _press,
+            child: ClipRRect(
+              borderRadius: widget.borderRadius,
+              child: Stack(
+                children: [
+                  // ── Fondo gradiente ──────────────────────
+                  Container(
+                    decoration: BoxDecoration(gradient: widget.gradient),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 16),
+                    child: Row(
+                      children: [
+                        // Ícono con halo pulsante suave
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.18),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.28),
+                                width: 1),
+                          ),
+                          child:
+                              Icon(widget.icon, color: Colors.white, size: 20),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(widget.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.1,
+                                  )),
+                              const SizedBox(height: 2),
+                              Text(widget.subtitle,
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.68),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w500,
+                                  )),
+                            ],
+                          ),
+                        ),
+                        if (widget.trailing)
+                          Icon(Icons.arrow_forward_ios_rounded,
+                              color: Colors.white.withValues(alpha: 0.55),
+                              size: 14),
+                      ],
+                    ),
+                  ),
+                  // ── Shimmer diagonal sweep ───────────────
+                  Positioned.fill(
+                    child: AnimatedBuilder(
+                      animation: _shimmer,
+                      builder: (_, __) {
+                        final t = Curves.easeInOut
+                            .transform(_shimmer.value);
+                        return Align(
+                          alignment: Alignment(-2.5 + t * 5.0, 0),
+                          child: FractionallySizedBox(
+                            widthFactor: 0.22,
+                            heightFactor: 2.0,
+                            child: Transform.rotate(
+                              angle: 0.4,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      Colors.white.withValues(alpha: 0),
+                                      Colors.white.withValues(alpha: 0.22),
+                                      Colors.white.withValues(alpha: 0),
+                                    ],
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Card de movimiento animada: entrada + press + shimmer en icono ────────────
+class _AnimatedMovementCard extends StatefulWidget {
+  final Map<String, dynamic> data;
+  final int index;
+  final VoidCallback onDelete;
+
+  const _AnimatedMovementCard({
+    super.key,
+    required this.data,
+    required this.index,
+    required this.onDelete,
+  });
+
+  @override
+  State<_AnimatedMovementCard> createState() => _AnimatedMovementCardState();
+}
+
+class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
+    with TickerProviderStateMixin {
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 520),
+  );
+  late final Animation<Offset> _slide = Tween<Offset>(
+    begin: const Offset(0, 0.28),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _entrance, curve: Curves.easeOutCubic));
+  late final Animation<double> _fade =
+      CurvedAnimation(parent: _entrance, curve: Curves.easeOut);
+
+  late final AnimationController _press = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 120),
+    lowerBound: 0.97,
+    upperBound: 1.0,
+  )..value = 1.0;
+
+  late final AnimationController _shimmer = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 750),
+  );
+
+  bool _disposed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final delay = (widget.index * 65).clamp(0, 380);
+    Future.delayed(Duration(milliseconds: delay), () {
+      if (!_disposed && mounted) _entrance.forward();
+    });
+    _loopShimmer();
+  }
+
+  Future<void> _loopShimmer() async {
+    await Future.delayed(
+        Duration(milliseconds: 1800 + widget.index * 180));
+    while (!_disposed) {
+      await Future.delayed(const Duration(milliseconds: 4200));
+      if (_disposed || !mounted) break;
+      await _shimmer.forward(from: 0);
+      if (_disposed || !mounted) break;
+      _shimmer.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _entrance.dispose();
+    _press.dispose();
+    _shimmer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = widget.data;
+    final desc = (m['descripcion'] ?? 'Movimiento').toString();
+    final cuentaNom = (m['cuenta_nombre'] ?? '').toString();
+    final hexColor = (m['cuenta_color'] ?? '#4361EE').toString();
+    final color = parseHexColor(hexColor);
+    final tipo = (m['tipo_movimiento'] ?? '2').toString();
+    final isIngreso = tipo == '3' || tipo == '1';
+    final valor = numberValue(m['valor'] ?? 0);
+    final rawFecha = (m['fecha'] ?? '').toString();
+    final fecha =
+        rawFecha.length >= 10 ? rawFecha.substring(0, 10) : rawFecha;
+
+    final stripColor =
+        isIngreso ? const Color(0xFF059669) : const Color(0xFFDC2626);
+    final amtColor =
+        isIngreso ? const Color(0xFF059669) : const Color(0xFFDC2626);
+    final cLight = Color.lerp(color, Colors.white, 0.40)!;
+
+    return SlideTransition(
+      position: _slide,
+      child: FadeTransition(
+        opacity: _fade,
+        child: GestureDetector(
+          onTapDown: (_) => _press.reverse(),
+          onTapUp: (_) => _press.forward(),
+          onTapCancel: () => _press.forward(),
+          child: ScaleTransition(
+            scale: _press,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFEEF2FF)),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.08),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Stack(children: [
+                  // Left accent strip
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 4,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isIngreso
+                              ? [
+                                  const Color(0xFF34D399),
+                                  const Color(0xFF059669),
+                                  const Color(0xFF065F46)
+                                ]
+                              : [
+                                  const Color(0xFFF87171),
+                                  const Color(0xFFDC2626),
+                                  const Color(0xFF7F1D1D)
+                                ],
+                          stops: const [0.0, 0.5, 1.0],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+                    child: Row(children: [
+                      // Icon with shimmer sweep
+                      Stack(clipBehavior: Clip.none, children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Stack(children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    cLight,
+                                    color,
+                                    Color.lerp(color, Colors.black, 0.18)!
+                                  ],
+                                  stops: const [0.0, 0.5, 1.0],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: Icon(
+                                isIngreso
+                                    ? Icons.south_west_rounded
+                                    : Icons.north_east_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                            ),
+                            Positioned.fill(
+                              child: AnimatedBuilder(
+                                animation: _shimmer,
+                                builder: (_, __) => Align(
+                                  alignment: Alignment.lerp(
+                                    const Alignment(-2.5, -2.5),
+                                    const Alignment(2.5, 2.5),
+                                    _shimmer.value,
+                                  )!,
+                                  child: Transform.rotate(
+                                    angle: pi / 4,
+                                    child: Container(
+                                      width: 16,
+                                      height: 64,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Colors.transparent,
+                                            Colors.white
+                                                .withValues(alpha: 0.50),
+                                            Colors.transparent,
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ]),
+                        ),
+                        // Badge dot
+                        Positioned(
+                          right: -3,
+                          top: -3,
+                          child: Container(
+                            width: 15,
+                            height: 15,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: isIngreso
+                                    ? [
+                                        const Color(0xFF34D399),
+                                        const Color(0xFF059669)
+                                      ]
+                                    : [
+                                        const Color(0xFFF87171),
+                                        const Color(0xFFDC2626)
+                                      ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              shape: BoxShape.circle,
+                              border:
+                                  Border.all(color: Colors.white, width: 1.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: stripColor.withValues(alpha: 0.45),
+                                  blurRadius: 5,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              isIngreso
+                                  ? Icons.add_rounded
+                                  : Icons.remove_rounded,
+                              size: 9,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ]),
+                      const SizedBox(width: 13),
+                      // Description + meta
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(desc,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: homeNavy,
+                                    letterSpacing: -0.2)),
+                            const SizedBox(height: 5),
+                            Row(children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                      color: color.withValues(alpha: 0.25),
+                                      width: 0.8),
+                                ),
+                                child: Text(
+                                  cuentaNom.isNotEmpty ? cuentaNom : 'SAF',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    color: color,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 7),
+                              const Icon(Icons.calendar_today_rounded,
+                                  size: 9, color: Color(0xFFB6C0D5)),
+                              const SizedBox(width: 3),
+                              Text(fecha,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Color(0xFF9AA7C2),
+                                    fontWeight: FontWeight.w500,
+                                  )),
+                            ]),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Amount + badge + delete
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '${isIngreso ? '+' : '-'}${formatCop(valor)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
+                              letterSpacing: -0.4,
+                              color: amtColor,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(mainAxisSize: MainAxisSize.min, children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: isIngreso
+                                      ? [
+                                          const Color(0xFF065F46),
+                                          const Color(0xFF059669)
+                                        ]
+                                      : [
+                                          const Color(0xFF7F1D1D),
+                                          const Color(0xFFDC2626)
+                                        ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: stripColor.withValues(alpha: 0.35),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                isIngreso ? 'Ingreso' : 'Gasto',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            GestureDetector(
+                              onTap: widget.onDelete,
+                              child: Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFFFEE2E2),
+                                      Color(0xFFFECDD3)
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(9),
+                                  border: Border.all(
+                                      color: const Color(0xFFDC2626)
+                                          .withValues(alpha: 0.25)),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFFDC2626)
+                                          .withValues(alpha: 0.15),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(Icons.delete_outline_rounded,
+                                    size: 15, color: Color(0xFFDC2626)),
+                              ),
+                            ),
+                          ]),
+                        ],
+                      ),
+                    ]),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
