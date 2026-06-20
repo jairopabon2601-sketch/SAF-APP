@@ -499,11 +499,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      const Text('Asesor',
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: homeNavy)),
+                      Row(children: [
+                        const Icon(Icons.person_outline_rounded, size: 12, color: homeNavy),
+                        const SizedBox(width: 4),
+                        const Text('Asesor',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: homeNavy)),
+                      ]),
                       const SizedBox(height: 4),
                       Container(
                         height: 38,
@@ -584,11 +588,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      const Text('Estado',
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: homeNavy)),
+                      Row(children: [
+                        const Icon(Icons.radio_button_checked_rounded, size: 12, color: homeNavy),
+                        const SizedBox(width: 4),
+                        const Text('Estado',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: homeNavy)),
+                      ]),
                       const SizedBox(height: 4),
                       Container(
                         height: 38,
@@ -612,19 +620,25 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 const TextStyle(fontSize: 12, color: homeNavy),
                             icon: const Icon(Icons.keyboard_arrow_down_rounded,
                                 size: 16, color: Color(0xFF8899BB)),
-                            items: const [
-                              DropdownMenuItem(
+                            items: [
+                              const DropdownMenuItem(
                                   value: null,
                                   child: Text('Todos',
                                       style: TextStyle(color: homeNavy))),
                               DropdownMenuItem(
                                   value: '1',
-                                  child: Text('Activo',
-                                      style: TextStyle(color: homeNavy))),
+                                  child: Row(children: [
+                                    Container(width: 7, height: 7, decoration: const BoxDecoration(color: Color(0xFF16A34A), shape: BoxShape.circle)),
+                                    const SizedBox(width: 6),
+                                    const Text('Activo', style: TextStyle(color: Color(0xFF16A34A), fontWeight: FontWeight.w600)),
+                                  ])),
                               DropdownMenuItem(
                                   value: '2',
-                                  child: Text('Pagado',
-                                      style: TextStyle(color: homeNavy))),
+                                  child: Row(children: [
+                                    Container(width: 7, height: 7, decoration: const BoxDecoration(color: Color(0xFF0369A1), shape: BoxShape.circle)),
+                                    const SizedBox(width: 6),
+                                    const Text('Pagado', style: TextStyle(color: Color(0xFF0369A1), fontWeight: FontWeight.w600)),
+                                  ])),
                             ],
                             onChanged: (v) async {
                               refresh(() {
@@ -2973,16 +2987,16 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             : const Color(0xFFE2E8F0);
 
     final Color estadoColor = !activo
-        ? const Color(0xFF16A34A)
+        ? const Color(0xFF0369A1)
         : vencido
             ? const Color(0xFFB71C1C)
-            : homeNavy;
+            : const Color(0xFF16A34A);
 
     final Color estadoBg = !activo
-        ? const Color(0xFFDCFCE7)
+        ? const Color(0xFFDBEAFE)
         : vencido
             ? const Color(0xFFFFEBEE)
-            : const Color(0xFFF3F4F6);
+            : const Color(0xFFDCFCE7);
 
     final initials = nombre
         .split(' ')
