@@ -12,8 +12,10 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
     cachedFilteredSavers = null;
   }
 
-  String advisorName(String sigla) =>
-      advisorNames[sigla.toUpperCase()] ?? sigla;
+  String advisorName(String codigoOSigla) {
+    final sigla = creditAdvisorInitials(codigoOSigla).trim().toUpperCase();
+    return advisorNames[sigla] ?? sigla;
+  }
 
   String creditAdvisorCode(String sigla) {
     final buscada = sigla.trim().toUpperCase();
@@ -43,18 +45,24 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
 
   // Ahorradores tras aplicar el filtro de asesor (memoizado)
   List<Map<String, dynamic>> get filteredSavers {
-    if (cachedSavingsAdvisorFilter == savingsAdvisorFilter &&
+    final selectedAdvisor = savingsAdvisorFilter == '0'
+        ? '0'
+        : creditAdvisorInitials(savingsAdvisorFilter).trim().toUpperCase();
+    if (cachedSavingsAdvisorFilter == selectedAdvisor &&
         cachedFilteredSavers != null) {
       return cachedFilteredSavers!;
     }
-    cachedSavingsAdvisorFilter = savingsAdvisorFilter;
-    if (savingsAdvisorFilter == '0') {
+    cachedSavingsAdvisorFilter = selectedAdvisor;
+    if (selectedAdvisor == '0') {
       cachedFilteredSavers = savers;
     } else {
       cachedFilteredSavers = savers
-          .where((a) =>
-              (a['asesor'] ?? '').toString().trim().toUpperCase() ==
-              savingsAdvisorFilter.toUpperCase())
+          .where((a) {
+            final itemAdvisor = creditAdvisorInitials(
+              (a['asesor'] ?? a['codigo_asesor'] ?? '').toString(),
+            ).trim().toUpperCase();
+            return itemAdvisor == selectedAdvisor;
+          })
           .toList();
     }
     return cachedFilteredSavers!;

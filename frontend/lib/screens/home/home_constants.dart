@@ -15,11 +15,11 @@ const dialogTextStyle = TextStyle(fontSize: 13, color: Color(0xFF374151));
 const dialogHintStyle = TextStyle(fontSize: 13, color: Color(0xFF9CA3AF));
 
 const homeNavigationColors = [
-  Color(0xFF60A5FA),
-  Color(0xFF34D399),
-  Color(0xFFA78BFA),
-  Color(0xFF38BDF8),
-  Color(0xFFFBBF24),
+  Color(0xFF60A5FA),   // Inicio     — azul
+  Color(0xFF34D399),   // Créditos   — verde
+  Color(0xFFA78BFA),   // Ahorros    — morado
+  Color(0xFFF59E0B),   // Movimientos — ámbar
+  Color(0xFFFBBF24),   // Estadísticas — amarillo
 ];
 
 const Map<String, String> advisorNames = {

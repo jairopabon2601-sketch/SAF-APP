@@ -16,7 +16,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         accountFilter.isNotEmpty && selectedAccountMovementsLoading;
 
     // Check if dates differ from the 31-day defaults
-    final now = DateTime.now();
+    final now =
+        DateTime.now().toUtc().subtract(const Duration(hours: 5));
     final defaultDesde = now.subtract(const Duration(days: 31));
     final datesAreDefault = filterFrom == null ||
         (filterFrom!.difference(defaultDesde).inDays.abs() <= 1 &&
@@ -1829,7 +1830,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     final formKey = GlobalKey<FormState>();
     final valorCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final now = DateTime.now();
+    final now =
+        DateTime.now().toUtc().subtract(const Duration(hours: 5));
     String pad2(int n) => n.toString().padLeft(2, '0');
     String selectedFecha = '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
     String? origenCod;
@@ -2216,7 +2218,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Row(children: [
                     Expanded(
                       child: gradBtn(
-                        colors: const [Color(0xFF6B7280), Color(0xFF9CA3AF)],
+                        colors: const [Color(0xFF991B1B), Color(0xFFDC2626), Color(0xFFEF4444)],
                         onPressed: () => Navigator.pop(ctx),
                         child: const Text('Cancelar',
                             style: TextStyle(
@@ -2249,6 +2251,29 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                   return;
                                 }
                                 if (!formKey.currentState!.validate()) return;
+                                final valor = numberValue(valorCtrl.text
+                                    .replaceAll(RegExp(r'[^\d]'), ''));
+                                if (valor <= 0) {
+                                  showResult(false,
+                                      'Ingrese un valor válido para transferir');
+                                  return;
+                                }
+                                final cuentaOrigen = cuentasOpts.firstWhere(
+                                  (cuenta) =>
+                                      (cuenta['codigo'] ?? '').toString() ==
+                                      origenCod,
+                                  orElse: () => <String, dynamic>{},
+                                );
+                                final saldoOrigen = numberValue(
+                                    cuentaOrigen['saldo_actual'] ??
+                                        cuentaOrigen['saldo'] ??
+                                        cuentaOrigen['balance'] ??
+                                        0);
+                                if (saldoOrigen < valor) {
+                                  showResult(false,
+                                      'La cuenta de origen no tiene saldo suficiente');
+                                  return;
+                                }
                                 setS(() => saving = true);
                                 try {
                                   final r = await repository
@@ -2260,22 +2285,49 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                     'descripcion': descCtrl.text.trim(),
                                     'usuario': codigoUsuario,
                                   });
-                                  if (r.statusCode == 200) {
-                                    final d = decodeJsonMap(r.body);
-                                    final ok = d['success'] == true ||
-                                        d['resultado'] == 1;
-                                    if (ctx.mounted) Navigator.pop(ctx);
+                                  final raw = r.body.trim();
+                                  final lower = raw.toLowerCase();
+                                  final isHtml = lower.contains('<!doctype') ||
+                                      lower.contains('<html') ||
+                                      lower.contains('fatal error') ||
+                                      lower.contains('warning:') ||
+                                      lower.contains('require_once');
+                                  final d = isHtml
+                                      ? <String, dynamic>{}
+                                      : decodeJsonMap(raw);
+                                  final ok = r.statusCode == 200 &&
+                                      !isHtml &&
+                                      (d['success'] == true ||
+                                          d['resultado'] == 1);
+                                  if (!ok) {
+                                    if (ctx.mounted) {
+                                      setS(() => saving = false);
+                                    }
                                     showResult(
-                                        ok,
-                                        ok
-                                            ? 'Transferencia realizada correctamente.'
-                                            : friendlyError(d['msg'] ??
-                                                d['mensaje'] ??
-                                                'No se pudo completar la transferencia'));
-                                    if (ok) unawaited(loadData());
+                                      false,
+                                      isHtml
+                                          ? 'El servidor no pudo procesar la transferencia.'
+                                          : friendlyError(d['msg'] ??
+                                              d['mensaje'] ??
+                                              'No se pudo completar la transferencia'),
+                                    );
+                                    return;
                                   }
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  repository.invalidateCache(
+                                      '/ajax/listar_cuentas_gasto.php');
+                                  repository.invalidateCache(
+                                      '/ajax/listar_movimientos_usuario.php');
+                                  await loadData();
+                                  showResult(true,
+                                      'Transferencia realizada correctamente.');
                                 } catch (e) {
                                   debugPrint('[SAF] transferir: $e');
+                                  if (ctx.mounted) {
+                                    setS(() => saving = false);
+                                  }
+                                  showResult(false,
+                                      'No fue posible completar la transferencia: ${friendlyError(e)}');
                                 } finally {
                                   if (ctx.mounted) setS(() => saving = false);
                                 }
@@ -2706,7 +2758,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Row(children: [
                     Expanded(
                       child: gradBtn(
-                        colors: const [Color(0xFF6B7280), Color(0xFF9CA3AF)],
+                        colors: const [Color(0xFF991B1B), Color(0xFFDC2626), Color(0xFFEF4444)],
                         onPressed: () => Navigator.pop(ctx),
                         child: const Text('Cancelar',
                             style: TextStyle(
@@ -2866,65 +2918,170 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             );
 
         return Dialog(
-          backgroundColor: Colors.white,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
           insetPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 40),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Título
-                  Row(children: [
-                    const Expanded(
-                      child: Text('Nueva Cuenta/Fuente',
-                          style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              color: homeNavy)),
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                    color: const Color(0xFF4361EE).withValues(alpha: 0.15),
+                    blurRadius: 32,
+                    offset: const Offset(0, 12)),
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.10),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ── Header ──────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0xFF0D1B4B),
+                        Color(0xFF1E3A8A),
+                        Color(0xFF4361EE),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded, size: 20)),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.25)),
+                      ),
+                      child: const Icon(Icons.account_balance_wallet_rounded,
+                          color: Colors.white, size: 22),
+                    ),
+                    const SizedBox(width: 13),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Nueva Cuenta/Fuente',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800)),
+                          SizedBox(height: 2),
+                          Text('Agrega una cuenta o fuente de fondos',
+                              style: TextStyle(
+                                  color: Colors.white60, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.close_rounded,
+                            color: Colors.white, size: 18),
+                      ),
+                    ),
                   ]),
-                  const SizedBox(height: 16),
+                ),
+
+                // ── Form body ────────────────────────────────
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Form(
+                      key: formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                  const SizedBox(height: 4),
 
                   // Nombre
-                  const Text('Nombre de la cuenta/fuente',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: homeNavy)),
-                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 7),
+                    child: Row(children: [
+                      Container(
+                        width: 3, height: 13,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      const Text('Nombre de la cuenta/fuente',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: homeNavy,
+                              letterSpacing: 0.2)),
+                    ]),
+                  ),
                   TextFormField(
                     controller: nombreCtrl,
+                    style: const TextStyle(color: homeNavy, fontWeight: FontWeight.w600),
                     decoration: InputDecoration(
                       hintText: 'Ej. Nequi, Efectivo...',
+                      hintStyle: const TextStyle(color: Color(0xFFB0BCCF)),
+                      prefixIcon: const Icon(Icons.label_outline_rounded,
+                          size: 18, color: Color(0xFF10B981)),
                       filled: true,
                       fillColor: const Color(0xFFF5F7FB),
                       border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none),
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
+                      focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(
+                              color: Color(0xFF10B981), width: 1.5)),
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
+                          horizontal: 14, vertical: 13),
                     ),
                     validator: (v) =>
                         (v == null || v.trim().isEmpty) ? 'Requerido' : null,
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
                   // Color
-                  const Text('Color (opcional)',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: homeNavy)),
-                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 7),
+                    child: Row(children: [
+                      Container(
+                        width: 3, height: 13,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      const Text('Color (opcional)',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: homeNavy,
+                              letterSpacing: 0.2)),
+                    ]),
+                  ),
                   Container(
                     height: 36,
                     decoration: BoxDecoration(
@@ -2958,15 +3115,28 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       );
                     }).toList(),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
                   // Tipo
-                  const Text('Tipo de cuenta',
-                      style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: homeNavy)),
-                  const SizedBox(height: 6),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 7),
+                    child: Row(children: [
+                      Container(
+                        width: 3, height: 13,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      const Text('Tipo de cuenta',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: homeNavy,
+                              letterSpacing: 0.2)),
+                    ]),
+                  ),
                   GestureDetector(
                     onTap: () async {
                       final picked = await showDialog<Map<String, dynamic>>(
@@ -3001,29 +3171,39 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       }
                     },
                     child: Container(
-                      height: 48,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 13),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF5F7FB),
                         border: Border.all(
                             color: selectedTipo != null
-                                ? homeAccent.withValues(alpha: 0.6)
-                                : const Color(0xFFDDE3EF)),
-                        borderRadius: BorderRadius.circular(12),
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFE0E7FF),
+                            width: selectedTipo != null ? 1.5 : 1),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(children: [
+                        Icon(Icons.category_outlined,
+                            size: 18,
+                            color: selectedTipo != null
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFF9CA3AF)),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            selectedTipoNombre ?? '[Seleccione]',
+                            selectedTipoNombre ?? 'Selecciona tipo de cuenta',
                             style: TextStyle(
                                 fontSize: 14,
                                 color: selectedTipo != null
                                     ? homeNavy
-                                    : const Color(0xFF6B7280)),
+                                    : const Color(0xFF9CA3AF)),
                           ),
                         ),
-                        const Icon(Icons.expand_more_rounded,
-                            color: Color(0xFF9CA3AF), size: 20),
+                        Icon(Icons.keyboard_arrow_down_rounded,
+                            size: 20,
+                            color: selectedTipo != null
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFF9CA3AF)),
                       ]),
                     ),
                   ),
@@ -3071,16 +3251,35 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                     'usuario': codigoUsuario,
                                   });
                                   final d = decodeJsonMap(r.body);
-                                  final ok = d['success'] == true;
+                                  final raw = r.body.trim();
+                                  // PHP puede devolver JSON {success:true}, '1',
+                                  // o un string descriptivo — cualquier 200 sin
+                                  // "error" explícito cuenta como éxito.
+                                  final ok = r.statusCode == 200 &&
+                                      (d['success'] == true ||
+                                          d['resultado'] == 1 ||
+                                          d['resultado'] == '1' ||
+                                          raw == '1' ||
+                                          (d.isEmpty &&
+                                              !raw.toLowerCase()
+                                                  .contains('error')));
                                   if (ctx.mounted) Navigator.pop(ctx);
-                                  if (ok) unawaited(fetchAccounts('1'));
+                                  // Siempre refrescamos si el server respondió 200
+                                  if (r.statusCode == 200) {
+                                    repository.invalidateCache(
+                                        '/ajax/listar_cuentas_gasto.php');
+                                    await fetchAccounts(codigoUsuario);
+                                    if (isMounted) refresh(() {});
+                                  }
                                   showResult(
                                       ok,
                                       ok
                                           ? (d['msg']?.toString() ??
                                               'Cuenta creada exitosamente')
                                           : friendlyError(d['msg'] ??
-                                              'No se pudo guardar la cuenta'));
+                                              raw.isNotEmpty
+                                                  ? raw
+                                                  : 'No se pudo guardar la cuenta'));
                                 } catch (e) {
                                   if (ctx.mounted) setS(() => saving = false);
                                   showResult(false, friendlyError(e));
@@ -3103,6 +3302,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               ),
             ),
           ),
+                ),
+                ],
+              ),
+            ),
         );
       }),
     );
@@ -3187,16 +3390,21 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           Future.microtask(() async {
             try {
               final r = await repository.post('/ajax/listado_select.php', {
-                'tabla': 'tbl_tipos_cuentas',
-                'valor': 'codigo_tipo',
+                'tabla': 'tbl_cuentas_tipo',
+                'valor': 'codigo',
                 'etiqueta': 'nombre',
-                'filtro': '1',
+                'filtro': 'codigo=2 or codigo=3',
                 'campos_orden': 'nombre ASC',
               });
               if (r.statusCode == 200) {
                 final raw = jsonDecode(r.body);
-                if (raw is List) {
-                  tiposOpts = raw
+                final list = raw is List
+                    ? raw
+                    : (raw is Map && raw['datos'] is List
+                        ? raw['datos']
+                        : null);
+                if (list != null) {
+                  tiposOpts = (list as List)
                       .whereType<Map>()
                       .map((e) => Map<String, dynamic>.from(e))
                       .toList();
@@ -3532,26 +3740,116 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                             : () async {
                                 final confirm = await showDialog<bool>(
                                   context: ctx,
-                                  builder: (c2) => AlertDialog(
-                                    backgroundColor: Colors.white,
-                                    title: const Text('¿Desactivar cuenta?',
-                                        style: TextStyle(color: homeNavy)),
-                                    content: const Text(
-                                        'La cuenta quedará inactiva.'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(c2, false),
-                                        child: const Text('Cancelar'),
+                                  builder: (c2) => Dialog(
+                                    backgroundColor: Colors.transparent,
+                                    insetPadding: const EdgeInsets.symmetric(
+                                        horizontal: 40),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(20),
+                                        boxShadow: [
+                                          BoxShadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.15),
+                                              blurRadius: 20,
+                                              offset: const Offset(0, 8)),
+                                        ],
                                       ),
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(c2, true),
-                                        child: const Text('Desactivar',
-                                            style: TextStyle(
-                                                color: Color(0xFFDC2626))),
+                                      padding: const EdgeInsets.all(24),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 56,
+                                            height: 56,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFEE2E2),
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(
+                                                Icons.warning_amber_rounded,
+                                                color: Color(0xFFDC2626),
+                                                size: 30),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          const Text('¿Desactivar cuenta?',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                  fontSize: 17,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Color(0xFF0D1B4B))),
+                                          const SizedBox(height: 8),
+                                          const Text(
+                                              'La cuenta quedará inactiva.',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: Color(0xFF6B7280))),
+                                          const SizedBox(height: 24),
+                                          Row(children: [
+                                            Expanded(
+                                              child: GestureDetector(
+                                                onTap: () =>
+                                                    Navigator.pop(c2, false),
+                                                child: Container(
+                                                  height: 44,
+                                                  decoration: BoxDecoration(
+                                                    gradient: const LinearGradient(
+                                                        colors: [
+                                                          Color(0xFF991B1B),
+                                                          Color(0xFFDC2626),
+                                                          Color(0xFFEF4444),
+                                                        ]),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                  ),
+                                                  child: const Center(
+                                                      child: Text('Cancelar',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              fontSize: 14))),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: GestureDetector(
+                                                onTap: () =>
+                                                    Navigator.pop(c2, true),
+                                                child: Container(
+                                                  height: 44,
+                                                  decoration: BoxDecoration(
+                                                    gradient: const LinearGradient(
+                                                        colors: [
+                                                          Color(0xFFDC2626),
+                                                          Color(0xFFEF4444)
+                                                        ]),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            10),
+                                                  ),
+                                                  child: const Center(
+                                                      child: Text('Desactivar',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              fontSize: 14))),
+                                                ),
+                                              ),
+                                            ),
+                                          ]),
+                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 );
                                 if (confirm == true) {
@@ -3582,7 +3880,14 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                               : 'No se pudo desactivar',
                                           ok),
                                     );
-                                    if (ok) unawaited(fetchAccounts('1'));
+                                    if (ok) {
+                                      repository.invalidateCache(
+                                          '/ajax/listar_cuentas_gasto.php');
+                                      unawaited(fetchAccounts(codigoUsuario)
+                                          .then((_) {
+                                        if (isMounted) refresh(() {});
+                                      }));
+                                    }
                                   }
                                 }
                               },
@@ -3620,20 +3925,32 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                       'estado': selectedEstado,
                                     },
                                   );
-                                  bool ok = false;
-                                  String msg = 'No se pudo guardar';
-                                  try {
-                                    final j = jsonDecode(r.body.trim());
-                                    ok = j['success'] == true;
-                                    msg = (j['msg'] ?? msg).toString();
-                                  } catch (_) {}
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  showResult(
-                                      ok,
-                                      ok
+                                  final rawBody = r.body.trim();
+                                  final j = decodeJsonMap(r.body);
+                                  final ok = r.statusCode == 200 &&
+                                      (j['success'] == true ||
+                                          j['resultado'] == 1 ||
+                                          j['resultado'] == '1' ||
+                                          rawBody == '1' ||
+                                          (j.isEmpty &&
+                                              !rawBody.toLowerCase()
+                                                  .contains('error')));
+                                  final msg = j['msg']?.toString() ??
+                                      (ok
                                           ? 'Cambios guardados exitosamente'
-                                          : friendlyError(msg));
-                                  if (ok) unawaited(fetchAccounts('1'));
+                                          : rawBody.isNotEmpty
+                                              ? rawBody
+                                              : 'No se pudo guardar');
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  showResult(ok, ok ? 'Cambios guardados exitosamente' : friendlyError(msg));
+                                  if (r.statusCode == 200) {
+                                    repository.invalidateCache(
+                                        '/ajax/listar_cuentas_gasto.php');
+                                    unawaited(fetchAccounts(codigoUsuario)
+                                        .then((_) {
+                                      if (isMounted) refresh(() {});
+                                    }));
+                                  }
                                 } catch (e) {
                                   if (ctx.mounted) setS(() => saving = false);
                                   showResult(false, friendlyError(e));
@@ -3664,118 +3981,226 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         ? const Center(
                             child: Padding(
                               padding: EdgeInsets.all(32),
-                              child:
-                                  CircularProgressIndicator(color: homeAccent),
+                              child: CircularProgressIndicator(
+                                  color: homeAccent, strokeWidth: 2.5),
                             ),
                           )
                         : movsList.isEmpty
-                            ? const Center(
+                            ? Center(
                                 child: Padding(
-                                  padding: EdgeInsets.all(32),
-                                  child: Text('Sin movimientos',
-                                      style: TextStyle(
-                                          color: Color(0xFF8899BB),
-                                          fontSize: 14)),
+                                  padding: const EdgeInsets.all(32),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 56,
+                                        height: 56,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEEF2FF),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                            Icons.receipt_long_rounded,
+                                            color: homeAccent,
+                                            size: 28),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Text('Sin movimientos',
+                                          style: TextStyle(
+                                              color: homeNavy,
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 15)),
+                                      const SizedBox(height: 4),
+                                      const Text('No hay registros en esta cuenta',
+                                          style: TextStyle(
+                                              color: Color(0xFF8899BB),
+                                              fontSize: 12)),
+                                    ],
+                                  ),
                                 ),
                               )
                             : Column(children: [
-                                // Encabezado tabla
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 8),
-                                  color: const Color(0xFFF5F7FB),
-                                  child: Row(children: const [
-                                    Expanded(
-                                        flex: 3,
-                                        child: Text('Fecha',
-                                            style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                                color: homeNavy))),
-                                    Expanded(
-                                        flex: 1,
-                                        child: Text('Tipo',
-                                            style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                                color: homeNavy))),
-                                    Expanded(
-                                        flex: 2,
-                                        child: Text('Valor',
-                                            textAlign: TextAlign.right,
-                                            style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                                color: homeNavy))),
-                                  ]),
-                                ),
+                                // ── Resumen de totales ──────────────
+                                Builder(builder: (_) {
+                                  double totalIn = 0, totalOut = 0;
+                                  for (final m in movsList) {
+                                    final t = (m['tipo'] ?? '').toString().toLowerCase();
+                                    final v = numberValue(m['valor'] ?? m['monto'] ?? 0);
+                                    if (t.contains('ingreso') || t == 'i' || v > 0) {
+                                      totalIn += v.abs();
+                                    } else {
+                                      totalOut += v.abs();
+                                    }
+                                  }
+                                  return Container(
+                                    margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                                      ),
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                    child: Row(children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Ingresos',
+                                                style: TextStyle(
+                                                    color: Colors.white54,
+                                                    fontSize: 10)),
+                                            Text(formatCop(totalIn),
+                                                style: const TextStyle(
+                                                    color: Color(0xFF4ADE80),
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 13)),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                          width: 1, height: 30,
+                                          color: Colors.white24),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.center,
+                                          children: [
+                                            const Text('Gastos',
+                                                style: TextStyle(
+                                                    color: Colors.white54,
+                                                    fontSize: 10)),
+                                            Text(formatCop(totalOut),
+                                                style: const TextStyle(
+                                                    color: Color(0xFFF87171),
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 13)),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                          width: 1, height: 30,
+                                          color: Colors.white24),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            const Text('Registros',
+                                                style: TextStyle(
+                                                    color: Colors.white54,
+                                                    fontSize: 10)),
+                                            Text('${movsList.length}',
+                                                style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 13)),
+                                          ],
+                                        ),
+                                      ),
+                                    ]),
+                                  );
+                                }),
+                                // ── Lista de movimientos ────────────
                                 Expanded(
-                                  child: ListView.separated(
-                                    padding: EdgeInsets.zero,
+                                  child: ListView.builder(
+                                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
                                     itemCount: movsList.length,
-                                    separatorBuilder: (_, __) =>
-                                        const Divider(height: 1),
                                     itemBuilder: (_, i) {
                                       final m = movsList[i];
                                       final fecha = (m['fecha'] ??
-                                              m['fecha_movimiento'] ??
-                                              '')
-                                          .toString();
+                                              m['fecha_movimiento'] ?? '')
+                                          .toString()
+                                          .split(' ')
+                                          .first;
                                       final tipo = (m['tipo'] ?? '').toString();
                                       final valor = numberValue(
                                           m['valor'] ?? m['monto'] ?? 0);
                                       final desc = (m['descripcion'] ??
-                                              m['descripción'] ??
-                                              '')
+                                              m['descripción'] ?? '')
                                           .toString();
-                                      return Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 8),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Row(children: [
-                                              Expanded(
-                                                  flex: 3,
-                                                  child: Text(
-                                                      fecha.split(' ').first,
-                                                      style: const TextStyle(
-                                                          fontSize: 12,
-                                                          color: homeNavy))),
-                                              Expanded(
-                                                  flex: 1,
-                                                  child: Text(tipo,
-                                                      style: const TextStyle(
-                                                          fontSize: 12,
-                                                          color: Color(
-                                                              0xFF8899BB)))),
-                                              Expanded(
-                                                  flex: 2,
-                                                  child: Text(formatCop(valor),
-                                                      textAlign:
-                                                          TextAlign.right,
-                                                      style: TextStyle(
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                          color: valor >= 0
-                                                              ? const Color(
-                                                                  0xFF16A34A)
-                                                              : const Color(
-                                                                  0xFFDC2626)))),
-                                            ]),
-                                            if (desc.isNotEmpty)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 2),
-                                                child: Text(desc,
-                                                    style: const TextStyle(
-                                                        fontSize: 11,
-                                                        color:
-                                                            Color(0xFF8899BB))),
-                                              ),
+                                      final isIngreso = tipo.toLowerCase()
+                                              .contains('ingreso') ||
+                                          tipo.toLowerCase() == 'i' ||
+                                          valor > 0;
+                                      final color = isIngreso
+                                          ? const Color(0xFF16A34A)
+                                          : const Color(0xFFDC2626);
+                                      final bgColor = isIngreso
+                                          ? const Color(0xFFDCFCE7)
+                                          : const Color(0xFFFEE2E2);
+                                      return Container(
+                                        margin: const EdgeInsets.only(bottom: 8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(
+                                              color: const Color(0xFFE8EDF5)),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.04),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
                                           ],
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12),
+                                          child: Row(children: [
+                                            // Ícono tipo
+                                            Container(
+                                              width: 36,
+                                              height: 36,
+                                              decoration: BoxDecoration(
+                                                color: bgColor,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Icon(
+                                                isIngreso
+                                                    ? Icons.arrow_downward_rounded
+                                                    : Icons.arrow_upward_rounded,
+                                                color: color,
+                                                size: 18,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            // Descripción + fecha
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    desc.isNotEmpty
+                                                        ? desc
+                                                        : tipo,
+                                                    style: const TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: homeNavy),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                  const SizedBox(height: 2),
+                                                  Text(fecha,
+                                                      style: const TextStyle(
+                                                          fontSize: 10,
+                                                          color:
+                                                              Color(0xFF8899BB))),
+                                                ],
+                                              ),
+                                            ),
+                                            // Valor
+                                            Text(
+                                              '${isIngreso ? '+' : '-'} ${formatCop(valor.abs())}',
+                                              style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: color),
+                                            ),
+                                          ]),
                                         ),
                                       );
                                     },
@@ -3790,7 +4215,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       child: gradBtn(
                         colors: const [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
                         onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cerrar'),
+                        child: const Text('Cerrar',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 14)),
                       ),
                     ),
                   ),
@@ -4329,14 +4756,18 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Container(
                     height: 44,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
+                      gradient: const LinearGradient(colors: [
+                        Color(0xFF991B1B),
+                        Color(0xFFDC2626),
+                        Color(0xFFEF4444),
+                      ]),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Center(
                       child: Text('Cancelar',
                           style: TextStyle(
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF374151))),
+                              color: Colors.white)),
                     ),
                   ),
                 ),

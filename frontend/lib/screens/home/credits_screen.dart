@@ -1857,11 +1857,43 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final direccionCtrl = TextEditingController();
     final telefonoCtrl = TextEditingController();
     bool saving = false;
+    bool loadingAdvisors = advisors.isEmpty;
+    bool advisorsStarted = false;
 
     showDialog(
       context: screenContext,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        if (!advisorsStarted) {
+          advisorsStarted = true;
+          if (advisors.isEmpty) {
+            Future(() async {
+              await fetchAdvisors();
+              if (ctx.mounted) {
+                setS(() => loadingAdvisors = false);
+              }
+            });
+          } else {
+            loadingAdvisors = false;
+          }
+        }
+
+        final advisorOptions = advisors.map((advisor) {
+          final code = (advisor['codigo_asesor'] ?? advisor['codigo'] ?? '')
+              .toString()
+              .trim();
+          final name = [advisor['nombres'], advisor['apellidos']]
+              .where((part) =>
+                  part != null && part.toString().trim().isNotEmpty)
+              .map((part) => part.toString().trim())
+              .join(' ');
+          final acronym = (advisor['sigla'] ?? '').toString().trim();
+          final label = name.isNotEmpty
+              ? name
+              : (advisorNames[acronym.toUpperCase()] ?? acronym);
+          return (code: code, label: label);
+        }).where((advisor) => advisor.code.isNotEmpty).toList();
+
         Future<void> grabar() async {
           if (!formKey.currentState!.validate()) return;
           setS(() => saving = true);
@@ -1874,23 +1906,45 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               'direccion': direccionCtrl.text.trim(),
               'telefono': telefonoCtrl.text.trim(),
             });
+            final bodyLower = r.body.toLowerCase();
+            final serverScriptError = bodyLower.contains('fatal error') ||
+                bodyLower.contains('warning:') ||
+                bodyLower.contains('require_once') ||
+                bodyLower.contains('<br') ||
+                bodyLower.contains('<b>');
             final ok = r.statusCode == 200 &&
-                r.body.toLowerCase().contains('registrado');
+                bodyLower.contains('registrado') &&
+                !serverScriptError;
+
+            if (!ok) {
+              setS(() => saving = false);
+              if (ctx.mounted) {
+                await showDialog<void>(
+                  context: ctx,
+                  builder: (_) => buildResultDialog(
+                    serverScriptError
+                        ? 'El servicio para registrar deudores no está disponible en este momento. Intenta nuevamente más tarde.'
+                        : friendlyError(r.body),
+                    false,
+                  ),
+                );
+              }
+              return;
+            }
+
             if (ctx.mounted) Navigator.pop(ctx);
             if (isMounted) {
               showDialog(
                 context: screenContext,
                 builder: (_) => buildResultDialog(
-                  ok ? 'Deudor creado exitosamente' : r.body.trim(),
-                  ok,
+                  'Deudor creado exitosamente',
+                  true,
                 ),
               );
-              if (ok) {
-                repository.invalidateCache('/ajax/listado_json_campos.php');
-                final u = repository.user;
-                await fetchCredits(u?['codigo_usuario']?.toString() ?? '');
-                if (isMounted) refresh(() {});
-              }
+              repository.invalidateCache('/ajax/listado_json_campos.php');
+              final u = repository.user;
+              await fetchCredits(u?['codigo_usuario']?.toString() ?? '');
+              if (isMounted) refresh(() {});
             }
           } catch (e) {
             setS(() => saving = false);
@@ -1938,13 +1992,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     'Asesor',
                     buildDialogDropdown<String>(
                       value: selectedAsesor,
-                      items: advisorNames.entries
-                          .map((e) => DropdownMenuItem(
-                              value: e.key, child: Text(e.value)))
+                      hint: loadingAdvisors
+                          ? 'Cargando asesores...'
+                          : '[Seleccione]',
+                      items: advisorOptions
+                          .map((advisor) => DropdownMenuItem(
+                              value: advisor.code,
+                              child: Text(advisor.label)))
                           .toList(),
-                      onChanged: (v) => setS(() => selectedAsesor = v),
-                      validator: (v) =>
-                          v == null ? 'Seleccione un asesor' : null,
+                      onChanged: (v) {
+                        if (!loadingAdvisors) {
+                          setS(() => selectedAsesor = v);
+                        }
+                      },
+                      validator: (v) => v == null || v.isEmpty
+                          ? 'Seleccione un asesor'
+                          : null,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -2228,8 +2291,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final formKey = GlobalKey<FormState>();
     String? selectedDeudor;
     String deudorLabel = '';
-    String? selectedTiempoC = 'Mensual';
-    String? selectedTipoInt = 'fijo';
+    String? selectedTiempoC = '1';   // 1=Mensual, 2=Quincenal, 4=Semanal, 30=Diario
+    String? selectedTipoInt = '1';   // 1=Fijo, 2=Variable
     String? selectedTasa;
     String? selectedFuente;
     DateTime? fechaPrestamo;
@@ -2240,50 +2303,43 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     bool loadingDeudores = debtors.isEmpty;
     bool listsStarted = false;
 
-    // Opciones estáticas (según el sistema)
+    // Opciones estáticas — valor = código numérico que espera el backend
     const tiempoOpciones = [
-      ('Mensual', 'Mensual'),
-      ('Quincenal', 'Quincenal'),
-      ('Semanal', 'Semanal'),
-      ('Diario', 'Diario'),
+      ('1',  'Mensual'),
+      ('2',  'Quincenal'),
+      ('4',  'Semanal'),
+      ('30', 'Diario'),
     ];
     const tipoIntOpciones = [
-      ('fijo', 'Interés Fijo'),
-      ('variable', 'Interés Variable'),
+      ('1', 'Interés Fijo'),
+      ('2', 'Interés Variable'),
     ];
 
-    // Tasas: de la API o fallback
+    // Tasas: devuelve porcentaje como string ('8', '10', etc.)
     List<String> tasaOpciones() {
       if (rates.isNotEmpty) {
         return rates
             .map((t) =>
-                (t['tasa'] ?? t['valor'] ?? t['nombre'] ?? '').toString())
+                (t['tasa'] ?? t['porcentaje'] ?? t['valor'] ?? t['nombre'] ?? '')
+                    .toString()
+                    .replaceAll('%', '')
+                    .trim())
             .where((t) => t.isNotEmpty)
             .toList();
       }
-      return ['0%', '8%', '10%', '15%', '17.5%', '18%', '20%'];
+      return ['0', '8', '10', '15', '17.5', '18', '20'];
     }
 
-    // Fuentes: de la API o fallback
-    List<String> fuenteOpciones() {
-      if (sources.isNotEmpty) {
-        return sources
-            .map((f) =>
-                (f['fuente'] ?? f['nombre'] ?? f['name'] ?? '').toString())
-            .where((f) => f.isNotEmpty)
-            .toList();
+    // Fuentes: mismas cuentas que Movimientos (accounts = listar_cuentas_gasto)
+    List<(String, String)> fuenteOpciones() {
+      if (accounts.isNotEmpty) {
+        return accounts.map((a) {
+          final cod = (a['codigo'] ?? '').toString().trim();
+          final nom = (a['nombre'] ?? '').toString().trim();
+          return (cod.isNotEmpty ? cod : nom, nom);
+        }).where((p) => p.$2.isNotEmpty).toList();
       }
-      return [
-        'Davivienda',
-        'Bancolombia',
-        'Daviplata',
-        'Nequi',
-        'Efectivo',
-        'Préstamos',
-        'SAF Ahorros',
-        'Cámaras',
-        'Dínamo Jr',
-      ];
+      return [];
     }
 
     void recalcTotal(void Function(void Function()) setS) {
@@ -2294,11 +2350,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
       final tasaStr = (selectedTasa ?? '0').replaceAll('%', '').trim();
       final tasa = double.tryParse(tasaStr) ?? 0;
       final diasPorCuota = {
-            'Mensual': 30,
-            'Quincenal': 15,
-            'Semanal': 7,
-            'Diario': 1
-          }[selectedTiempoC ?? 'Mensual'] ??
+            '1':  30,   // Mensual
+            '2':  15,   // Quincenal
+            '4':  7,    // Semanal
+            '30': 1,    // Diario
+          }[selectedTiempoC ?? '1'] ??
           30;
       final totalDias = cuotas * diasPorCuota;
       final tasaDiaria = tasa / 100 / 30;
@@ -2326,7 +2382,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             await Future.wait([
               fetchDebtors(),
               if (rates.isEmpty) fetchRates(),
-              if (sources.isEmpty) fetchSources(),
+              if (accounts.isEmpty)
+                fetchAccounts(repository.user?['codigo_usuario']?.toString() ?? ''),
             ]);
             if (ctx.mounted) setS(() => loadingDeudores = false);
           });
@@ -2669,9 +2726,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     'Tasa interés',
                     buildDialogDropdown<String>(
                       value: tasas.contains(selectedTasa) ? selectedTasa : null,
+                      hint: '[Seleccione]',
                       items: tasas
-                          .map(
-                              (t) => DropdownMenuItem(value: t, child: Text(t)))
+                          .map((t) => DropdownMenuItem(value: t, child: Text('$t%')))
                           .toList(),
                       onChanged: (v) {
                         setS(() => selectedTasa = v);
@@ -2686,12 +2743,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   buildDialogRow(
                     'Fuente',
                     buildDialogDropdown<String>(
-                      value: fuentes.contains(selectedFuente)
+                      value: fuentes.any((p) => p.$1 == selectedFuente)
                           ? selectedFuente
                           : null,
+                      hint: '[Seleccione]',
                       items: fuentes
-                          .map(
-                              (f) => DropdownMenuItem(value: f, child: Text(f)))
+                          .map((p) => DropdownMenuItem(
+                              value: p.$1, child: Text(p.$2)))
                           .toList(),
                       onChanged: (v) => setS(() => selectedFuente = v),
                       validator: (v) =>
@@ -2760,9 +2818,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
   Widget buildResultDialog(String msg, bool ok) => Dialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(screenContext).size.height * 0.78,
+          ),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -2828,21 +2890,30 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
               ),
             ),
-          ]),
+            ]),
+          ),
         ),
       );
 
   String friendlyError(dynamic e) {
     final raw = e.toString().replaceFirst('Exception: ', '').trim();
+    final lower = raw.toLowerCase();
+    if (lower.contains('fatal error') ||
+        lower.contains('warning:') ||
+        lower.contains('require_once') ||
+        lower.contains('<br') ||
+        lower.contains('<b>')) {
+      return 'El servidor no pudo procesar la solicitud. Por favor intenta de nuevo más tarde.';
+    }
     if (RegExp(r'\b(400|401|403|404|500|502|503|504)\b').hasMatch(raw)) {
       return 'No se pudo completar la operación. Por favor intenta de nuevo.';
     }
-    if (raw.toLowerCase().contains('socket') ||
-        raw.toLowerCase().contains('connection') ||
-        raw.toLowerCase().contains('network')) {
+    if (lower.contains('socket') ||
+        lower.contains('connection') ||
+        lower.contains('network')) {
       return 'Sin conexión a internet. Verifica tu red e intenta de nuevo.';
     }
-    if (raw.toLowerCase().contains('timeout')) {
+    if (lower.contains('timeout')) {
       return 'La operación tardó demasiado. Por favor intenta de nuevo.';
     }
     if (raw.isEmpty || raw.length > 300) {
@@ -3695,22 +3766,16 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           });
         }
 
-        List<String> fuenteOpciones() {
-          if (sources.isNotEmpty) {
-            return sources
-                .map((f) => (f['fuente'] ?? f['nombre'] ?? '').toString())
-                .where((f) => f.isNotEmpty)
-                .toList();
+        // Fuentes: mismas cuentas que Movimientos
+        List<(String, String)> fuenteOpciones() {
+          if (accounts.isNotEmpty) {
+            return accounts.map((a) {
+              final cod = (a['codigo'] ?? '').toString().trim();
+              final nom = (a['nombre'] ?? '').toString().trim();
+              return (cod.isNotEmpty ? cod : nom, nom);
+            }).where((p) => p.$2.isNotEmpty).toList();
           }
-          return [
-            'Davivienda',
-            'Bancolombia',
-            'Daviplata',
-            'Nequi',
-            'Efectivo',
-            'Préstamos',
-            'SAF Ahorros'
-          ];
+          return [];
         }
 
         Future<void> grabar() async {
@@ -3974,12 +4039,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           dropdown<String>(
                               'Fuente',
                               Icons.account_balance_outlined,
-                              selectedFuente,
+                              fuenteOpciones().any((p) => p.$1 == selectedFuente)
+                                  ? selectedFuente
+                                  : null,
                               [
                                 const DropdownMenuItem(
                                     value: null, child: Text('[Seleccione]')),
-                                ...fuenteOpciones().map((f) =>
-                                    DropdownMenuItem(value: f, child: Text(f))),
+                                ...fuenteOpciones().map((p) =>
+                                    DropdownMenuItem(value: p.$1, child: Text(p.$2))),
                               ],
                               (v) => setS(() => selectedFuente = v)),
 
@@ -4117,8 +4184,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     ),
                     actions: [
                       TextButton(
+                          style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFFDC2626)),
                           onPressed: () => Navigator.pop(ctx, null),
-                          child: const Text('Cancelar')),
+                          child: const Text('Cancelar',
+                              style: TextStyle(fontWeight: FontWeight.w700))),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF16A34A),
@@ -5117,9 +5187,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           ),
           actions: [
             TextButton(
+              style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFDC2626)),
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancelar',
-                  style: TextStyle(color: Color(0xFF8899BB))),
+                  style: TextStyle(fontWeight: FontWeight.w700)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -5302,8 +5374,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
         actions: [
           TextButton(
+              style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFDC2626)),
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancelar')),
+              child: const Text('Cancelar',
+                  style: TextStyle(fontWeight: FontWeight.w700))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFDC2626),

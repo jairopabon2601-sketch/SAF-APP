@@ -19,7 +19,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
     String? selectedTipo;
     bool saving = false;
 
-    final tipos = ['Fijo', 'Variable'];
+    const tipos = {'1': 'Fijo', '2': 'Variable'};
 
     String fmtDisplay(DateTime d) =>
         '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
@@ -186,15 +186,16 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                       style: TextStyle(
                                           color: homeNavy,
                                           fontWeight: FontWeight.w700)),
-                                  children: tipos
-                                      .map((t) => SimpleDialogOption(
+                                  children: tipos.entries
+                                      .map((entry) => SimpleDialogOption(
                                             onPressed: () =>
-                                                Navigator.pop(dCtx, t),
+                                                Navigator.pop(
+                                                    dCtx, entry.key),
                                             child: Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
                                                       vertical: 4),
-                                              child: Text(t,
+                                              child: Text(entry.value,
                                                   style: const TextStyle(
                                                       color: homeNavy,
                                                       fontSize: 14)),
@@ -229,7 +230,10 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    selectedTipo ?? '[Seleccione una Opción]',
+                                    selectedTipo == null
+                                        ? '[Seleccione una Opción]'
+                                        : tipos[selectedTipo] ??
+                                            '[Seleccione una Opción]',
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: selectedTipo != null
@@ -318,7 +322,26 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                           false, 'Seleccione la fecha final');
                                       return;
                                     }
+                                    if (fechaFinal!.isBefore(fechaInicio!)) {
+                                      showResult(false,
+                                          'La fecha final no puede ser anterior a la fecha de inicio');
+                                      return;
+                                    }
                                     if (!formKey.currentState!.validate()) {
+                                      return;
+                                    }
+                                    final anio =
+                                        int.tryParse(anioCtrl.text.trim());
+                                    final tiempo =
+                                        int.tryParse(tiempoCtrl.text.trim());
+                                    if (anio == null || anio < 2020) {
+                                      showResult(
+                                          false, 'Ingrese un año válido');
+                                      return;
+                                    }
+                                    if (tiempo == null || tiempo <= 0) {
+                                      showResult(false,
+                                          'Ingrese un tiempo en meses válido');
                                       return;
                                     }
                                     if (selectedTipo == null) {
@@ -339,20 +362,48 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                         },
                                       );
                                       final body = r.body.trim();
+                                      final bodyLower = body.toLowerCase();
+                                      final serverScriptError =
+                                          bodyLower.contains('fatal error') ||
+                                              bodyLower.contains('warning:') ||
+                                              bodyLower
+                                                  .contains('require_once') ||
+                                              bodyLower.contains('<!doctype') ||
+                                              bodyLower.contains('<html') ||
+                                              bodyLower.contains('<br') ||
+                                              bodyLower.contains('<b>');
                                       final ok = r.statusCode == 200 &&
+                                          !serverScriptError &&
                                           body.contains(
                                               'Configuración Registrada');
+
+                                      if (!ok) {
+                                        if (ctx.mounted) {
+                                          setS(() => saving = false);
+                                          await showDialog<void>(
+                                            context: ctx,
+                                            builder: (_) => buildResultDialog(
+                                              serverScriptError
+                                                  ? 'El servidor no pudo guardar la configuración de ahorro.'
+                                                  : friendlyError(body),
+                                              false,
+                                            ),
+                                          );
+                                        }
+                                        return;
+                                      }
+
                                       if (ctx.mounted) Navigator.pop(ctx);
                                       if (isMounted) {
+                                        repository.invalidateCache(
+                                            '/ajax/listado_select.php');
+                                        repository.invalidateCache(
+                                            '/ajax/listado_ahorros.php');
                                         showDialog(
                                           context: screenContext,
                                           builder: (_) => buildResultDialog(
-                                            ok
-                                                ? 'Configuración registrada exitosamente'
-                                                : body.isNotEmpty
-                                                    ? body
-                                                    : 'No se pudo registrar',
-                                            ok,
+                                            'Configuración registrada exitosamente',
+                                            true,
                                           ),
                                         );
                                       }
@@ -429,16 +480,38 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
     String? selectedAhorrador;
     String ahorradorLabel = '';
     String? selectedAnioCodigo;
-    DateTime? fechaIngreso;
+    DateTime? fechaIngreso = _hoyColombia();
     final valorCtrl = TextEditingController();
     bool saving = false;
     bool aniosLoaded = false;
     bool loadingAnios = false;
     List<Map<String, dynamic>> aniosOpts = [];
 
-    // Usar debtors ya en memoria (construida desde savers)
-    tryBuildDebtorsFromLocal();
-    final ahorradorOpts = List<Map<String, dynamic>>.from(debtors);
+    // Refrescar el catálogo antes de abrir. El selector debe usar únicamente
+    // ahorradores, no la lista global de deudores/créditos.
+    repository.invalidateCache('/ajax/listado_select.php');
+    await fetchSavers();
+
+    List<Map<String, dynamic>> currentAhorradorOptions() {
+      final seen = <String>{};
+      final options = <Map<String, dynamic>>[];
+      for (final saver in savers) {
+        final id =
+            (saver['codigo_ahorrador'] ?? saver['codigo'] ?? '')
+                .toString()
+                .trim();
+        final name =
+            (saver['ahorrador'] ?? saver['nombre'] ?? '')
+                .toString()
+                .trim();
+        if (id.isNotEmpty && name.isNotEmpty && seen.add(id)) {
+          options.add({'codigo': id, 'nombre': name});
+        }
+      }
+      options.sort((a, b) =>
+          a['nombre'].toString().compareTo(b['nombre'].toString()));
+      return options;
+    }
 
     Future<void> loadAnios(StateSetter setS) async {
       setS(() => loadingAnios = true);
@@ -565,6 +638,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                           const SizedBox(height: 6),
                           GestureDetector(
                             onTap: () async {
+                              final ahorradorOpts =
+                                  currentAhorradorOptions();
                               final result = await _showAhorradorPicker(
                                   ctx, ahorradorOpts);
                               if (result != null) {
@@ -715,7 +790,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                             onTap: () async {
                               final d = await showLightDatePicker(
                                 ctx,
-                                initialDate: fechaIngreso ?? DateTime.now(),
+                                initialDate: fechaIngreso ?? _hoyColombia(),
                                 firstDate: DateTime(2015),
                                 lastDate: DateTime(2035),
                               );
@@ -848,6 +923,12 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                           'Seleccione la fecha de ingreso');
                                       return;
                                     }
+                                    if (selectedAnioCodigo == null ||
+                                        selectedAnioCodigo!.isEmpty) {
+                                      showResult(false,
+                                          'Seleccione el año de ahorro');
+                                      return;
+                                    }
                                     if (!formKey.currentState!.validate()) {
                                       return;
                                     }
@@ -867,31 +948,57 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                               valorCtrl.text.trim(),
                                         },
                                       );
+                                      final bodyLower =
+                                          r.body.toLowerCase().trim();
+                                      final serverScriptError =
+                                          bodyLower.contains('fatal error') ||
+                                              bodyLower.contains('warning:') ||
+                                              bodyLower
+                                                  .contains('require_once') ||
+                                              bodyLower.contains('<!doctype') ||
+                                              bodyLower.contains('<html') ||
+                                              bodyLower.contains('<br') ||
+                                              bodyLower.contains('<b>');
                                       final ok = r.statusCode == 200 &&
-                                          (r.body
-                                                  .toLowerCase()
-                                                  .contains('exitoso') ||
-                                              r.body
-                                                  .toLowerCase()
-                                                  .contains('registrado') ||
-                                              r.body
-                                                  .toLowerCase()
-                                                  .contains('creado') ||
+                                          !serverScriptError &&
+                                          (bodyLower == 'ahorro creado' ||
                                               r.body
                                                   .contains('"resultado":1') ||
                                               r.body
                                                   .contains('"success":true'));
+
+                                      if (!ok) {
+                                        if (ctx.mounted) {
+                                          setS(() => saving = false);
+                                          await showDialog<void>(
+                                            context: ctx,
+                                            builder: (_) => buildResultDialog(
+                                              serverScriptError
+                                                  ? 'El servidor no pudo registrar el ahorro. Verifica que registrar_ahorro.php esté actualizado.'
+                                                  : friendlyError(r.body),
+                                              false,
+                                            ),
+                                          );
+                                        }
+                                        return;
+                                      }
+
                                       if (ctx.mounted) Navigator.pop(ctx);
                                       if (isMounted) {
+                                        repository.invalidateCache(
+                                            '/ajax/listado_ahorros.php');
+                                        await fetchSavers();
+                                        if (isMounted) {
+                                          refresh(() {
+                                            cachedFilteredSavers = null;
+                                            savingsCurrentPage = 1;
+                                          });
+                                        }
                                         showDialog(
                                           context: screenContext,
                                           builder: (_) => buildResultDialog(
-                                            ok
-                                                ? 'Ahorro registrado exitosamente'
-                                                : r.body.trim().isNotEmpty
-                                                    ? r.body.trim()
-                                                    : 'No se pudo registrar',
-                                            ok,
+                                            'Ahorro registrado exitosamente',
+                                            true,
                                           ),
                                         );
                                       }
@@ -1461,20 +1568,39 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                     if (!formKey.currentState!.validate()) {
                                       return;
                                     }
+                                    final documentoNuevo =
+                                        docCtrl.text.trim();
+                                    final nombreNuevo =
+                                        '${nombresCtrl.text.trim()} ${apellCtrl.text.trim()}'
+                                            .trim()
+                                            .toUpperCase();
+                                    final asesorSeleccionado =
+                                        selectedAsesor!;
+                                    final fechaRegistro = _hoyColombia();
+                                    final fechaIngresoNueva =
+                                        '${fechaRegistro.year}-${fechaRegistro.month.toString().padLeft(2, '0')}-${fechaRegistro.day.toString().padLeft(2, '0')}';
                                     setS(() => saving = true);
                                     try {
                                       final r = await repository.post(
                                         '/ajax/registrar_ahorrador.php',
                                         {
-                                          'codigo_asesor': selectedAsesor!,
-                                          'documento': docCtrl.text.trim(),
+                                          'codigo_asesor': asesorSeleccionado,
+                                          'num_documento': documentoNuevo,
                                           'nombres': nombresCtrl.text.trim(),
                                           'apellidos': apellCtrl.text.trim(),
                                           'direccion': dirCtrl.text.trim(),
                                           'telefono': telCtrl.text.trim(),
                                         },
                                       );
+                                      final bodyLower =
+                                          r.body.toLowerCase().trim();
+                                      final isHtmlResponse =
+                                          bodyLower.contains('<!doctype html') ||
+                                              bodyLower.contains('<html') ||
+                                              bodyLower.contains('<head') ||
+                                              bodyLower.contains('<body');
                                       final ok = r.statusCode == 200 &&
+                                          !isHtmlResponse &&
                                           (r.body
                                                   .toLowerCase()
                                                   .contains('exitoso') ||
@@ -1488,17 +1614,73 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                                   .contains('"resultado":1') ||
                                               r.body
                                                   .contains('"success":true'));
+
+                                      if (!ok) {
+                                        if (ctx.mounted) {
+                                          setS(() => saving = false);
+                                          await showDialog<void>(
+                                            context: ctx,
+                                            builder: (_) => buildResultDialog(
+                                              isHtmlResponse
+                                                  ? 'El servicio para registrar ahorradores no está instalado en el servidor.'
+                                                  : friendlyError(r.body),
+                                              false,
+                                            ),
+                                          );
+                                        }
+                                        return;
+                                      }
+
                                       if (ctx.mounted) Navigator.pop(ctx);
                                       if (isMounted) {
+                                        repository.invalidateCache(
+                                            '/ajax/listado_ahorros.php');
+                                        repository.invalidateCache(
+                                            '/ajax/listado_select.php');
+                                        await fetchSavers();
+                                        final asesorSigla =
+                                            creditAdvisorInitials(
+                                                asesorSeleccionado);
+                                        if (isMounted) {
+                                          refresh(() {
+                                            final existingIndex =
+                                                savers.indexWhere((item) =>
+                                                (item['ahorrador'] ?? '')
+                                                    .toString()
+                                                    .trim()
+                                                    .toUpperCase() ==
+                                                nombreNuevo);
+                                            if (existingIndex >= 0) {
+                                              savers[existingIndex]
+                                                      ['Fecha_ingreso'] =
+                                                  fechaIngresoNueva;
+                                            } else {
+                                              savers.insert(0, {
+                                                'codigo_ahorrador':
+                                                    documentoNuevo,
+                                                'ahorrador': nombreNuevo,
+                                                'asesor': asesorSigla,
+                                                'total_ahorrado': 0,
+                                                'Valor_pactado': 0,
+                                                'neto_pagar': 0,
+                                                'Fecha_ingreso':
+                                                    fechaIngresoNueva,
+                                                'ahorros': <dynamic>[],
+                                                'sin_ahorro': true,
+                                              });
+                                            }
+                                            cachedFilteredSavers = null;
+                                            cachedSavingsAdvisorFilter = null;
+                                            savingsCurrentPage = 1;
+                                            unawaited(repository.saveLocalData(
+                                                'ahorradores', savers));
+                                          });
+                                        }
                                         showDialog(
                                           context: screenContext,
                                           builder: (_) => buildResultDialog(
-                                            ok
-                                                ? 'Ahorrador registrado exitosamente'
-                                                : r.body.trim().isNotEmpty
-                                                    ? r.body.trim()
-                                                    : 'No se pudo registrar',
-                                            ok,
+                                            'Ahorrador registrado exitosamente',
+                                            true,
                                           ),
                                         );
                                       }
@@ -1594,16 +1776,18 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       builder: (aCtx) => StatefulBuilder(
         builder: (aCtx, setA) {
           final all = advisors.map((a) {
-            final sigla = (a['sigla'] ?? a['codigo_asesor'] ?? '').toString();
+            final codigo =
+                (a['codigo_asesor'] ?? a['codigo'] ?? '').toString().trim();
+            final sigla = (a['sigla'] ?? '').toString().trim();
             final nombre = [a['nombres'], a['apellidos']]
                 .where((x) => x != null && x.toString().isNotEmpty)
                 .join(' ')
                 .trim();
             return {
-              'valor': sigla,
+              'valor': codigo,
               'nombre': nombre.isNotEmpty ? nombre : sigla
             };
-          }).toList();
+          }).where((a) => a['valor']!.isNotEmpty).toList();
 
           final filtered = query.isEmpty
               ? all
@@ -1770,8 +1954,12 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
     // en los datos, ordenados por nombre completo.
     final asesorSet = <String>{...advisorNames.keys};
     for (final a in savers) {
-      final v = (a['asesor'] ?? '').toString().trim().toUpperCase();
-      if (v.isNotEmpty) asesorSet.add(v);
+      final raw =
+          (a['asesor'] ?? a['codigo_asesor'] ?? '').toString().trim();
+      final sigla = creditAdvisorInitials(raw).trim().toUpperCase();
+      if (sigla.isNotEmpty && !RegExp(r'^\d+$').hasMatch(sigla)) {
+        asesorSet.add(sigla);
+      }
     }
     final asesorOrdenados = asesorSet.toList()
       ..sort((a, b) =>
@@ -2037,8 +2225,13 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             dropFilter(
               label: 'Asesor',
               icon: Icons.person_outline_rounded,
-              value: asesores.contains(savingsAdvisorFilter)
-                  ? savingsAdvisorFilter
+              value: asesores.contains(
+                      creditAdvisorInitials(savingsAdvisorFilter)
+                          .trim()
+                          .toUpperCase())
+                  ? creditAdvisorInitials(savingsAdvisorFilter)
+                      .trim()
+                      .toUpperCase()
                   : '0',
               items: asesores
                   .map((s) => DropdownMenuItem(
@@ -2049,7 +2242,11 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   .toList(),
               onChanged: (v) {
                 if (v == null) return;
-                refresh(() { savingsAdvisorFilter = v; savingsCurrentPage = 1; });
+                refresh(() {
+                  savingsAdvisorFilter = v;
+                  savingsCurrentPage = 1;
+                });
+                reloadSavers();
               },
             ),
           ]),
@@ -2446,31 +2643,23 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
           }
           setS(() => saving = true);
           try {
-            final usuario =
-                (repository.user?['codigo_usuario'] ?? '').toString().trim();
             final body = <String, dynamic>{
-              'tabla': 'tbl_ahorradores_cuotas',
-              'filtro': 'codigo_cuota=$codigoCuota',
-              'modo': 'editar',
-              'estado': '1',
+              'codigo_cuota': codigoCuota,
               'valor_pagado': valor.toStringAsFixed(0),
               'fecha_pago': fechaTexto(),
-              'fecha_registro_pago': fechaTexto(),
               'detalle': detalleCtrl.text.trim(),
             };
-            if (usuario.isNotEmpty) body['usuario_registro_pago'] = usuario;
 
             final r = await repository
-                .post('/ajax/actualizar_registro.php', body)
+                .post('/ajax/registrar_pago_ahorro.php', body)
                 .timeout(const Duration(seconds: 15));
             final respuesta = r.body.trim();
+            final decoded = decodeJsonMap(respuesta);
             final fallo = r.statusCode != 200 ||
-                respuesta.toLowerCase().contains('error') ||
-                respuesta.toLowerCase().contains('no se');
+                (decoded['resultado'] != 1 && decoded['success'] != true);
             if (fallo) {
-              throw Exception(respuesta.isEmpty
-                  ? 'El servidor no confirmó el pago.'
-                  : respuesta);
+              throw Exception(decoded['mensaje']?.toString() ??
+                  'El servidor no confirmó el pago.');
             }
 
             repository.invalidateCache('/ajax/listado_ahorros.php');
@@ -3324,7 +3513,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
   }) async {
     final documento = pw.Document(
       title: 'Comprobante de Pago SAF',
-      author: 'SAF – Sistema de Ahorro y Financiamiento',
+      author: 'SAF - Sistema de Ahorro y Financiamiento',
       subject: 'Comprobante de cuota de ahorro',
     );
 
@@ -3456,17 +3645,19 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
               child: pw.Row(
                 children: [
                   pw.Container(
-                    width: 20, height: 20,
+                    width: 24,
+                    height: 24,
                     decoration: pw.BoxDecoration(
                       color: PdfColors.white,
                       shape: pw.BoxShape.circle,
                     ),
                     alignment: pw.Alignment.center,
-                    child: pw.Text('✓',
+                    child: pw.Text('OK',
                         style: pw.TextStyle(
                           color: green,
-                          fontSize: 11,
+                          fontSize: 7,
                           fontWeight: pw.FontWeight.bold,
+                          letterSpacing: 0.4,
                         )),
                   ),
                   pw.SizedBox(width: 10),
@@ -3622,29 +3813,44 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                 padding: const pw.EdgeInsets.all(14),
                 child: pw.Row(
                   children: [
-                    pw.ClipRRect(
-                      horizontalRadius: 8,
-                      verticalRadius: 8,
-                      child: pw.Image(logoImage, width: 34, height: 34,
-                          fit: pw.BoxFit.cover),
+                    pw.Container(
+                      width: 38,
+                      height: 38,
+                      decoration: pw.BoxDecoration(
+                        color: navy,
+                        borderRadius: pw.BorderRadius.circular(8),
+                      ),
+                      alignment: pw.Alignment.center,
+                      child: pw.Text(
+                        'SAF',
+                        style: pw.TextStyle(
+                          color: PdfColors.white,
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ),
                     pw.SizedBox(width: 12),
-                    pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text('Documento oficial verificado',
-                            style: pw.TextStyle(
-                              fontSize: 9,
-                              color: navy,
-                              fontWeight: pw.FontWeight.bold,
-                            )),
-                        pw.SizedBox(height: 2),
-                        pw.Text('Este comprobante es válido como constancia de pago.',
-                            style: const pw.TextStyle(
-                              fontSize: 8,
-                              color: PdfColors.grey600,
-                            )),
-                      ],
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text('Comprobante digital SAF',
+                              style: pw.TextStyle(
+                                fontSize: 9,
+                                color: navy,
+                                fontWeight: pw.FontWeight.bold,
+                              )),
+                          pw.SizedBox(height: 2),
+                          pw.Text(
+                              'Documento generado por el Sistema de Ahorro y Financiamiento.',
+                              style: const pw.TextStyle(
+                                fontSize: 8,
+                                color: PdfColors.grey600,
+                              )),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -3660,7 +3866,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('SAF – Sistema de Ahorro y Financiamiento',
+                  pw.Text('SAF | Sistema de Ahorro y Financiamiento',
                       style: pw.TextStyle(
                         color: PdfColor(1, 1, 1, 0.6),
                         fontSize: 8,
@@ -3798,6 +4004,12 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
     final total = widget.num(a['total_ahorrado'] ?? a['valor_pactado'] ?? 0);
     final pactado = widget.num(
         a['valor_pactado'] ?? a['Valor_pactado'] ?? a['valor_Pactado'] ?? 0);
+    final amountToShow = total > 0 ? total : pactado;
+    final amountLabel = total > 0
+        ? 'ahorrado'
+        : pactado > 0
+            ? 'pactado'
+            : 'ahorrado';
     final neto = widget.num(a['neto_pagar'] ?? a['neto'] ?? 0);
     final rend = widget.num(a['porcentaje'] ?? 0);
     final fecha = (a['Fecha_ingreso'] ?? a['fecha_ingreso'] ?? '').toString();
@@ -4115,12 +4327,12 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text(widget.cop(total),
+                                Text(widget.cop(amountToShow),
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w800,
                                         fontSize: 12,
                                         color: Colors.white)),
-                                Text('ahorrado',
+                                Text(amountLabel,
                                     style: TextStyle(
                                         fontSize: 9,
                                         color: Colors.white

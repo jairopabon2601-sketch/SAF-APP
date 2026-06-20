@@ -442,22 +442,117 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> fetchSavers([String? anio, String? asesor]) async {
     try {
+      final previousSavers = List<Map<String, dynamic>>.from(savers);
+      final now =
+          DateTime.now().toUtc().subtract(const Duration(hours: 5));
+      final today =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
       final r = await repository.cachedPost('/ajax/listado_ahorros.php', {
         'anio_ahorro': anio ?? savingsYearFilter,
-        'filtro_asesor': asesor ?? savingsAdvisorFilter,
+        // La pantalla filtra por sigla localmente. Para no reemplazar la
+        // colección completa con un solo asesor, las recargas normales traen
+        // todos los registros del año.
+        'filtro_asesor':
+            asesor == null ? '0' : creditAdvisorCode(asesor),
       });
+      final loadedSavers = <Map<String, dynamic>>[];
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         final list = d['ahorradores'];
         if (list is List) {
-          savers = list
+          loadedSavers.addAll(list
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
-              .toList();
-          cachedFilteredSavers = null;
-          unawaited(repository.saveLocalData('ahorradores', savers));
+              .toList());
         }
       }
+
+      // listado_ahorros.php solo incluye personas con un ahorro asociado.
+      // Fusionamos el catálogo para mostrar también los recién registrados.
+      final catalogResponse =
+          await repository.cachedPost('/ajax/listado_select.php', {
+        'tabla': 'tbl_ahorradores',
+        'valor': 'codigo',
+        'etiqueta':
+            'concat(nombres,CHAR(124),apellidos,CHAR(124),codigo_asesor)',
+        'filtro': '1',
+        'campos_orden': 'nombres,apellidos',
+      });
+      if (catalogResponse.statusCode == 200) {
+        final rawCatalog = jsonDecode(catalogResponse.body);
+        if (rawCatalog is List) {
+          for (final raw in rawCatalog.whereType<Map>()) {
+            final item = Map<String, dynamic>.from(raw);
+            final codigo = (item['codigo'] ??
+                    (item.values.isNotEmpty ? item.values.first : ''))
+                .toString()
+                .trim();
+            final encoded =
+                (item.values.isNotEmpty ? item.values.last : '').toString();
+            final parts = encoded.split('|');
+            final nombre = parts.take(2).join(' ').trim().toUpperCase();
+            final codigoAsesor =
+                parts.length > 2 ? parts[2].trim() : '';
+            Map<String, dynamic>? previous;
+            for (final saver in previousSavers) {
+              if ((saver['codigo_ahorrador'] ?? '').toString() == codigo ||
+                  (saver['ahorrador'] ?? '')
+                          .toString()
+                          .trim()
+                          .toUpperCase() ==
+                      nombre) {
+                previous = saver;
+                break;
+              }
+            }
+            final loadedIndex = loadedSavers.indexWhere((saver) =>
+                (saver['codigo_ahorrador'] ?? '').toString() == codigo ||
+                (saver['ahorrador'] ?? '')
+                        .toString()
+                        .trim()
+                        .toUpperCase() ==
+                    nombre);
+            if (loadedIndex >= 0) {
+              loadedSavers[loadedIndex]['codigo_ahorrador'] = codigo;
+              loadedSavers[loadedIndex]['codigo_asesor'] = codigoAsesor;
+              if ((loadedSavers[loadedIndex]['asesor'] ?? '')
+                  .toString()
+                  .trim()
+                  .isEmpty) {
+                loadedSavers[loadedIndex]['asesor'] =
+                    creditAdvisorInitials(codigoAsesor);
+              }
+            } else if (nombre.isNotEmpty) {
+              final previousDate = (previous?['Fecha_ingreso'] ??
+                      previous?['fecha_ingreso'] ??
+                      '')
+                  .toString();
+              final parsedPreviousDate = DateTime.tryParse(previousDate);
+              final validPreviousDate = parsedPreviousDate != null &&
+                  !DateTime(
+                    parsedPreviousDate.year,
+                    parsedPreviousDate.month,
+                    parsedPreviousDate.day,
+                  ).isAfter(DateTime(now.year, now.month, now.day));
+              loadedSavers.add({
+                'codigo_ahorrador': codigo,
+                'ahorrador': nombre,
+                'asesor': creditAdvisorInitials(codigoAsesor),
+                'total_ahorrado': 0,
+                'Valor_pactado': 0,
+                'neto_pagar': 0,
+                'Fecha_ingreso': validPreviousDate ? previousDate : today,
+                'ahorros': <dynamic>[],
+                'sin_ahorro': true,
+              });
+            }
+          }
+        }
+      }
+
+      savers = loadedSavers;
+      cachedFilteredSavers = null;
+      unawaited(repository.saveLocalData('ahorradores', savers));
     } catch (e) {
       debugPrint('[SAF] ahorradores: $e');
     }
@@ -860,9 +955,18 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           {'codigo_consulta': 'json_fuentes', 'filtro': '', 'agrupacion': ''},
           ttl: const Duration(hours: 1));
       if (r.statusCode == 200) {
-        final d = decodeJsonMap(r.body);
-        final list = d['datos'] ?? d['data'] ?? d['fuentes'];
-        if (list is List) {
+        List? list;
+        try {
+          final raw = jsonDecode(r.body);
+          if (raw is List) {
+            list = raw;
+          } else if (raw is Map) {
+            final d = Map<String, dynamic>.from(raw);
+            list = d['datos'] ?? d['data'] ?? d['fuentes'] ??
+                d.values.whereType<List>().firstOrNull;
+          }
+        } catch (_) {}
+        if (list != null && list.isNotEmpty) {
           sources = list
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
