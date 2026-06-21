@@ -10,7 +10,29 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     final ingresos = totalIncome;
     final egresos = totalExpenses;
     final balance = ingresos - egresos;
-    final recent = movements.take(5).toList();
+    // Mismo ORDER BY que la pantalla Movimientos / la web: fecha DESC, código ASC.
+    String movDate(Map<String, dynamic> m) {
+      final v = (m['fecha'] ?? '').toString();
+      return v.length >= 10 ? v.substring(0, 10) : v;
+    }
+    int? movCode(Map<String, dynamic> m) => int.tryParse((m['codigo'] ??
+            m['codigo_movimiento'] ??
+            m['codigo_cuenta_movimiento'] ??
+            m['id'] ??
+            '')
+        .toString());
+    final recent = ([...movements]..sort((a, b) {
+          final cmpFecha = movDate(b).compareTo(movDate(a));
+          if (cmpFecha != 0) return cmpFecha;
+          final codeA = movCode(a);
+          final codeB = movCode(b);
+          if (codeA != null && codeB != null && codeA != codeB) {
+            return codeA.compareTo(codeB);
+          }
+          return 0;
+        }))
+        .take(5)
+        .toList();
     final total = ingresos + egresos;
 
     return Column(
@@ -131,7 +153,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
         ],
 
         // ── Recent activity ───────────────────────────────────
-        const SizedBox(height: 26),
+        const SizedBox(height: 20),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
@@ -145,7 +167,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                 onAction: () => refresh(() => selectedIndex = 3),
                 gradient: const [Color(0xFFF59E0B), Color(0xFFEF4444)],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
               if (loadingData)
                 const Center(
                     child: Padding(
@@ -155,60 +177,21 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               else if (recent.isEmpty)
                 buildEmptyActivity()
               else
-                AnimatedBuilder(
-                  animation: shimmer,
-                  builder: (_, __) => Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Colors.white, Color(0xFFF2F5FF)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: homeAccent.withValues(alpha: 0.14 + 0.06 * shimmer.value),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: homeAccent.withValues(
-                              alpha: 0.07 + 0.05 * shimmer.value),
-                          blurRadius: 28 + 8 * shimmer.value,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: recent.asMap().entries.map((e) {
-                        final i = e.key;
-                        final interval = Interval(
-                          (i * 0.10).clamp(0.0, 0.45),
-                          (i * 0.10 + 0.65).clamp(0.5, 1.0),
-                          curve: Curves.easeOutCubic,
-                        );
-                        return TweenAnimationBuilder<double>(
-                          key: ValueKey('mov_$i'),
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          duration: const Duration(milliseconds: 750),
-                          curve: interval,
-                          builder: (_, t, child) => Opacity(
-                            opacity: t.clamp(0.0, 1.0),
-                            child: Transform.translate(
-                              offset: Offset(20 * (1 - t), 0),
-                              child: child,
-                            ),
-                          ),
-                          child: buildMovementItem(e.value,
-                              divider: i < recent.length - 1),
-                        );
-                      }).toList(),
-                    ),
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  itemCount: recent.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (_, i) => buildAnimatedMovementCard(
+                    recent[i],
+                    i,
                   ),
                 ),
             ],
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
       ],
     );
   }

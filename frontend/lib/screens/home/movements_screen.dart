@@ -1138,6 +1138,18 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       _AnimatedActionButton(
           label: label, color: color, onTap: onTap, icon: icon);
 
+  Widget buildAnimatedMovementCard(
+    Map<String, dynamic> data,
+    int index, {
+    VoidCallback? onDelete,
+  }) =>
+      _AnimatedMovementCard(
+        key: ValueKey('amc_$index'),
+        data: data,
+        index: index,
+        onDelete: onDelete,
+      );
+
   Widget _filterDropdown<ValueType>({
     required String label,
     required ValueType? value,
@@ -4950,13 +4962,13 @@ class _ActionTileState extends State<_ActionTile>
 class _AnimatedMovementCard extends StatefulWidget {
   final Map<String, dynamic> data;
   final int index;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
 
   const _AnimatedMovementCard({
     super.key,
     required this.data,
     required this.index,
-    required this.onDelete,
+    this.onDelete,
   });
 
   @override
@@ -5307,6 +5319,7 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                                 ),
                               ),
                             ),
+                            if (widget.onDelete != null) ...[
                             const SizedBox(width: 6),
                             GestureDetector(
                               onTap: widget.onDelete,
@@ -5339,6 +5352,7 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                                     size: 15, color: Color(0xFFDC2626)),
                               ),
                             ),
+                            ],
                           ]),
                         ],
                       ),
