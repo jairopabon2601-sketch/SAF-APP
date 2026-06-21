@@ -425,27 +425,50 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
         SafeArea(
           bottom: false,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 18),
+            padding: const EdgeInsets.fromLTRB(14, 6, 14, 14),
             child: Column(children: [
-              // ── Action row: back + Nuevo ──────────────────────
-              Row(children: [
+              // ── Fila única: back + icon + title + Nuevo ────────
+              Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
                 GestureDetector(
                   onTap: onBack,
                   child: Container(
-                    width: 40, height: 40,
+                    width: 36, height: 36,
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
                     ),
-                    child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+                    child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 18),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 10),
+                Container(
+                  width: 42, height: 42,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      Colors.white.withValues(alpha: 0.25),
+                      Colors.white.withValues(alpha: 0.10),
+                    ], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                  ),
+                  child: const Icon(Icons.manage_accounts_rounded, color: Colors.white, size: 24),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Gestión de usuarios',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: -0.3),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text('Administración · Acceso restringido',
+                        style: TextStyle(color: Colors.white60, fontSize: 10.5, fontWeight: FontWeight.w500)),
+                  ]),
+                ),
+                const SizedBox(width: 8),
                 GestureDetector(
                   onTap: onNew,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFF6EE7B7), Color(0xFF34D399), Color(0xFF059669)],
@@ -463,49 +486,20 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                       ],
                     ),
                     child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 15),
-                      SizedBox(width: 5),
-                      Text('Nuevo', style: TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w800, letterSpacing: 0.2)),
+                      Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 16),
+                      SizedBox(width: 6),
+                      Text('Nuevo', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.2)),
                     ]),
                   ),
                 ),
               ]),
-              const SizedBox(height: 18),
-              // ── Title row: big icon + texto ───────────────────
-              Row(children: [
-                Container(
-                  width: 54, height: 54,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [
-                      Colors.white.withValues(alpha: 0.25),
-                      Colors.white.withValues(alpha: 0.10),
-                    ], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 12, offset: const Offset(0, 5)),
-                    ],
-                  ),
-                  child: const Icon(Icons.manage_accounts_rounded, color: Colors.white, size: 30),
-                ),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Gestión de usuarios',
-                        style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w900, letterSpacing: -0.4)),
-                    SizedBox(height: 3),
-                    Text('Administración · Acceso restringido',
-                        style: TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w500)),
-                  ]),
-                ),
-              ]),
-              const SizedBox(height: 18),
+              const SizedBox(height: 12),
               // ── Stats row ─────────────────────────────────────
               Row(children: [
                 _userStatChip(Icons.people_alt_rounded, totalUsers.toString(), 'Total', const Color(0xFF60A5FA)),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _userStatChip(Icons.check_circle_outline_rounded, activeUsers.toString(), 'Activos', const Color(0xFF34D399)),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 _userStatChip(Icons.lock_outline_rounded, (totalUsers - activeUsers).toString(), 'Inactivos', const Color(0xFFFBBF24)),
               ]),
             ]),
