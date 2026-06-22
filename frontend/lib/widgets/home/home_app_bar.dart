@@ -3,7 +3,6 @@ import '../../screens/home/home_dependencies.dart';
 import 'home_dialogs.dart';
 
 extension HomeAppBar<T extends StatefulWidget> on HomeController<T> {
-  // ── App Bar ──────────────────────────────────────────────────────
   SliverAppBar buildHomeAppBar() => SliverAppBar(
         expandedHeight: 0,
         floating: true,
@@ -16,13 +15,15 @@ extension HomeAppBar<T extends StatefulWidget> on HomeController<T> {
           children: [
             const _AnimatedSafLogo(),
             const SizedBox(width: 10),
-            const Text('SAF',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20,
-                  letterSpacing: 1.2,
-                )),
+            const Text(
+              'SAF',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 20,
+                letterSpacing: 1.2,
+              ),
+            ),
             const Spacer(),
             GestureDetector(
               onTap: showProfileSheet,
@@ -53,12 +54,12 @@ extension HomeAppBar<T extends StatefulWidget> on HomeController<T> {
           ],
         ),
       );
-// ── Animated SAF logo for the AppBar ────────────────────────────────────────
 }
+
+// ── Pulsing status dot ───────────────────────────────────────────────────────
 
 class SafPulsingStatusDot extends StatefulWidget {
   const SafPulsingStatusDot({super.key});
-
   @override
   State<SafPulsingStatusDot> createState() => _SafPulsingStatusDotState();
 }
@@ -75,10 +76,7 @@ class _SafPulsingStatusDotState extends State<SafPulsingStatusDot>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
-    _pulse = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    );
+    _pulse = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
   }
 
   @override
@@ -105,6 +103,8 @@ class _SafPulsingStatusDotState extends State<SafPulsingStatusDot>
     );
   }
 }
+
+// ── Animated SAF logo ────────────────────────────────────────────────────────
 
 class _AnimatedSafLogo extends StatefulWidget {
   const _AnimatedSafLogo();

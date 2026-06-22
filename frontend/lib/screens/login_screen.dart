@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'forgot_password_screen.dart';
 
-// ── Particle ─────────────────────────────────────────────────────────────────
+// ── Particle ──────────────────────────────────────────────────────────────────
 class _Particle {
   final double x, startY, radius, speed, alpha, phase;
   final Color color;
@@ -61,7 +61,6 @@ class _SafLogoPainter extends CustomPainter {
       math.pi / 4,
       math.pi * 3 / 4
     ];
-
     final ring = Paint()
       ..color = color
       ..strokeWidth = ringW
@@ -124,7 +123,11 @@ class _LoginScreenState extends State<LoginScreen>
   bool _loading = false;
   String? _error;
 
-  late AnimationController _entryCtrl, _pulseCtrl, _floatCtrl, _particleCtrl;
+  late AnimationController _entryCtrl,
+      _pulseCtrl,
+      _floatCtrl,
+      _particleCtrl,
+      _shimmerCtrl;
   late Animation<double> _fadeIn, _pulse, _float;
   late Animation<Offset> _slideUp;
   late List<_Particle> _particles;
@@ -142,13 +145,13 @@ class _LoginScreenState extends State<LoginScreen>
     _loadLastEmail();
     final rng = math.Random(42);
     _particles = List.generate(
-        28,
+        34,
         (i) => _Particle(
               x: rng.nextDouble(),
               startY: rng.nextDouble(),
-              radius: rng.nextDouble() * 2.2 + 1.0,
+              radius: rng.nextDouble() * 2.4 + 0.8,
               speed: rng.nextDouble() * 0.06 + 0.02,
-              alpha: rng.nextDouble() * 0.35 + 0.15,
+              alpha: rng.nextDouble() * 0.40 + 0.15,
               phase: rng.nextDouble() * math.pi * 2,
               color: _colors[i % _colors.length],
             ));
@@ -176,6 +179,10 @@ class _LoginScreenState extends State<LoginScreen>
     _particleCtrl =
         AnimationController(vsync: this, duration: const Duration(seconds: 18))
           ..repeat();
+
+    _shimmerCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1800))
+      ..repeat();
   }
 
   @override
@@ -184,6 +191,7 @@ class _LoginScreenState extends State<LoginScreen>
     _pulseCtrl.dispose();
     _floatCtrl.dispose();
     _particleCtrl.dispose();
+    _shimmerCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
@@ -349,30 +357,41 @@ class _LoginScreenState extends State<LoginScreen>
 
                       const SizedBox(height: 20),
 
-                      // ── SAF ───────────────────────────────────────
-                      ShaderMask(
-                        shaderCallback: (b) => const LinearGradient(
-                          colors: [Color(0xFFFFFFFF), Color(0xFF9DB8FF)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ).createShader(b),
-                        child: const Text(
-                          'SAF',
-                          style: TextStyle(
-                            fontSize: 54,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 14,
-                            color: Colors.white,
-                            height: 1.0,
-                          ),
-                        ),
+                      // ── SAF (animated shimmer) ────────────────────
+                      AnimatedBuilder(
+                        animation: _shimmerCtrl,
+                        builder: (_, __) {
+                          final shineX = _shimmerCtrl.value * 3.5 - 1.75;
+                          return ShaderMask(
+                            blendMode: BlendMode.srcIn,
+                            shaderCallback: (b) => LinearGradient(
+                              begin: Alignment(shineX - 1.0, -1),
+                              end: Alignment(shineX + 1.0, 1),
+                              colors: const [
+                                Colors.white,
+                                Color(0xFF9DB8FF),
+                                Color(0xFFFFFFFF),
+                                Color(0xFF9DB8FF),
+                              ],
+                              stops: const [0.0, 0.35, 0.65, 1.0],
+                            ).createShader(b),
+                            child: const Text(
+                              'SAF',
+                              style: TextStyle(
+                                fontSize: 54,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 14,
+                                color: Colors.white,
+                                height: 1.0,
+                              ),
+                            ),
+                          );
+                        },
                       ),
-
-                      const SizedBox(height: 8),
 
                       SizedBox(height: size.height * 0.042),
 
-                      // ── Card ───────────────────────────────────────
+                      // ── Card ─────────────────────────────────────
                       AnimatedBuilder(
                         animation: _pulseCtrl,
                         builder: (_, child) => Container(
@@ -380,19 +399,22 @@ class _LoginScreenState extends State<LoginScreen>
                             borderRadius: BorderRadius.circular(28),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF6C63FF).withValues(alpha: 0.35 + 0.20 * _pulse.value),
+                                color: const Color(0xFF6C63FF).withValues(
+                                    alpha: 0.35 + 0.20 * _pulse.value),
                                 blurRadius: 28 + 18 * _pulse.value,
                                 spreadRadius: -4,
                                 offset: const Offset(0, 16),
                               ),
                               BoxShadow(
-                                color: const Color(0xFF8B2FC9).withValues(alpha: 0.20 + 0.12 * _pulse.value),
+                                color: const Color(0xFF8B2FC9).withValues(
+                                    alpha: 0.20 + 0.12 * _pulse.value),
                                 blurRadius: 55 + 20 * _pulse.value,
                                 spreadRadius: -10,
                                 offset: const Offset(0, 26),
                               ),
                               BoxShadow(
-                                color: const Color(0xFF00C6FF).withValues(alpha: 0.15 + 0.08 * _pulse.value),
+                                color: const Color(0xFF00C6FF).withValues(
+                                    alpha: 0.15 + 0.08 * _pulse.value),
                                 blurRadius: 40,
                                 spreadRadius: -14,
                                 offset: const Offset(0, 30),
@@ -411,285 +433,240 @@ class _LoginScreenState extends State<LoginScreen>
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Acento superior gradiente
+                              // Gradient top accent
                               Container(
                                 height: 5,
                                 decoration: const BoxDecoration(
                                   gradient: LinearGradient(
-                                    colors: [Color(0xFF6C63FF), Color(0xFF00C6FF), Color(0xFF8B2FC9)],
+                                    colors: [
+                                      Color(0xFF6C63FF),
+                                      Color(0xFF00C6FF),
+                                      Color(0xFF8B2FC9)
+                                    ],
                                   ),
                                 ),
                               ),
                               Container(
                                 color: Colors.white,
-                                padding: const EdgeInsets.fromLTRB(24, 26, 24, 30),
+                                padding:
+                                    const EdgeInsets.fromLTRB(24, 26, 24, 30),
                                 child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 4,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(2),
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF6C63FF),
-                                          Color(0xFF00D2FF)
-                                        ],
-                                        begin: Alignment.topCenter,
-                                        end: Alignment.bottomCenter,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF6C63FF)
-                                              .withValues(alpha: 0.6),
-                                          blurRadius: 10,
-                                          spreadRadius: 1,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  const Column(
+                                  key: _formKey,
+                                  child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text('Bienvenido de nuevo',
-                                          style: TextStyle(
-                                              color: Color(0xFF0D1B4B),
-                                              fontSize: 22,
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: 0.3)),
-                                      SizedBox(height: 3),
-                                      Text(
-                                          'Ingresa tus credenciales para continuar',
-                                          style: TextStyle(
-                                              color: Color(0xFF6B7DB3),
-                                              fontSize: 12.5)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: 24),
-
-                              Container(
-                                height: 1,
-                                decoration: const BoxDecoration(
-                                  gradient: LinearGradient(colors: [
-                                    Colors.transparent,
-                                    Color(0xFFE0E4F5),
-                                    Colors.transparent,
-                                  ]),
-                                ),
-                              ),
-
-                              const SizedBox(height: 22),
-
-                              // Email
-                              _field(
-                                ctrl: _emailCtrl,
-                                label: 'Correo electrónico',
-                                icon: Icons.email_outlined,
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (v) {
-                                  if (v == null || v.trim().isEmpty) {
-                                    return 'Ingresa tu correo';
-                                  }
-                                  if (!v.contains('@')) {
-                                    return 'Correo inválido';
-                                  }
-                                  return null;
-                                },
-                              ),
-
-                              const SizedBox(height: 14),
-
-                              // Password
-                              _field(
-                                ctrl: _passwordCtrl,
-                                label: 'Contraseña',
-                                icon: Icons.lock_outline_rounded,
-                                obscure: _obscure,
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscure
-                                        ? Icons.visibility_off_outlined
-                                        : Icons.visibility_outlined,
-                                    color: const Color(0xFF6B7DB3),
-                                    size: 20,
-                                  ),
-                                  onPressed: () =>
-                                      setState(() => _obscure = !_obscure),
-                                ),
-                                validator: (v) {
-                                  if (v == null || v.isEmpty) {
-                                    return 'Ingresa tu contraseña';
-                                  }
-                                  return null;
-                                },
-                              ),
-
-                              // Error
-                              if (_error != null) ...[
-                                const SizedBox(height: 14),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 12),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFF4B6E)
-                                        .withValues(alpha: 0.14),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: const Color(0xFFFF4B6E)
-                                          .withValues(alpha: 0.4),
-                                    ),
-                                  ),
-                                  child: Row(children: [
-                                    const Icon(Icons.error_outline,
-                                        color: Color(0xFFFF6B8A), size: 18),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                        child: Text(_error!,
-                                            style: const TextStyle(
-                                                color: Color(0xFFFF9BAF),
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w500))),
-                                  ]),
-                                ),
-                              ],
-
-                              const SizedBox(height: 20),
-
-                              // Button
-                              AnimatedBuilder(
-                                animation: _pulseCtrl,
-                                builder: (_, child) => SizedBox(
-                                  width: double.infinity,
-                                  height: 56,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF5B54F5),
-                                          Color(0xFF00C6FF)
+                                      // Header
+                                      Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Container(
+                                            width: 4,
+                                            height: 40,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(2),
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF6C63FF),
+                                                  Color(0xFF00D2FF)
+                                                ],
+                                                begin: Alignment.topCenter,
+                                                end: Alignment.bottomCenter,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: const Color(0xFF6C63FF)
+                                                      .withValues(alpha: 0.6),
+                                                  blurRadius: 10,
+                                                  spreadRadius: 1,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 14),
+                                          const Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Bienvenido de nuevo',
+                                                  style: TextStyle(
+                                                      color: Color(0xFF0D1B4B),
+                                                      fontSize: 22,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      letterSpacing: 0.3)),
+                                              SizedBox(height: 3),
+                                              Text(
+                                                  'Ingresa tus credenciales para continuar',
+                                                  style: TextStyle(
+                                                      color: Color(0xFF6B7DB3),
+                                                      fontSize: 12.5)),
+                                            ],
+                                          ),
                                         ],
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
                                       ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF5B54F5)
-                                              .withValues(
-                                                  alpha: 0.45 +
-                                                      0.2 * _pulse.value),
-                                          blurRadius: 24 + 10 * _pulse.value,
-                                          offset: const Offset(0, 8),
-                                          spreadRadius: -2,
+
+                                      const SizedBox(height: 24),
+
+                                      Container(
+                                        height: 1,
+                                        decoration: const BoxDecoration(
+                                          gradient: LinearGradient(colors: [
+                                            Colors.transparent,
+                                            Color(0xFFE0E4F5),
+                                            Colors.transparent,
+                                          ]),
                                         ),
-                                        BoxShadow(
-                                          color: const Color(0xFF00C6FF)
-                                              .withValues(alpha: 0.2),
-                                          blurRadius: 20,
-                                          offset: const Offset(0, 4),
+                                      ),
+
+                                      const SizedBox(height: 22),
+
+                                      // ── Email ──────────────────
+                                      _GlowField(
+                                        ctrl: _emailCtrl,
+                                        label: 'Correo electrónico',
+                                        icon: Icons.email_outlined,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
+                                        textInputAction: TextInputAction.next,
+                                        validator: (v) {
+                                          if (v == null || v.trim().isEmpty) {
+                                            return 'Ingresa tu correo';
+                                          }
+                                          if (!v.contains('@')) {
+                                            return 'Correo inválido';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+
+                                      const SizedBox(height: 14),
+
+                                      // ── Password ───────────────
+                                      _GlowField(
+                                        ctrl: _passwordCtrl,
+                                        label: 'Contraseña',
+                                        icon: Icons.lock_outline_rounded,
+                                        obscure: _obscure,
+                                        textInputAction: TextInputAction.done,
+                                        onSubmitted: (_) => _login(),
+                                        suffixIcon: IconButton(
+                                          icon: Icon(
+                                            _obscure
+                                                ? Icons.visibility_off_outlined
+                                                : Icons.visibility_outlined,
+                                            color: const Color(0xFF6B7DB3),
+                                            size: 20,
+                                          ),
+                                          onPressed: () => setState(
+                                              () => _obscure = !_obscure),
+                                        ),
+                                        validator: (v) {
+                                          if (v == null || v.isEmpty) {
+                                            return 'Ingresa tu contraseña';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+
+                                      // Error
+                                      if (_error != null) ...[
+                                        const SizedBox(height: 14),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 14, vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFF4B6E)
+                                                .withValues(alpha: 0.14),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                              color: const Color(0xFFFF4B6E)
+                                                  .withValues(alpha: 0.4),
+                                            ),
+                                          ),
+                                          child: Row(children: [
+                                            const Icon(Icons.error_outline,
+                                                color: Color(0xFFFF6B8A),
+                                                size: 18),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                                child: Text(_error!,
+                                                    style: const TextStyle(
+                                                        color:
+                                                            Color(0xFFFF9BAF),
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w500))),
+                                          ]),
                                         ),
                                       ],
-                                    ),
-                                    child: child!,
-                                  ),
-                                ),
-                                child: ElevatedButton(
-                                  onPressed: _loading ? null : _login,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    shadowColor: Colors.transparent,
-                                    disabledBackgroundColor: Colors.transparent,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(16)),
-                                  ),
-                                  child: _loading
-                                      ? const SizedBox(
-                                          width: 22,
-                                          height: 22,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2.5,
-                                              color: Colors.white))
-                                      : const Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text('Iniciar Sesión',
+
+                                      const SizedBox(height: 20),
+
+                                      // ── Button with shimmer ─────
+                                      _ShimmerButton(
+                                        shimmerCtrl: _shimmerCtrl,
+                                        pulseAnim: _pulse,
+                                        loading: _loading,
+                                        onPressed: _login,
+                                        label: 'Iniciar Sesión',
+                                        icon: Icons.arrow_forward_rounded,
+                                      ),
+
+                                      const SizedBox(height: 20),
+
+                                      // Forgot password
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Text(
+                                            '¿Olvidaste tu contraseña? ',
+                                            style: TextStyle(
+                                              color: Color(0xFF8899BB),
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          GestureDetector(
+                                            onTap: () => Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    const ForgotPasswordScreen(),
+                                              ),
+                                            ),
+                                            child: ShaderMask(
+                                              shaderCallback: (b) =>
+                                                  const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF5B54F5),
+                                                  Color(0xFF00C6FF)
+                                                ],
+                                              ).createShader(b),
+                                              child: const Text(
+                                                'Recuperar',
                                                 style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.w700,
-                                                    letterSpacing: 1.2,
-                                                    color: Colors.white)),
-                                            SizedBox(width: 8),
-                                            Icon(Icons.arrow_forward_rounded,
-                                                color: Colors.white, size: 18),
-                                          ],
-                                        ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 20),
-
-                              // Forgot password
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text(
-                                    '¿Olvidaste tu contraseña? ',
-                                    style: TextStyle(
-                                      color: Color(0xFF8899BB),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const ForgotPasswordScreen(),
-                                      ),
-                                    ),
-                                    child: ShaderMask(
-                                      shaderCallback: (b) =>
-                                          const LinearGradient(
-                                        colors: [
-                                          Color(0xFF5B54F5),
-                                          Color(0xFF00C6FF)
+                                                  color: Colors.white,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
                                         ],
-                                      ).createShader(b),
-                                      child: const Text(
-                                        'Recuperar',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ), // Container white body
-                      ], // Column children
-                    ), // Column
-                  ), // ClipRRect
-                ), // AnimatedBuilder
+                      ),
 
                       SizedBox(height: size.height * 0.038),
 
@@ -697,10 +674,8 @@ class _LoginScreenState extends State<LoginScreen>
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Container(
-                            width: 36,
-                            height: 1,
-                            color: const Color(0xFF7A8FCC),
-                          ),
+                              width: 36, height: 1,
+                              color: const Color(0xFF7A8FCC)),
                           const SizedBox(width: 10),
                           const Text(
                             'Plataforma de Creación y Gestión de Préstamos',
@@ -714,10 +689,8 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                           const SizedBox(width: 10),
                           Container(
-                            width: 36,
-                            height: 1,
-                            color: const Color(0xFF7A8FCC),
-                          ),
+                              width: 36, height: 1,
+                              color: const Color(0xFF7A8FCC)),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -742,31 +715,115 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
       );
+}
 
-  Widget _field({
-    required TextEditingController ctrl,
-    required String label,
-    required IconData icon,
-    TextInputType keyboardType = TextInputType.text,
-    bool obscure = false,
-    Widget? suffixIcon,
-    String? Function(String?)? validator,
-  }) =>
-      TextFormField(
-        controller: ctrl,
-        keyboardType: keyboardType,
-        obscureText: obscure,
+// ── Glow-on-focus text field ──────────────────────────────────────────────────
+
+class _GlowField extends StatefulWidget {
+  final TextEditingController ctrl;
+  final String label;
+  final IconData icon;
+  final TextInputType keyboardType;
+  final bool obscure;
+  final Widget? suffixIcon;
+  final String? Function(String?)? validator;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
+
+  const _GlowField({
+    required this.ctrl,
+    required this.label,
+    required this.icon,
+    this.keyboardType = TextInputType.text,
+    this.obscure = false,
+    this.suffixIcon,
+    this.validator,
+    this.textInputAction,
+    this.onSubmitted,
+  });
+
+  @override
+  State<_GlowField> createState() => _GlowFieldState();
+}
+
+class _GlowFieldState extends State<_GlowField>
+    with SingleTickerProviderStateMixin {
+  late final FocusNode _focus;
+  late final AnimationController _glowCtrl;
+  late final Animation<double> _glowAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus = FocusNode();
+    _glowCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+    _glowAnim =
+        CurvedAnimation(parent: _glowCtrl, curve: Curves.easeOutCubic);
+    _focus.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (_focus.hasFocus) {
+      _glowCtrl.forward();
+    } else {
+      _glowCtrl.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _focus.removeListener(_onFocusChange);
+    _focus.dispose();
+    _glowCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _glowAnim,
+      builder: (_, child) => Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6C63FF)
+                  .withValues(alpha: 0.44 * _glowAnim.value),
+              blurRadius: 24 * _glowAnim.value,
+            ),
+            BoxShadow(
+              color: const Color(0xFF00C6FF)
+                  .withValues(alpha: 0.28 * _glowAnim.value),
+              blurRadius: 36 * _glowAnim.value,
+              spreadRadius: -3,
+            ),
+          ],
+        ),
+        child: child,
+      ),
+      child: TextFormField(
+        controller: widget.ctrl,
+        focusNode: _focus,
+        keyboardType: widget.keyboardType,
+        obscureText: widget.obscure,
         autocorrect: false,
+        textInputAction: widget.textInputAction,
+        onFieldSubmitted: widget.onSubmitted,
         style: const TextStyle(color: Color(0xFF0D1B4B), fontSize: 15),
         decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(color: Color(0xFF8899BB), fontSize: 14),
+          labelText: widget.label,
+          labelStyle:
+              const TextStyle(color: Color(0xFF8899BB), fontSize: 14),
           floatingLabelStyle: const TextStyle(
               color: Color(0xFF6C63FF),
               fontSize: 12,
               fontWeight: FontWeight.w600),
-          prefixIcon: Icon(icon, color: const Color(0xFF6C63FF), size: 20),
-          suffixIcon: suffixIcon,
+          prefixIcon:
+              Icon(widget.icon, color: const Color(0xFF6C63FF), size: 20),
+          suffixIcon: widget.suffixIcon,
           filled: true,
           fillColor: const Color(0xFFF4F5FF),
           border: OutlineInputBorder(
@@ -778,18 +835,141 @@ class _LoginScreenState extends State<LoginScreen>
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide:
-                  const BorderSide(color: Color(0xFF6C63FF), width: 1.8)),
+                  const BorderSide(color: Color(0xFF6C63FF), width: 2.0)),
           errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: Color(0xFFFF4B6E))),
           focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide:
-                  const BorderSide(color: Color(0xFFFF4B6E), width: 1.8)),
+                  const BorderSide(color: Color(0xFFFF4B6E), width: 2.0)),
           errorStyle: const TextStyle(color: Color(0xFFD32F2F)),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
         ),
-        validator: validator,
-      );
+        validator: widget.validator,
+      ),
+    );
+  }
+}
+
+// ── Shimmer button ────────────────────────────────────────────────────────────
+
+class _ShimmerButton extends StatelessWidget {
+  final AnimationController shimmerCtrl;
+  final Animation<double> pulseAnim;
+  final bool loading;
+  final VoidCallback onPressed;
+  final String label;
+  final IconData icon;
+
+  const _ShimmerButton({
+    required this.shimmerCtrl,
+    required this.pulseAnim,
+    required this.loading,
+    required this.onPressed,
+    required this.label,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: Stack(
+        children: [
+          // Gradient background + pulse shadow
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: pulseAnim,
+              builder: (_, __) => DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF5B54F5), Color(0xFF00C6FF)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF5B54F5)
+                          .withValues(alpha: 0.45 + 0.2 * pulseAnim.value),
+                      blurRadius: 24 + 10 * pulseAnim.value,
+                      offset: const Offset(0, 8),
+                      spreadRadius: -2,
+                    ),
+                    BoxShadow(
+                      color:
+                          const Color(0xFF00C6FF).withValues(alpha: 0.22),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Shimmer sweep
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: shimmerCtrl,
+                  builder: (_, __) => Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment(
+                            shimmerCtrl.value * 4.0 - 2.5, -1),
+                        end:
+                            Alignment(shimmerCtrl.value * 4.0 - 1.3, 1),
+                        colors: [
+                          Colors.white.withValues(alpha: 0),
+                          Colors.white.withValues(alpha: 0.28),
+                          Colors.white.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Tap target + content
+          Positioned.fill(
+            child: ElevatedButton(
+              onPressed: loading ? null : onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                disabledBackgroundColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+              child: loading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2.5, color: Colors.white))
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(label,
+                            style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2,
+                                color: Colors.white)),
+                        const SizedBox(width: 8),
+                        Icon(icon, color: Colors.white, size: 18),
+                      ],
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
