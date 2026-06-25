@@ -2520,18 +2520,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       return true;
     }).toList();
 
-    // `listar_movimientos_cuenta.php` ya entrega exactamente el orden de la
-    // web: fecha DESC, codigo ASC. No debe ordenarse de nuevo en la app.
-    // Continúa con la normalización final; no se retorna antes porque el PHP
-    // desplegado puede entregar invertidos los códigos del mismo día.
-
-    // La tabla web usa fecha DESC y código ASC. El endpoint global puede
-    // entregar código DESC, así que el orden se normaliza después de filtrar.
-    final originalPosition = <Map<String, dynamic>, int>{
-      for (var index = 0; index < result.length; index++) result[index]: index,
-    };
-    final reverseDailyBlock =
-        accountFilter.isNotEmpty || movementTypeFilter.isNotEmpty;
+    // Orden igual que la web: fecha DESC, codigo DESC
     result.sort((a, b) {
       String dateOf(Map<String, dynamic> item) {
         final value =
@@ -2539,40 +2528,22 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         return value.length >= 10 ? value.substring(0, 10) : value;
       }
 
-      int? codeOf(Map<String, dynamic> item) => int.tryParse(
+      int codeOf(Map<String, dynamic> item) =>
+          int.tryParse(
             (item['codigo'] ??
                         item['codigo_movimiento'] ??
                         item['codigo_cuenta_movimiento'] ??
                         item['id'])
                     ?.toString() ??
                 '',
-          );
+          ) ??
+          0;
 
       final dateComparison = dateOf(b).compareTo(dateOf(a));
       if (dateComparison != 0) return dateComparison;
-
-      final codeA = codeOf(a);
-      final codeB = codeOf(b);
-      if (!reverseDailyBlock &&
-          codeA != null &&
-          codeB != null &&
-          codeA != codeB) {
-        return codeA.compareTo(codeB);
-      }
-
-      // El caché antiguo puede no incluir la PK. En ese caso se invierte
-      // solamente el grupo de registros que comparte la misma fecha.
-      return (originalPosition[b] ?? 0).compareTo(originalPosition[a] ?? 0);
+      return codeOf(b).compareTo(codeOf(a));
     });
 
-    // Conserva el ORDER BY de `listado_cuentas_movimientos`, la misma
-    // consulta que utiliza la web.
-    /*
-        return idA.compareTo(idB); // ASC within same date — matches web
-      });
-    }
-
-    */
     return result;
   }
 

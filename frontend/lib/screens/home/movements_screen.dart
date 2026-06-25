@@ -803,14 +803,17 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   const Spacer(),
                   if (hasUserFilter)
                     GestureDetector(
-                      onTap: () => refresh(() {
-                        accountFilter = '';
-                        movementTypeFilter = '';
-                        filterFrom = null;
-                        filterTo = null;
-                        filteredTotalsLoaded = false;
-                        movementsPage = 1;
-                      }),
+                      onTap: () {
+                        refresh(() {
+                          accountFilter = '';
+                          movementTypeFilter = '';
+                          filterFrom = null;
+                          filterTo = null;
+                          filteredTotalsLoaded = false;
+                          movementsPage = 1;
+                        });
+                        unawaited(onDateFilterChanged());
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),

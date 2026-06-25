@@ -81,19 +81,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> _fetchMovimientosTodasCuentas(String usuario,
       {String? desde, String? hasta}) async {
-    // Build filtro matching the web's SQL pattern
-    String pad2(int n) => n.toString().padLeft(2, '0');
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final dStr = desde ??
-        () {
-          final d = today.subtract(const Duration(days: 31));
-          return '${d.year}-${pad2(d.month)}-${pad2(d.day)}';
-        }();
-    final hStr = hasta ??
-        () {
-          return '${today.year}-${pad2(today.month)}-${pad2(today.day)}';
-        }();
+    final dStr = desde ?? '';
+    final hStr = hasta ?? '';
 
     // Use global endpoint: single JOIN query, globally sorted by fecha DESC, codigo DESC
     bool globalOk = false;
