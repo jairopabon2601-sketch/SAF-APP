@@ -39,10 +39,10 @@ class _HomeScreenState extends HomeController<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hour = DateTime.now().hour;
-    final greeting = hour < 12
+    final hourColombia = DateTime.now().toUtc().subtract(const Duration(hours: 5)).hour;
+    final greeting = hourColombia < 12
         ? 'Buenos días'
-        : hour < 18
+        : hourColombia < 18
             ? 'Buenas tardes'
             : 'Buenas noches';
     final firstName = fullName.split(' ').first;

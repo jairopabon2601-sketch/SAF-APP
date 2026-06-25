@@ -27,7 +27,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           final codeA = movCode(a);
           final codeB = movCode(b);
           if (codeA != null && codeB != null && codeA != codeB) {
-            return codeA.compareTo(codeB);
+            return codeB.compareTo(codeA);
           }
           return 0;
         }))

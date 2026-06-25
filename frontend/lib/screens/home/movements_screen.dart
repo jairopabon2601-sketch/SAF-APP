@@ -3329,6 +3329,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     bool movsLoaded = false;
     bool loadingMovs = false;
     List<Map<String, dynamic>> movsList = [];
+    int movsPage = 1;
+    const movsPerPage = 20;
 
     bool saving = false;
 
@@ -3413,7 +3415,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           loadingMovs = true;
           Future.microtask(() async {
             try {
-              movsList = await fetchAccountMovements(codigo, codigoUsuario);
+              final now = DateTime.now();
+              String pad(int n) => n.toString().padLeft(2, '0');
+              final mesInicio = '${now.year}-${pad(now.month)}-01';
+              final ultimoDia = DateTime(now.year, now.month + 1, 0).day;
+              final mesFin = '${now.year}-${pad(now.month)}-${pad(ultimoDia)}';
+              movsList = await fetchAccountMovements(codigo, codigoUsuario,
+                  desde: mesInicio, hasta: mesFin);
             } catch (_) {}
             setS(() {
               loadingMovs = false;
@@ -3872,192 +3880,227 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                 ),
                               )
                             : Column(children: [
-                                // ── Resumen de totales ──────────────
+                                // ── Resumen del mes ─────────────────
                                 Builder(builder: (_) {
                                   double totalIn = 0, totalOut = 0;
                                   for (final m in movsList) {
-                                    final t = (m['tipo'] ?? '').toString().toLowerCase();
+                                    final tipoNum = (m['tipo_movimiento'] ?? '').toString();
+                                    final tipoNom = (m['tipo_nombre'] ?? '').toString().toLowerCase();
                                     final v = numberValue(m['valor'] ?? m['monto'] ?? 0);
-                                    if (t.contains('ingreso') || t == 'i' || v > 0) {
-                                      totalIn += v.abs();
-                                    } else {
-                                      totalOut += v.abs();
-                                    }
+                                    final isIn = tipoNom.contains('ingreso') || tipoNum == '3' || tipoNum == '1';
+                                    if (isIn) { totalIn += v.abs(); } else { totalOut += v.abs(); }
                                   }
+                                  final now = DateTime.now();
+                                  final meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+                                  final total = totalIn + totalOut;
+                                  final ratioIn = total > 0 ? totalIn / total : 0.0;
                                   return Container(
-                                    margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 14, vertical: 10),
+                                    margin: const EdgeInsets.fromLTRB(12, 8, 12, 6),
                                     decoration: BoxDecoration(
                                       gradient: const LinearGradient(
                                         colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
                                       ),
-                                      borderRadius: BorderRadius.circular(14),
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [BoxShadow(color: const Color(0xFF1E3A8A).withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))],
                                     ),
-                                    child: Row(children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            const Text('Ingresos',
-                                                style: TextStyle(
-                                                    color: Colors.white54,
-                                                    fontSize: 10)),
-                                            Text(formatCop(totalIn),
-                                                style: const TextStyle(
-                                                    color: Color(0xFF4ADE80),
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 13)),
-                                          ],
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(14),
+                                      child: Column(children: [
+                                        Row(children: [
+                                          const Icon(Icons.calendar_month_rounded, color: Colors.white38, size: 13),
+                                          const SizedBox(width: 4),
+                                          Text('${meses[now.month - 1]} ${now.year}',
+                                              style: const TextStyle(color: Colors.white38, fontSize: 11, fontWeight: FontWeight.w500)),
+                                          const Spacer(),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(20)),
+                                            child: Text('${movsList.length} registros',
+                                                style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w600)),
+                                          ),
+                                        ]),
+                                        const SizedBox(height: 12),
+                                        Row(children: [
+                                          Expanded(child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(children: [
+                                                Icon(Icons.south_rounded, size: 11, color: const Color(0xFF4ADE80)),
+                                                const SizedBox(width: 3),
+                                                const Text('Ingresos', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                                              ]),
+                                              const SizedBox(height: 3),
+                                              Text(formatCop(totalIn), style: const TextStyle(color: Color(0xFF4ADE80), fontWeight: FontWeight.w700, fontSize: 13)),
+                                            ],
+                                          )),
+                                          Container(width: 1, height: 36, color: Colors.white.withValues(alpha: 0.15)),
+                                          Expanded(child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            children: [
+                                              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                                Icon(Icons.north_rounded, size: 11, color: const Color(0xFFF87171)),
+                                                const SizedBox(width: 3),
+                                                const Text('Gastos', style: TextStyle(color: Colors.white54, fontSize: 10)),
+                                              ]),
+                                              const SizedBox(height: 3),
+                                              Text(formatCop(totalOut), style: const TextStyle(color: Color(0xFFF87171), fontWeight: FontWeight.w700, fontSize: 13)),
+                                            ],
+                                          )),
+                                        ]),
+                                        const SizedBox(height: 10),
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(4),
+                                          child: TweenAnimationBuilder<double>(
+                                            tween: Tween(begin: 0, end: ratioIn.toDouble()),
+                                            duration: const Duration(milliseconds: 800),
+                                            curve: Curves.easeOut,
+                                            builder: (_, v, __) => LinearProgressIndicator(
+                                              value: v,
+                                              minHeight: 5,
+                                              backgroundColor: const Color(0xFFF87171).withValues(alpha: 0.5),
+                                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4ADE80)),
+                                            ),
+                                          ),
                                         ),
-                                      ),
-                                      Container(
-                                          width: 1, height: 30,
-                                          color: Colors.white24),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.center,
-                                          children: [
-                                            const Text('Gastos',
-                                                style: TextStyle(
-                                                    color: Colors.white54,
-                                                    fontSize: 10)),
-                                            Text(formatCop(totalOut),
-                                                style: const TextStyle(
-                                                    color: Color(0xFFF87171),
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 13)),
-                                          ],
-                                        ),
-                                      ),
-                                      Container(
-                                          width: 1, height: 30,
-                                          color: Colors.white24),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            const Text('Registros',
-                                                style: TextStyle(
-                                                    color: Colors.white54,
-                                                    fontSize: 10)),
-                                            Text('${movsList.length}',
-                                                style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontWeight: FontWeight.w700,
-                                                    fontSize: 13)),
-                                          ],
-                                        ),
-                                      ),
-                                    ]),
+                                      ]),
+                                    ),
                                   );
                                 }),
                                 // ── Lista de movimientos ────────────
-                                Expanded(
-                                  child: ListView.builder(
-                                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-                                    itemCount: movsList.length,
-                                    itemBuilder: (_, i) {
-                                      final m = movsList[i];
-                                      final fecha = (m['fecha'] ??
-                                              m['fecha_movimiento'] ?? '')
-                                          .toString()
-                                          .split(' ')
-                                          .first;
-                                      final tipo = (m['tipo'] ?? '').toString();
-                                      final valor = numberValue(
-                                          m['valor'] ?? m['monto'] ?? 0);
-                                      final desc = (m['descripcion'] ??
-                                              m['descripción'] ?? '')
-                                          .toString();
-                                      final isIngreso = tipo.toLowerCase()
-                                              .contains('ingreso') ||
-                                          tipo.toLowerCase() == 'i' ||
-                                          valor > 0;
-                                      final color = isIngreso
-                                          ? const Color(0xFF16A34A)
-                                          : const Color(0xFFDC2626);
-                                      final bgColor = isIngreso
-                                          ? const Color(0xFFDCFCE7)
-                                          : const Color(0xFFFEE2E2);
-                                      return Container(
-                                        margin: const EdgeInsets.only(bottom: 8),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(
-                                              color: const Color(0xFFE8EDF5)),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black
-                                                  .withValues(alpha: 0.04),
-                                              blurRadius: 6,
-                                              offset: const Offset(0, 2),
-                                            ),
-                                          ],
+                                Builder(builder: (_) {
+                                  final totalPags = (movsList.length / movsPerPage).ceil().clamp(1, 9999);
+                                  final pageItems = movsList.skip((movsPage - 1) * movsPerPage).take(movsPerPage).toList();
+                                  return Expanded(child: Column(children: [
+                                    Expanded(
+                                      child: ListView.builder(
+                                        padding: const EdgeInsets.fromLTRB(12, 2, 12, 4),
+                                        itemCount: pageItems.length,
+                                        itemBuilder: (_, i) {
+                                          final m = pageItems[i];
+                                      final fecha = (m['fecha'] ?? m['fecha_movimiento'] ?? '').toString().split(' ').first;
+                                      final tipoNum = (m['tipo_movimiento'] ?? '').toString();
+                                      final tipoNom = (m['tipo_nombre'] ?? '').toString();
+                                      final valor = numberValue(m['valor'] ?? m['monto'] ?? 0);
+                                      final desc = (m['descripcion'] ?? m['descripción'] ?? '').toString();
+                                      final isIngreso = tipoNom.toLowerCase().contains('ingreso') || tipoNum == '3' || tipoNum == '1';
+                                      final color = isIngreso ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+                                      final label = isIngreso ? 'Ingreso' : 'Gasto';
+                                      return TweenAnimationBuilder<double>(
+                                        tween: Tween(begin: 0.0, end: 1.0),
+                                        duration: Duration(milliseconds: 220 + (i.clamp(0, 12) * 30)),
+                                        curve: Curves.easeOut,
+                                        builder: (_, val, child) => Opacity(
+                                          opacity: val,
+                                          child: Transform.translate(offset: Offset(0, 14 * (1 - val)), child: child),
                                         ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(12),
-                                          child: Row(children: [
-                                            // Ícono tipo
-                                            Container(
-                                              width: 36,
-                                              height: 36,
-                                              decoration: BoxDecoration(
-                                                color: bgColor,
-                                                shape: BoxShape.circle,
+                                        child: Container(
+                                          margin: const EdgeInsets.only(bottom: 7),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(13),
+                                            border: Border(left: BorderSide(color: color, width: 3.5)),
+                                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+                                            child: Row(children: [
+                                              Container(
+                                                width: 38, height: 38,
+                                                decoration: BoxDecoration(
+                                                  gradient: LinearGradient(
+                                                    colors: isIngreso
+                                                        ? [const Color(0xFF16A34A), const Color(0xFF4ADE80)]
+                                                        : [const Color(0xFFDC2626), const Color(0xFFF87171)],
+                                                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                                                  ),
+                                                  shape: BoxShape.circle,
+                                                  boxShadow: [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 6, offset: const Offset(0, 2))],
+                                                ),
+                                                child: Icon(
+                                                  isIngreso ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                                                  color: Colors.white, size: 17,
+                                                ),
                                               ),
-                                              child: Icon(
-                                                isIngreso
-                                                    ? Icons.arrow_downward_rounded
-                                                    : Icons.arrow_upward_rounded,
-                                                color: color,
-                                                size: 18,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                            // Descripción + fecha
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
+                                              const SizedBox(width: 10),
+                                              Expanded(child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
-                                                    desc.isNotEmpty
-                                                        ? desc
-                                                        : tipo,
-                                                    style: const TextStyle(
-                                                        fontSize: 12,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                        color: homeNavy),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
+                                                    desc.isNotEmpty ? desc : tipoNom,
+                                                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: homeNavy),
+                                                    maxLines: 1, overflow: TextOverflow.ellipsis,
                                                   ),
-                                                  const SizedBox(height: 2),
-                                                  Text(fecha,
-                                                      style: const TextStyle(
-                                                          fontSize: 10,
-                                                          color:
-                                                              Color(0xFF8899BB))),
+                                                  const SizedBox(height: 4),
+                                                  Row(children: [
+                                                    const Icon(Icons.calendar_today_rounded, size: 9, color: Color(0xFF8899BB)),
+                                                    const SizedBox(width: 3),
+                                                    Text(fecha, style: const TextStyle(fontSize: 10, color: Color(0xFF8899BB))),
+                                                    const SizedBox(width: 7),
+                                                    Container(
+                                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                                      decoration: BoxDecoration(
+                                                        color: color.withValues(alpha: 0.1),
+                                                        borderRadius: BorderRadius.circular(20),
+                                                      ),
+                                                      child: Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: color)),
+                                                    ),
+                                                  ]),
                                                 ],
+                                              )),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                '${isIngreso ? '+' : '-'} ${formatCop(valor.abs())}',
+                                                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800, color: color),
                                               ),
-                                            ),
-                                            // Valor
-                                            Text(
-                                              '${isIngreso ? '+' : '-'} ${formatCop(valor.abs())}',
-                                              style: TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: color),
-                                            ),
-                                          ]),
+                                            ]),
+                                          ),
                                         ),
                                       );
                                     },
                                   ),
                                 ),
+                                // ── Paginación ──────────────────────
+                                if (totalPags > 1)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: const BoxDecoration(
+                                      border: Border(top: BorderSide(color: Color(0xFFE8EDF5))),
+                                    ),
+                                    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                                      GestureDetector(
+                                        onTap: movsPage > 1 ? () => setS(() => movsPage--) : null,
+                                        child: Container(
+                                          width: 34, height: 34,
+                                          decoration: BoxDecoration(
+                                            color: movsPage > 1 ? const Color(0xFFEEF2FF) : const Color(0xFFF3F4F6),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(Icons.chevron_left_rounded, size: 20,
+                                              color: movsPage > 1 ? homeAccent : const Color(0xFFCBD5E1)),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Text('$movsPage / $totalPags',
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: homeNavy)),
+                                      const SizedBox(width: 14),
+                                      GestureDetector(
+                                        onTap: movsPage < totalPags ? () => setS(() => movsPage++) : null,
+                                        child: Container(
+                                          width: 34, height: 34,
+                                          decoration: BoxDecoration(
+                                            color: movsPage < totalPags ? const Color(0xFFEEF2FF) : const Color(0xFFF3F4F6),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(Icons.chevron_right_rounded, size: 20,
+                                              color: movsPage < totalPags ? homeAccent : const Color(0xFFCBD5E1)),
+                                        ),
+                                      ),
+                                    ]),
+                                  ),
+                              ]));
+                                }),
                               ]),
                   ),
                   Padding(
