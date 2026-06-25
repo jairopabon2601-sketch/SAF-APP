@@ -12,6 +12,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     if (loadingData) return buildLoadingView();
 
     final filtrados = filteredMovements;
+    final activeAccounts = accounts
+        .where((c) => (c['estado'] ?? '').toString() == '1')
+        .toList();
 
     // Check if dates differ from the 31-day defaults
     final now =
@@ -173,7 +176,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             animation: shimmer,
             builder: (_, __) {
               final glow = shimmer.value;
-              final total = accounts.fold(0.0,
+              final total = activeAccounts.fold(0.0,
                   (s, c) => s + numberValue(c['saldo_actual'] ?? 0));
               return Container(
                 margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -297,7 +300,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           border: Border.all(
                               color: Colors.white.withValues(alpha: 0.18)),
                         ),
-                        child: Text('${accounts.length} cuentas',
+                        child: Text('${activeAccounts.length} cuentas',
                             style: TextStyle(
                                 color: Colors.white.withValues(alpha: 0.85),
                                 fontSize: 10,
@@ -310,7 +313,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             },
           ),
           // Lista de cuentas
-          if (accounts.isEmpty)
+          if (activeAccounts.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: buildEmptyActivity(),
@@ -320,9 +323,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              itemCount: accounts.length,
+              itemCount: activeAccounts.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _cuentaRowReal(accounts[i]),
+              itemBuilder: (_, i) => _cuentaRowReal(activeAccounts[i]),
             ),
         ] else ...[
           // ── HERO BANNER ────────────────────────────────────
@@ -1690,6 +1693,50 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                   ? 'Ingresa el nuevo saldo'
                                   : null,
                         ),
+                        const SizedBox(height: 10),
+                        ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: nuevoSaldoCtrl,
+                          builder: (_, val, __) {
+                            final text = val.text.trim();
+                            if (text.isEmpty) return const SizedBox.shrink();
+                            final nuevo = double.tryParse(
+                                    text.replaceAll('.', '').replaceAll(',', '.')) ??
+                                0.0;
+                            final diff = nuevo - saldoActual;
+                            final isPos = diff >= 0;
+                            final color = isPos
+                                ? const Color(0xFF059669)
+                                : const Color(0xFFDC2626);
+                            final sign = isPos ? '+' : '';
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: color.withValues(alpha: 0.30)),
+                              ),
+                              child: Row(children: [
+                                Icon(
+                                  isPos
+                                      ? Icons.arrow_upward_rounded
+                                      : Icons.arrow_downward_rounded,
+                                  size: 15,
+                                  color: color,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Ajuste: $sign${formatCop(diff)}',
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: color),
+                                ),
+                              ]),
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -1768,10 +1815,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                       final ok = d['success'] == true ||
                                           d['resultado'] == 1;
                                       if (ctx.mounted) Navigator.pop(ctx);
+                                      final sign = diferencia >= 0 ? '+' : '';
                                       showResult(
                                           ok,
                                           ok
-                                              ? 'Saldo ajustado correctamente.'
+                                              ? 'Ajuste de $sign${formatCop(diferencia)} aplicado correctamente.'
                                               : friendlyError(d['msg'] ??
                                                   d['mensaje'] ??
                                                   'No se pudo ajustar el saldo'));
