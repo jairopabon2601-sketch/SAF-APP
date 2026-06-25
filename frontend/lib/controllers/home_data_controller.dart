@@ -33,12 +33,6 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
     // Fetch fresh data from network
     await fetchAccounts(codigoUsuario);
-    // Filtro por defecto igual al web: hasta = hoy, desde = hoy - 31 días
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    filterFrom ??= today.subtract(const Duration(days: 31));
-    filterTo ??= today;
-
     await Future.wait([
       _fetchMovimientosTodasCuentas(codigoUsuario),
       fetchSavers(anio),
@@ -245,7 +239,12 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     });
 
     try {
-      final rows = await fetchAccountMovements(accountCode, userCode);
+      final rows = await fetchAccountMovements(
+        accountCode,
+        userCode,
+        desde: filterFrom != null ? _dateFmt(filterFrom!) : null,
+        hasta: filterTo != null ? _dateFmt(filterTo!) : null,
+      );
       final enriched = rows.map((row) {
         return <String, dynamic>{
           ...row,
@@ -276,11 +275,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   Future<void> onDateFilterChanged() async {
     final usuario = (repository.user?['codigo_usuario'] ?? '').toString();
     if (usuario.isEmpty) return;
-    if (accountFilter.isNotEmpty) {
-      if (isMounted) refresh(() => movementsPage = 1);
-      unawaited(fetchFilteredTotals());
-      return;
-    }
+    if (isMounted) refresh(() => movementsPage = 1);
     final desde = filterFrom;
     final hasta = filterTo;
     await _fetchMovimientosTodasCuentas(

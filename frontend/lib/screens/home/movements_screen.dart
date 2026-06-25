@@ -12,8 +12,6 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     if (loadingData) return buildLoadingView();
 
     final filtrados = filteredMovements;
-    final isMovementsLoading =
-        accountFilter.isNotEmpty && selectedAccountMovementsLoading;
 
     // Check if dates differ from the 31-day defaults
     final now =
@@ -454,13 +452,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                             border: Border.all(
                                 color: Colors.white.withValues(alpha: 0.18)),
                           ),
-                          child: isMovementsLoading
-                              ? _movementSkeletonBox(
-                                  width: 42,
-                                  height: 10,
-                                  color: Colors.white.withValues(alpha: 0.22),
-                                )
-                              : Text('${filtrados.length} mov.',
+                          child: Text('${filtrados.length} mov.',
                                   style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 10,
@@ -895,6 +887,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       label: 'Desde',
                       value: filterFrom,
                       onPick: (d) {
+                        if (d == null) return;
                         refresh(() {
                           filterFrom = d;
                           filteredTotalsLoaded = false;
@@ -909,6 +902,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       label: 'Hasta',
                       value: filterTo,
                       onPick: (d) {
+                        if (d == null) return;
                         refresh(() {
                           filterTo = d;
                           filteredTotalsLoaded = false;
@@ -966,13 +960,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       ),
                     ],
                   ),
-                  child: isMovementsLoading
-                      ? _movementSkeletonBox(
-                          width: 54,
-                          height: 11,
-                          color: Colors.white.withValues(alpha: 0.4),
-                        )
-                      : Text('${filtrados.length} registros',
+                  child: Text('${filtrados.length} registros',
                           style: const TextStyle(
                               fontSize: 11,
                               color: Colors.white,
@@ -981,9 +969,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               ],
             ),
           ),
-          if (isMovementsLoading)
-            _movementsLoadingSkeleton()
-          else if (filtrados.isEmpty)
+          if (filtrados.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: buildEmptyActivity(),
@@ -1043,91 +1029,6 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       ],
     );
   }
-
-  Widget _movementsLoadingSkeleton() => Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-        padding: const EdgeInsets.symmetric(horizontal: 15),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          children: List.generate(
-            6,
-            (index) => Container(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                border: index < 5
-                    ? const Border(
-                        bottom: BorderSide(color: Color(0xFFE8EDF6)),
-                      )
-                    : null,
-              ),
-              child: Row(
-                children: [
-                  _movementSkeletonBox(width: 42, height: 42, radius: 13),
-                  const SizedBox(width: 13),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _movementSkeletonBox(
-                          width: index.isEven ? 130 : 105,
-                          height: 13,
-                        ),
-                        const SizedBox(height: 8),
-                        _movementSkeletonBox(width: 115, height: 10),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      _movementSkeletonBox(width: 72, height: 13),
-                      const SizedBox(height: 8),
-                      _movementSkeletonBox(width: 48, height: 18, radius: 9),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-
-  Widget _movementSkeletonBox({
-    required double width,
-    required double height,
-    double radius = 6,
-    Color? color,
-  }) =>
-      AnimatedBuilder(
-        animation: shimmer,
-        builder: (_, __) {
-          final skeletonColor = color ??
-              Color.lerp(
-                const Color(0xFFE3E8F2),
-                const Color(0xFFF2F5FA),
-                shimmer.value,
-              )!;
-          return Container(
-            width: width,
-            height: height,
-            decoration: BoxDecoration(
-              color: skeletonColor,
-              borderRadius: BorderRadius.circular(radius),
-            ),
-          );
-        },
-      );
 
   Widget buildActionButton({
     required String label,
@@ -1227,7 +1128,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       ? '${value.day.toString().padLeft(2, '0')}/'
                           '${value.month.toString().padLeft(2, '0')}/'
                           '${value.year}'
-                      : 'DD/MM/AAAA',
+                      : 'Seleccione',
                   style: TextStyle(
                       fontSize: 12,
                       color: value != null
@@ -4647,6 +4548,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             selectedAccountMovements.removeWhere(matchCod);
           });
           showResult(true, 'Movimiento eliminado correctamente');
+          final usuario =
+              (repository.user?['codigo_usuario'] ?? '').toString();
+          if (usuario.isNotEmpty) unawaited(fetchAccounts(usuario));
         } else {
           final msg = d['msg']?.toString() ?? 'No se pudo eliminar el movimiento';
           showResult(false, msg);

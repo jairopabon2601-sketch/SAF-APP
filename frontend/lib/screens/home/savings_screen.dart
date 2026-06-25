@@ -2485,9 +2485,9 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
   // ══════════════════════════════════════════════════════════════
 
   List<Map<String, dynamic>> get filteredMovements {
-    final usesAccountEndpoint = accountFilter.isNotEmpty &&
-        selectedAccountMovementsName == accountFilter;
-    final source = usesAccountEndpoint ? selectedAccountMovements : movements;
+    // Always use the global movements list so date-range pagination works correctly.
+    // The per-account endpoint caps results at ~10; the global endpoint fetches all pages.
+    final source = movements;
     final result = source.where((m) {
       if (accountFilter.isNotEmpty &&
           (m['cuenta_nombre'] ?? '') != accountFilter) {
@@ -2502,13 +2502,18 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       }
       final rawFecha = (m['fecha'] ?? '').toString();
       if (rawFecha.length >= 10) {
-        final fecha = DateTime.tryParse(rawFecha.substring(0, 10));
-        if (fecha != null) {
-          if (filterFrom != null && fecha.isBefore(filterFrom!)) {
-            return false;
+        final parsed = DateTime.tryParse(rawFecha.substring(0, 10));
+        if (parsed != null) {
+          final fecha = DateTime(parsed.year, parsed.month, parsed.day);
+          if (filterFrom != null) {
+            final from = DateTime(
+                filterFrom!.year, filterFrom!.month, filterFrom!.day);
+            if (fecha.isBefore(from)) return false;
           }
-          if (filterTo != null && fecha.isAfter(filterTo!)) {
-            return false;
+          if (filterTo != null) {
+            final to =
+                DateTime(filterTo!.year, filterTo!.month, filterTo!.day);
+            if (fecha.isAfter(to)) return false;
           }
         }
       }
