@@ -4632,6 +4632,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       final ok = r.statusCode == 200 && d['success'] == true;
       if (isMounted) {
         if (ok) {
+          final tipoMov = (m['tipo_movimiento'] ?? '').toString();
+          final valorMov = numberValue(m['valor'] ?? 0);
           refresh(() {
             bool matchCod(Map<String, dynamic> x) =>
                 (x['codigo'] ?? x['codigo_movimiento'] ?? x['id'] ?? '')
@@ -4640,11 +4642,21 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 cod;
             movements.removeWhere(matchCod);
             selectedAccountMovements.removeWhere(matchCod);
+            if (tipoMov == '2') {
+              serverExpenses =
+                  (serverExpenses - valorMov).clamp(0, double.infinity);
+            } else if (tipoMov == '1' || tipoMov == '3') {
+              serverIncome =
+                  (serverIncome - valorMov).clamp(0, double.infinity);
+            }
           });
           showResult(true, 'Movimiento eliminado correctamente');
           final usuario =
               (repository.user?['codigo_usuario'] ?? '').toString();
-          if (usuario.isNotEmpty) unawaited(fetchAccounts(usuario));
+          if (usuario.isNotEmpty) {
+            repository.invalidateCache('/ajax/listar_cuentas_gasto.php');
+            unawaited(fetchAccounts(usuario));
+          }
         } else {
           final msg = d['msg']?.toString() ?? 'No se pudo eliminar el movimiento';
           showResult(false, msg);
