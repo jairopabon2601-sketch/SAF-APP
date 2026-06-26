@@ -15,6 +15,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       final v = (m['fecha'] ?? '').toString();
       return v.length >= 10 ? v.substring(0, 10) : v;
     }
+
     int? movCode(Map<String, dynamic> m) => int.tryParse((m['codigo'] ??
             m['codigo_movimiento'] ??
             m['codigo_cuenta_movimiento'] ??
@@ -22,15 +23,15 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             '')
         .toString());
     final recent = ([...movements]..sort((a, b) {
-          final cmpFecha = movDate(b).compareTo(movDate(a));
-          if (cmpFecha != 0) return cmpFecha;
-          final codeA = movCode(a);
-          final codeB = movCode(b);
-          if (codeA != null && codeB != null && codeA != codeB) {
-            return codeB.compareTo(codeA);
-          }
-          return 0;
-        }))
+            final cmpFecha = movDate(b).compareTo(movDate(a));
+            if (cmpFecha != 0) return cmpFecha;
+            final codeA = movCode(a);
+            final codeB = movCode(b);
+            if (codeA != null && codeB != null && codeA != codeB) {
+              return codeB.compareTo(codeA);
+            }
+            return 0;
+          }))
         .take(5)
         .toList();
     final total = ingresos + egresos;
@@ -325,8 +326,18 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
 
   String _currentMonthLabel() {
     const months = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
     ];
     final now = DateTime.now();
     return '${months[now.month - 1]} ${now.year}';
@@ -527,8 +538,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(20),
@@ -861,8 +871,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(
-                    alpha: 0.44 + 0.16 * shimmer.value),
+                color: color.withValues(alpha: 0.44 + 0.16 * shimmer.value),
                 blurRadius: 22 + 10 * shimmer.value,
                 offset: const Offset(0, 9),
               ),
@@ -969,8 +978,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
                 if (badge != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.18),
                       borderRadius: BorderRadius.circular(20),
@@ -1116,7 +1125,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withValues(alpha: 0.28), width: 1.2),
+            border:
+                Border.all(color: color.withValues(alpha: 0.28), width: 1.2),
             boxShadow: [
               BoxShadow(
                 color: color.withValues(alpha: 0.22 + 0.10 * shimmer.value),
@@ -1129,113 +1139,137 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             borderRadius: BorderRadius.circular(20),
             child: Stack(children: [
               // Decorative orb
-              Positioned(right: -16, bottom: -20,
-                child: Container(width: 70, height: 70,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(colors: [
-                      color.withValues(alpha: 0.22),
-                      Colors.transparent,
-                    ]),
-                  ))),
-              Positioned(right: -8, top: -8,
-                child: Container(width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: color.withValues(alpha: 0.10),
-                  ))),
+              Positioned(
+                  right: -16,
+                  bottom: -20,
+                  child: Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(colors: [
+                          color.withValues(alpha: 0.22),
+                          Colors.transparent,
+                        ]),
+                      ))),
+              Positioned(
+                  right: -8,
+                  top: -8,
+                  child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: color.withValues(alpha: 0.10),
+                      ))),
               // Shimmer sweep
               Positioned.fill(
                 child: Transform.translate(
-                  offset: Offset((shimmer.value * 2 - 1) * 200, 0),
-                  child: Transform.rotate(angle: 0.42,
-                    child: Container(width: 36,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [
-                          Colors.white.withValues(alpha: 0),
-                          Colors.white.withValues(alpha: 0.18),
-                          Colors.white.withValues(alpha: 0),
-                        ]))))),
+                    offset: Offset((shimmer.value * 2 - 1) * 200, 0),
+                    child: Transform.rotate(
+                        angle: 0.42,
+                        child: Container(
+                            width: 36,
+                            decoration: BoxDecoration(
+                                gradient: LinearGradient(colors: [
+                              Colors.white.withValues(alpha: 0),
+                              Colors.white.withValues(alpha: 0.18),
+                              Colors.white.withValues(alpha: 0),
+                            ]))))),
               ),
               // Content
               Padding(
                 padding: const EdgeInsets.all(14),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Container(
-                      width: 36, height: 36,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [cLight, color, cDark],
-                          stops: const [0.0, 0.5, 1.0],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(11),
-                        boxShadow: [
-                          BoxShadow(
-                            color: color.withValues(alpha: 0.42),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Icon(accountIcon(tipo), color: Colors.white, size: 17),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: saldo >= 0
-                            ? color.withValues(alpha: 0.12)
-                            : const Color(0xFFDC2626).withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: saldo >= 0
-                              ? color.withValues(alpha: 0.30)
-                              : const Color(0xFFDC2626).withValues(alpha: 0.28),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
                         Container(
-                          width: 5, height: 5,
+                          width: 36,
+                          height: 36,
                           decoration: BoxDecoration(
-                            color: saldo >= 0 ? color : const Color(0xFFDC2626),
-                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [cLight, color, cDark],
+                              stops: const [0.0, 0.5, 1.0],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(11),
+                            boxShadow: [
+                              BoxShadow(
+                                color: color.withValues(alpha: 0.42),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
+                          child: Icon(accountIcon(tipo),
+                              color: Colors.white, size: 17),
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          saldo >= 0 ? 'Activa' : 'Revisar',
-                          style: TextStyle(
-                            color: saldo >= 0 ? color : const Color(0xFFDC2626),
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w700,
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: saldo >= 0
+                                ? color.withValues(alpha: 0.12)
+                                : const Color(0xFFDC2626)
+                                    .withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: saldo >= 0
+                                  ? color.withValues(alpha: 0.30)
+                                  : const Color(0xFFDC2626)
+                                      .withValues(alpha: 0.28),
+                              width: 1,
+                            ),
                           ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Container(
+                              width: 5,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: saldo >= 0
+                                    ? color
+                                    : const Color(0xFFDC2626),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              saldo >= 0 ? 'Activa' : 'Revisar',
+                              style: TextStyle(
+                                color: saldo >= 0
+                                    ? color
+                                    : const Color(0xFFDC2626),
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ]),
                         ),
                       ]),
-                    ),
-                  ]),
-                  const Spacer(),
-                  Text(nombre,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: cDark)),
-                  const SizedBox(height: 4),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Text(formatCop(saldo),
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            color: saldo >= 0 ? homeNavy : const Color(0xFFDC2626))),
-                  ),
-                ]),
+                      const Spacer(),
+                      Text(nombre,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: cDark)),
+                      const SizedBox(height: 4),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(formatCop(saldo),
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                color: saldo >= 0
+                                    ? homeNavy
+                                    : const Color(0xFFDC2626))),
+                      ),
+                    ]),
               ),
             ]),
           ),
@@ -1244,42 +1278,78 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     );
   }
 
-  Widget buildEmptyActivity() => Container(
+  Widget buildEmptyActivity({
+    String title = 'Sin movimientos',
+    String subtitle = 'Los movimientos apareceran aqui',
+    IconData icon = Icons.receipt_long_rounded,
+    Color accent = homeAccent,
+    String? badge,
+  }) =>
+      Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 30),
+        padding: const EdgeInsets.fromLTRB(22, 26, 22, 26),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFEAF0FB)),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 14,
-                offset: const Offset(0, 4))
+                color: homeNavy.withValues(alpha: 0.06),
+                blurRadius: 18,
+                offset: const Offset(0, 8))
           ],
         ),
         child: Column(
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 58,
+              height: 58,
               decoration: BoxDecoration(
-                color: const Color(0xFFEEF0FF),
-                borderRadius: BorderRadius.circular(15),
+                gradient: LinearGradient(
+                  colors: [
+                    accent.withValues(alpha: 0.16),
+                    accent.withValues(alpha: 0.07),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(17),
+                border: Border.all(color: accent.withValues(alpha: 0.10)),
               ),
-              child: const Icon(Icons.receipt_long_rounded,
-                  color: homeAccent, size: 26),
+              child: Icon(icon, color: accent, size: 27),
             ),
             const SizedBox(height: 12),
-            const Text('Sin movimientos',
-                style: TextStyle(
-                    color: Color(0xFF3A4A7A),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14)),
+            Text(title,
+                style: const TextStyle(
+                    color: Color(0xFF24345F),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15)),
             const SizedBox(height: 4),
-            Text('Los movimientos aparecerán aquí',
+            Text(subtitle,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                     color: const Color(0xFF8899BB).withValues(alpha: 0.8),
                     fontSize: 12)),
+            if (badge != null) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: accent.withValues(alpha: 0.12)),
+                ),
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       );
