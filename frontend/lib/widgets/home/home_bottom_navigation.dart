@@ -2,14 +2,33 @@ import 'dart:math' as math;
 import '../../controllers/home_data_controller.dart';
 import '../../screens/home/home_dependencies.dart';
 
+const _allNavItems = <(IconData, IconData, String)>[
+  (Icons.home_rounded, Icons.home_outlined, 'Inicio'),
+  (Icons.credit_card_rounded, Icons.credit_card_outlined, 'Créditos'),
+  (Icons.savings_rounded, Icons.savings_outlined, 'Ahorros'),
+  (Icons.swap_horiz_rounded, Icons.swap_horiz_outlined, 'Movimientos'),
+];
+
 extension HomeBottomNavigation<T extends StatefulWidget> on HomeController<T> {
   Widget buildHomeBottomNavigation() {
+    final visibleItems = allowedScreenIndices
+        .where((i) => i < _allNavItems.length)
+        .map((i) => _allNavItems[i])
+        .toList();
+    final visibleColors = allowedScreenIndices
+        .where((i) => i < homeNavigationColors.length)
+        .map((i) => homeNavigationColors[i])
+        .toList();
+
     return _SafAnimatedBottomNavigationBar(
+      key: ValueKey(allowedScreenIndices.join(',')),
       selectedIndex: selectedIndex,
-      colors: homeNavigationColors,
+      items: visibleItems,
+      colors: visibleColors,
       onTap: (i) {
+        final screenIdx = screenIndexAt(i);
         refresh(() => selectedIndex = i);
-        if (i == 4 && statisticsData.isEmpty && !statisticsLoading) {
+        if (screenIdx == 4 && statisticsData.isEmpty && !statisticsLoading) {
           fetchStatistics();
         }
       },
@@ -21,11 +40,14 @@ extension HomeBottomNavigation<T extends StatefulWidget> on HomeController<T> {
 
 class _SafAnimatedBottomNavigationBar extends StatefulWidget {
   final int selectedIndex;
+  final List<(IconData, IconData, String)> items;
   final List<Color> colors;
   final ValueChanged<int> onTap;
 
   const _SafAnimatedBottomNavigationBar({
+    super.key,
     required this.selectedIndex,
+    required this.items,
     required this.colors,
     required this.onTap,
   });
@@ -38,12 +60,6 @@ class _SafAnimatedBottomNavigationBar extends StatefulWidget {
 class _SafAnimatedBottomNavigationBarState
     extends State<_SafAnimatedBottomNavigationBar>
     with TickerProviderStateMixin {
-  static const _items = <(IconData, IconData, String)>[
-    (Icons.home_rounded, Icons.home_outlined, 'Inicio'),
-    (Icons.credit_card_rounded, Icons.credit_card_outlined, 'Créditos'),
-    (Icons.savings_rounded, Icons.savings_outlined, 'Ahorros'),
-    (Icons.swap_horiz_rounded, Icons.swap_horiz_outlined, 'Movimientos'),
-  ];
 
   // Per-tab: bounce scale + tilt wobble share the same controller
   late final List<AnimationController> _bounceCtrls;
@@ -63,7 +79,7 @@ class _SafAnimatedBottomNavigationBarState
     super.initState();
 
     _bounceCtrls = List.generate(
-      _items.length,
+      widget.items.length,
       (_) => AnimationController(
           vsync: this, duration: const Duration(milliseconds: 540)),
     );
@@ -148,7 +164,7 @@ class _SafAnimatedBottomNavigationBarState
 
   @override
   Widget build(BuildContext context) {
-    final n = _items.length;
+    final n = widget.items.length;
     final selColor = widget.colors[widget.selectedIndex];
 
     return AnimatedContainer(
@@ -260,7 +276,7 @@ class _SafAnimatedBottomNavigationBarState
       children: List.generate(n, (i) {
         final selected = i == widget.selectedIndex;
         final color = widget.colors[i];
-        final item = _items[i];
+        final item = widget.items[i];
 
         return Expanded(
           child: GestureDetector(

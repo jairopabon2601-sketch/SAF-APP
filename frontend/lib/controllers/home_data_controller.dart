@@ -2,11 +2,70 @@ import '../screens/home/home_dependencies.dart';
 import 'home_actions.dart';
 
 extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
+  Future<void> fetchMenuOptions() async {
+    // Admin siempre ve todos los tabs
+    if (isAdmin) {
+      if (isMounted) {
+        refresh(() {
+          allowedScreenIndices = [0, 1, 2, 3];
+          menuOptionsLoaded = true;
+        });
+      }
+      return;
+    }
+    try {
+      final r = await repository.post('/ajax/cargar_opciones.php', {});
+      if (r.statusCode == 200) {
+        final d = decodeJsonMap(r.body);
+        if (d['resultado'] == 1 && d['opciones'] is List) {
+          final opciones = d['opciones'] as List;
+          final allowed = <int>[0]; // Inicio siempre visible
+          for (final op in opciones.whereType<Map>()) {
+            final n = (op['nombre'] ?? '').toString().toLowerCase()
+                .replaceAll('é', 'e').replaceAll('á', 'a')
+                .replaceAll('ó', 'o').replaceAll('í', 'i')
+                .replaceAll('ú', 'u');
+            if ((n.contains('credito') || n.contains('prestamo')) && !allowed.contains(1)) {
+              allowed.add(1);
+            }
+            if (n.contains('ahorro') && !allowed.contains(2)) allowed.add(2);
+            if ((n.contains('gasto') || n.contains('movimiento')) && !allowed.contains(3)) {
+              allowed.add(3);
+            }
+          }
+          allowed.sort();
+          if (isMounted) {
+            refresh(() {
+              allowedScreenIndices = allowed;
+              menuOptionsLoaded = true;
+              if (selectedIndex >= allowed.length) selectedIndex = 0;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[SAF] menuOptions: $e');
+    }
+  }
+
   Future<void> loadData() async {
     await repository.init();
     final u = repository.user;
     final codigoUsuario = u?['codigo_usuario']?.toString() ?? '';
     final anio = DateTime.now().year.toString();
+
+    // Determinar rol y origen del usuario
+    final codigoPerfil = u?['codigo_perfil']?.toString() ?? '';
+    final origenValue = u?['codigo_origen']?.toString() ?? '';
+    if (isMounted) {
+      refresh(() {
+        isAdmin = (codigoPerfil == '6');
+        codigoOrigen = origenValue;
+      });
+    }
+
+    // Cargar opciones de menú según perfil (no bloquea el resto)
+    unawaited(fetchMenuOptions());
 
     // Show cached data immediately so the screen isn't blank
     final cachedCuentas = await repository.loadLocalData('cuentas');
@@ -339,8 +398,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     String pad2(int n) => n.toString().padLeft(2, '0');
     final dStr = '${desde.year}-${pad2(desde.month)}-${pad2(desde.day)}';
     final hStr = '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
-    final filtro =
-        'm.usuario="$usuario" and m.fecha between "$dStr" and "$hStr"';
+    final filtro = 'm.usuario="$usuario" and m.fecha between "$dStr" and "$hStr"';
     try {
       final r = await repository.post('/ajax/listado_json_campos.php', {
         'codigo_consulta': 'json_total_gastos_ingresos',
@@ -550,7 +608,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> fetchCredits(String filtro) async {
     final estadoSeleccionado = creditStatusFilter;
-    final asesorCodigo = creditAdvisorCode(creditAdvisorFilter);
+    // No-admin: siempre filtra por su propio codigo_origen (ID de asesor)
+    final asesorCodigo = isAdmin
+        ? creditAdvisorCode(creditAdvisorFilter)
+        : codigoOrigen;
 
     // Lista de créditos — endpoint dedicado con JSON + paginación
     try {

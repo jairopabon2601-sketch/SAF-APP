@@ -64,7 +64,7 @@ class _HomeScreenState extends HomeController<HomeScreen> {
   }
 
   Widget _buildTabContent(String greeting, String firstName) {
-    switch (selectedIndex) {
+    switch (screenIndexAt(selectedIndex)) {
       case 0:
         return buildDashboard(greeting, firstName);
       case 1:

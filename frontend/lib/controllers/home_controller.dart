@@ -74,6 +74,19 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
   DateTime? simulationFrom;
   DateTime? simulationTo;
 
+  bool isAdmin = false;
+  String codigoOrigen = ''; // ID del asesor/perfil vinculado (codigo_origen del login)
+
+  // Indices de pantalla visibles según perfil (0=Inicio,1=Créditos,2=Ahorros,3=Movimientos)
+  List<int> allowedScreenIndices = [0, 1, 2, 3];
+  bool menuOptionsLoaded = false;
+
+  /// Convierte índice de tab visible → índice de pantalla real.
+  int screenIndexAt(int displayIndex) {
+    if (displayIndex < 0 || displayIndex >= allowedScreenIndices.length) return 0;
+    return allowedScreenIndices[displayIndex];
+  }
+
   bool loadingData = true;
   List<Map<String, dynamic>> accounts = [];
   List<Map<String, dynamic>> movements = [];

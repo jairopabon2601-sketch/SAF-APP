@@ -36,6 +36,7 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
         photoUrl: photoUrl,
         email: email,
         avatarFallback: buildAvatarFallback(fullName.split(' ').first),
+        showGestionUsuarios: isAdmin,
         onGestionUsuarios: () {
           Navigator.of(screenContext).pop();
           showUsersManagement();
@@ -53,6 +54,7 @@ class _ProfileSheetContent extends StatefulWidget {
   final String photoUrl;
   final String email;
   final Widget avatarFallback;
+  final bool showGestionUsuarios;
   final VoidCallback onGestionUsuarios;
   final VoidCallback onLogoutConfirmed;
 
@@ -61,6 +63,7 @@ class _ProfileSheetContent extends StatefulWidget {
     required this.photoUrl,
     required this.email,
     required this.avatarFallback,
+    required this.showGestionUsuarios,
     required this.onGestionUsuarios,
     required this.onLogoutConfirmed,
   });
@@ -337,8 +340,8 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
             child: Column(
               children: [
-                // Gestión de usuarios
-                SlideTransition(
+                // Gestión de usuarios (solo admin)
+                if (widget.showGestionUsuarios) SlideTransition(
                   position: _card1Slide,
                   child: FadeTransition(
                     opacity: _card1Fade,
@@ -419,7 +422,7 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                if (widget.showGestionUsuarios) const SizedBox(height: 12),
 
                 // Cerrar sesión
                 SlideTransition(

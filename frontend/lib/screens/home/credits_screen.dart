@@ -495,7 +495,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       letterSpacing: 0.3)),
               const SizedBox(height: 10),
               Row(children: [
-                Expanded(
+                if (isAdmin) Expanded(
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -583,7 +583,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         ),
                       ),
                     ])),
-                const SizedBox(width: 10),
+                if (isAdmin) const SizedBox(width: 10),
                 Expanded(
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
