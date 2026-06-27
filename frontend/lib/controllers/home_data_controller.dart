@@ -3,6 +3,17 @@ import 'home_actions.dart';
 
 extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   Future<void> fetchMenuOptions() async {
+    // Asesor (perfil 1): ve Inicio y Ahorradores
+    if (isAsesor) {
+      if (isMounted) {
+        refresh(() {
+          allowedScreenIndices = [0, 2];
+          selectedIndex = 0;
+          menuOptionsLoaded = true;
+        });
+      }
+      return;
+    }
     // Admin siempre ve todos los tabs
     if (isAdmin) {
       if (isMounted) {
@@ -46,6 +57,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     } catch (e) {
       debugPrint('[SAF] menuOptions: $e');
     }
+    // Fallback: si la red falla no dejamos el skeleton colgado
+    if (isMounted && !menuOptionsLoaded) {
+      refresh(() => menuOptionsLoaded = true);
+    }
   }
 
   Future<void> loadData() async {
@@ -60,6 +75,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     if (isMounted) {
       refresh(() {
         isAdmin = (codigoPerfil == '6');
+        isAsesor = (codigoPerfil == '1');
+        isCreditsProfile = (codigoPerfil == '5');
         codigoOrigen = origenValue;
       });
     }
@@ -473,13 +490,17 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
             refresh(() {
               creditsPaidTotal = pagado;
               creditsPendingTotal = pendiente;
+              creditsDataLoaded = true;
             });
           }
+          return;
         }
       }
     } catch (e) {
       debugPrint('[SAF] fetchTotalesCreditos: $e');
     }
+    // Fallback: marcar como cargado aunque no haya datos, para no quedar en skeleton
+    if (isMounted) refresh(() => creditsDataLoaded = true);
   }
 
   Future<void> fetchSavers([String? anio, String? asesor]) async {
@@ -494,8 +515,9 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         // La pantalla filtra por sigla localmente. Para no reemplazar la
         // colección completa con un solo asesor, las recargas normales traen
         // todos los registros del año.
-        'filtro_asesor':
-            asesor == null ? '0' : creditAdvisorCode(asesor),
+        'filtro_asesor': isAsesor
+            ? codigoOrigen
+            : (asesor == null ? '0' : creditAdvisorCode(asesor)),
       });
       final loadedSavers = <Map<String, dynamic>>[];
       if (r.statusCode == 200) {
@@ -1094,6 +1116,9 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList();
+          // Invalida el cache del filtro de ahorradores para que el fallback
+          // por sigla pueda aplicarse ahora que advisors ya está disponible
+          if (isAsesor) cachedFilteredSavers = null;
         }
       }
     } catch (e) {

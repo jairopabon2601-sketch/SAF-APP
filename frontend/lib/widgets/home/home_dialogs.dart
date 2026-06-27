@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'package:image_picker/image_picker.dart';
+
 import '../../controllers/home_actions.dart';
 import '../../screens/home/home_dependencies.dart';
 
@@ -31,12 +33,17 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
         ),
       );
 
-  Widget buildProfileSheet(String email) => _ProfileSheetContent(
+  Widget buildProfileSheet(
+    String email, {
+    Future<String?> Function(Uint8List)? onUploadPhoto,
+  }) =>
+      _ProfileSheetContent(
         fullName: fullName,
         photoUrl: photoUrl,
         email: email,
         avatarFallback: buildAvatarFallback(fullName.split(' ').first),
         showGestionUsuarios: isAdmin,
+        onUploadPhoto: onUploadPhoto,
         onGestionUsuarios: () {
           Navigator.of(screenContext).pop();
           showUsersManagement();
@@ -55,6 +62,7 @@ class _ProfileSheetContent extends StatefulWidget {
   final String email;
   final Widget avatarFallback;
   final bool showGestionUsuarios;
+  final Future<String?> Function(Uint8List)? onUploadPhoto;
   final VoidCallback onGestionUsuarios;
   final VoidCallback onLogoutConfirmed;
 
@@ -64,6 +72,7 @@ class _ProfileSheetContent extends StatefulWidget {
     required this.email,
     required this.avatarFallback,
     required this.showGestionUsuarios,
+    this.onUploadPhoto,
     required this.onGestionUsuarios,
     required this.onLogoutConfirmed,
   });
@@ -74,6 +83,34 @@ class _ProfileSheetContent extends StatefulWidget {
 
 class _ProfileSheetContentState extends State<_ProfileSheetContent>
     with TickerProviderStateMixin {
+  String _currentPhotoUrl = '';
+  bool _uploading = false;
+
+  Future<void> _pickAndUpload() async {
+    if (widget.onUploadPhoto == null || _uploading) return;
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 600,
+      maxHeight: 600,
+      imageQuality: 75,
+    );
+    if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
+    setState(() => _uploading = true);
+    try {
+      final newFilename = await widget.onUploadPhoto!(bytes);
+      if (newFilename != null && mounted) {
+        setState(() {
+          _currentPhotoUrl =
+              'https://www.jorgemario.co/ext/saf/img/icons/$newFilename';
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
   late final AnimationController _entrance = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 750),
@@ -129,6 +166,7 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
   @override
   void initState() {
     super.initState();
+    _currentPhotoUrl = widget.photoUrl;
     _entrance.forward();
     _pulse.repeat(reverse: true);
   }
@@ -247,20 +285,91 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
                           ),
                         ),
                       ),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.85),
-                              width: 3),
-                        ),
-                        child: ClipOval(
-                          child: widget.photoUrl.isNotEmpty
-                              ? Image.network(widget.photoUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
-                                      widget.avatarFallback)
-                              : widget.avatarFallback,
+                      child: GestureDetector(
+                        onTap: widget.onUploadPhoto != null
+                            ? _pickAndUpload
+                            : null,
+                        child: SizedBox(
+                          width: 96,
+                          height: 96,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                        color:
+                                            Colors.white.withValues(alpha: 0.90),
+                                        width: 3),
+                                  ),
+                                  child: ClipOval(
+                                    child: _uploading
+                                        ? Container(
+                                            color: Colors.black54,
+                                            child: const Center(
+                                              child: SizedBox(
+                                                width: 28,
+                                                height: 28,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  color: Colors.white,
+                                                  strokeWidth: 2.5,
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                        : (_currentPhotoUrl.isNotEmpty
+                                            ? Image.network(
+                                                _currentPhotoUrl,
+                                                fit: BoxFit.cover,
+                                                width: 96,
+                                                height: 96,
+                                                errorBuilder: (_, __, ___) =>
+                                                    widget.avatarFallback,
+                                              )
+                                            : widget.avatarFallback),
+                                  ),
+                                ),
+                              ),
+                              if (widget.onUploadPhoto != null)
+                                Positioned(
+                                  bottom: -6,
+                                  right: -6,
+                                  child: Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF4361EE),
+                                          Color(0xFF00D2FF)
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: Colors.white, width: 2.5),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color:
+                                              Colors.black.withValues(alpha: 0.25),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt_rounded,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

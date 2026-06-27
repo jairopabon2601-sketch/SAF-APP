@@ -230,7 +230,7 @@ class _SafAnimatedBottomNavigationBarState
       builder: (_, v, __) {
         final c = widget.colors[widget.selectedIndex];
         return Align(
-          alignment: Alignment(-1.0 + (2.0 * v / (n - 1)), 0),
+          alignment: n <= 1 ? Alignment.center : Alignment(-1.0 + (2.0 * v / (n - 1)), 0),
           child: FractionallySizedBox(
             widthFactor: 1 / n,
             child: Padding(

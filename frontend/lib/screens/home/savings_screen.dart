@@ -2,7 +2,6 @@
 
 import '../../controllers/home_actions.dart';
 import '../../controllers/home_data_controller.dart';
-import '../../widgets/home/home_dialogs.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'credits_screen.dart';
 import 'home_dependencies.dart';
@@ -1932,7 +1931,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
   //  AHORRADORES TAB
   // ══════════════════════════════════════════════════════════════
   Widget buildSavingsScreen() {
-    if (loadingData) return buildLoadingView();
+    if (loadingData) return _savingsSkeleton();
 
     const navy = Color(0xFF0D1B4B);
 
@@ -2212,34 +2211,36 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                 reloadSavers();
               },
             ),
-            const SizedBox(width: 10),
-            dropFilter(
-              label: 'Asesor',
-              icon: Icons.person_outline_rounded,
-              value: asesores.contains(
-                      creditAdvisorInitials(savingsAdvisorFilter)
-                          .trim()
-                          .toUpperCase())
-                  ? creditAdvisorInitials(savingsAdvisorFilter)
-                      .trim()
-                      .toUpperCase()
-                  : '0',
-              items: asesores
-                  .map((s) => DropdownMenuItem(
-                        value: s,
-                        child: Text(s == '0' ? 'Todos' : advisorName(s),
-                            overflow: TextOverflow.ellipsis),
-                      ))
-                  .toList(),
-              onChanged: (v) {
-                if (v == null) return;
-                refresh(() {
-                  savingsAdvisorFilter = v;
-                  savingsCurrentPage = 1;
-                });
-                reloadSavers();
-              },
-            ),
+            if (!isAsesor) ...[
+              const SizedBox(width: 10),
+              dropFilter(
+                label: 'Asesor',
+                icon: Icons.person_outline_rounded,
+                value: asesores.contains(
+                        creditAdvisorInitials(savingsAdvisorFilter)
+                            .trim()
+                            .toUpperCase())
+                    ? creditAdvisorInitials(savingsAdvisorFilter)
+                        .trim()
+                        .toUpperCase()
+                    : '0',
+                items: asesores
+                    .map((s) => DropdownMenuItem(
+                          value: s,
+                          child: Text(s == '0' ? 'Todos' : advisorName(s),
+                              overflow: TextOverflow.ellipsis),
+                        ))
+                    .toList(),
+                onChanged: (v) {
+                  if (v == null) return;
+                  refresh(() {
+                    savingsAdvisorFilter = v;
+                    savingsCurrentPage = 1;
+                  });
+                  reloadSavers();
+                },
+              ),
+            ],
           ]),
         ),
 
@@ -3909,6 +3910,40 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                     fontWeight: FontWeight.w800)),
           ),
         ]),
+      );
+
+  Widget _savingsSkeleton() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: skelBox(double.infinity, 110, r: 22),
+          ),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(children: [
+              Expanded(child: skelBox(double.infinity, 76, r: 16)),
+              const SizedBox(width: 12),
+              Expanded(child: skelBox(double.infinity, 76, r: 16)),
+              const SizedBox(width: 12),
+              Expanded(child: skelBox(double.infinity, 76, r: 16)),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: skelBox(180, 16, r: 6),
+          ),
+          const SizedBox(height: 14),
+          ...List.generate(
+            5,
+            (i) => Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+              child: skelBox(double.infinity, 96, r: 18),
+            ),
+          ),
+        ],
       );
 }
 

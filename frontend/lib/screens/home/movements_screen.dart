@@ -1,7 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
 import '../../controllers/home_data_controller.dart';
-import '../../widgets/home/home_dialogs.dart';
 import 'credits_screen.dart';
 import 'dashboard_screen.dart';
 import 'home_dependencies.dart';
@@ -9,7 +8,7 @@ import 'savings_screen.dart';
 
 extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   Widget buildMovementsScreen() {
-    if (loadingData) return buildLoadingView();
+    if (loadingData) return _movementsSkeleton();
 
     final filtrados = filteredMovements;
     final activeAccounts =
@@ -5016,6 +5015,38 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       if (isMounted) showResult(false, 'Error al eliminar el movimiento');
     }
   }
+
+  Widget _movementsSkeleton() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: skelBox(double.infinity, 60, r: 16),
+          ),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(children: [
+              Expanded(child: skelBox(double.infinity, 76, r: 16)),
+              const SizedBox(width: 12),
+              Expanded(child: skelBox(double.infinity, 76, r: 16)),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: skelBox(160, 16, r: 6),
+          ),
+          const SizedBox(height: 14),
+          ...List.generate(
+            6,
+            (i) => Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+              child: skelBox(double.infinity, 72, r: 18),
+            ),
+          ),
+        ],
+      );
 }
 
 // ── Botón de acción con animación de escala al presionar ─────────────────────

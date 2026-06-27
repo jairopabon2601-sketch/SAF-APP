@@ -45,6 +45,35 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
 
   // Ahorradores tras aplicar el filtro de asesor (memoizado)
   List<Map<String, dynamic>> get filteredSavers {
+    // Perfil asesor (1): siempre filtra por su propio codigoOrigen
+    if (isAsesor) {
+      const cacheKey = '__asesor__';
+      if (cachedSavingsAdvisorFilter == cacheKey && cachedFilteredSavers != null) {
+        return cachedFilteredSavers!;
+      }
+      cachedSavingsAdvisorFilter = cacheKey;
+      final myCode = codigoOrigen.trim();
+      if (myCode.isEmpty || myCode == '0') {
+        cachedFilteredSavers = savers;
+      } else {
+        cachedFilteredSavers = savers.where((a) {
+          // Comparación directa por codigo_asesor numérico (más confiable)
+          final itemCode = (a['codigo_asesor'] ?? '').toString().trim();
+          if (itemCode == myCode) return true;
+          // Fallback por sigla cuando advisors ya cargó
+          if (advisors.isNotEmpty) {
+            final myInitials = creditAdvisorInitials(myCode).trim().toUpperCase();
+            final itemInitials = creditAdvisorInitials(
+              (a['asesor'] ?? itemCode).toString(),
+            ).trim().toUpperCase();
+            return myInitials.isNotEmpty && myInitials == itemInitials;
+          }
+          return false;
+        }).toList();
+      }
+      return cachedFilteredSavers!;
+    }
+
     final selectedAdvisor = savingsAdvisorFilter == '0'
         ? '0'
         : creditAdvisorInitials(savingsAdvisorFilter).trim().toUpperCase();
@@ -168,8 +197,30 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
       context: screenContext,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => buildProfileSheet(email),
+      builder: (_) => buildProfileSheet(email, onUploadPhoto: uploadPhoto),
     );
+  }
+
+  Future<String?> uploadPhoto(Uint8List bytes) async {
+    try {
+      final base64Image = base64Encode(bytes);
+      final r = await repository.post(
+          '/ajax/actualizar_foto.php', {'foto': base64Image});
+      if (r.statusCode == 200) {
+        final d = decodeJsonMap(r.body);
+        if (d['resultado'] == 1) {
+          final filename = (d['foto'] ?? '').toString();
+          if (filename.isNotEmpty) {
+            repository.user?['perfil']?['foto'] = filename;
+            refresh(() {});
+            return filename;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[SAF] uploadPhoto: $e');
+    }
+    return null;
   }
 
   Future<List<Map<String, dynamic>>> _fetchUsuariosAdmin(

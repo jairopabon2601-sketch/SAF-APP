@@ -75,11 +75,14 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
   DateTime? simulationTo;
 
   bool isAdmin = false;
+  bool isAsesor = false;         // perfil 1: solo ve sus propios ahorradores
+  bool isCreditsProfile = false; // perfil 5: créditos y movimientos
   String codigoOrigen = ''; // ID del asesor/perfil vinculado (codigo_origen del login)
 
   // Indices de pantalla visibles según perfil (0=Inicio,1=Créditos,2=Ahorros,3=Movimientos)
   List<int> allowedScreenIndices = [0, 1, 2, 3];
   bool menuOptionsLoaded = false;
+  bool creditsDataLoaded = false; // true cuando creditsPaidTotal/Pending están listos
 
   /// Convierte índice de tab visible → índice de pantalla real.
   int screenIndexAt(int displayIndex) {
@@ -113,4 +116,20 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
       setState(callback);
     }
   }
+
+  Widget skelBox(double w, double h, {double r = 10}) => AnimatedBuilder(
+        animation: shimmer,
+        builder: (_, __) {
+          final c = Color.lerp(
+              const Color(0xFFCED7EE), const Color(0xFFDDE5F5), shimmer.value)!;
+          return Container(
+            width: w == double.infinity ? null : w,
+            height: h,
+            decoration: BoxDecoration(
+              color: c,
+              borderRadius: BorderRadius.circular(r),
+            ),
+          );
+        },
+      );
 }

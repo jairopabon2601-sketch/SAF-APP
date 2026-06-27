@@ -2,7 +2,6 @@
 
 import '../../controllers/home_actions.dart';
 import '../../controllers/home_data_controller.dart';
-import '../../widgets/home/home_dialogs.dart';
 import 'package:http/http.dart' as http;
 import 'dashboard_screen.dart';
 import 'home_dependencies.dart';
@@ -11,7 +10,7 @@ import 'savings_screen.dart';
 
 extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
   Widget buildCreditsScreen() {
-    if (loadingData) return buildLoadingView();
+    if (loadingData) return _creditsSkeleton();
 
     // Totales globales (todos los registros del filtro, no solo la página actual)
     final totalPagado = creditsPaidTotal;
@@ -5560,6 +5559,38 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
       cop: formatCop,
       num: numberValue,
       onCuotaTap: showSavingsInstallmentDialog);
+
+  Widget _creditsSkeleton() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: skelBox(double.infinity, 110, r: 22),
+          ),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(children: [
+              Expanded(child: skelBox(double.infinity, 80, r: 16)),
+              const SizedBox(width: 12),
+              Expanded(child: skelBox(double.infinity, 80, r: 16)),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: skelBox(160, 16, r: 6),
+          ),
+          const SizedBox(height: 14),
+          ...List.generate(
+            5,
+            (i) => Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+              child: skelBox(double.infinity, 88, r: 18),
+            ),
+          ),
+        ],
+      );
 }
 
 // ── Animated delete-confirmation dialog ─────────────────────────────────────
@@ -5791,4 +5822,5 @@ class _EliminarCreditoDialogState extends State<_EliminarCreditoDialog>
       ),
     );
   }
+
 }
