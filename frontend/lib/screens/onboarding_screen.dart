@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/responsive.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -206,7 +207,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             left: 0, right: 0, bottom: 0,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(28, 0, 28, 22),
+                padding: EdgeInsets.fromLTRB(context.sp(28), 0, context.sp(28), 22),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -240,7 +241,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                       animation: _shimmerAnim,
                       builder: (_, __) => SizedBox(
                         width: double.infinity,
-                        height: 58,
+                        height: (context.sh * 0.072).clamp(50.0, 66.0),
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(18),
@@ -324,7 +325,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // ── PAGE 0: Welcome ───────────────────────────────────────────
   Widget _buildPage0(_PageData page, Size size) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+      padding: EdgeInsets.symmetric(horizontal: context.sp(28)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -342,7 +343,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     Transform.scale(
                       scale: _pulseAnim.value,
                       child: Container(
-                        width: 108, height: 108,
+                        width: context.sp(108), height: context.sp(108),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
@@ -405,7 +406,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // ── PAGE 1: Credits ───────────────────────────────────────────
   Widget _buildPage1(_PageData page, Size size) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+      padding: EdgeInsets.symmetric(horizontal: context.sp(28)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -424,7 +425,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     Transform.scale(
                       scale: _pulseAnim.value,
                       child: Container(
-                        width: 108, height: 108,
+                        width: context.sp(108), height: context.sp(108),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
@@ -524,7 +525,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   // ── PAGE 2: Control ───────────────────────────────────────────
   Widget _buildPage2(_PageData page, Size size) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+      padding: EdgeInsets.symmetric(horizontal: context.sp(28)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
@@ -543,7 +544,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     Transform.scale(
                       scale: _pulseAnim.value,
                       child: Container(
-                        width: 108, height: 108,
+                        width: context.sp(108), height: context.sp(108),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
@@ -605,25 +606,28 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   // ── Shared widgets ────────────────────────────────────────────
 
-  Widget _iconCircle(_PageData page) => Container(
-        width: 96, height: 96,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: page.accent,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: page.accent.first.withValues(alpha: 0.7),
-              blurRadius: 42,
-              spreadRadius: 5,
-            ),
-          ],
+  Widget _iconCircle(_PageData page) {
+    final d = context.sp(96);
+    return Container(
+      width: d, height: d,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: page.accent,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        child: Icon(page.icon, size: 44, color: Colors.white),
-      );
+        boxShadow: [
+          BoxShadow(
+            color: page.accent.first.withValues(alpha: 0.7),
+            blurRadius: 42,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: Icon(page.icon, size: context.sp(44), color: Colors.white),
+    );
+  }
 
   Widget _gradientTitle(_PageData page, String text) => ShaderMask(
         shaderCallback: (b) => LinearGradient(
@@ -633,8 +637,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         ).createShader(b),
         child: Text(
           text,
-          style: const TextStyle(
-            fontSize: 34,
+          style: TextStyle(
+            fontSize: context.sp(34),
             fontWeight: FontWeight.w900,
             color: Colors.white,
             height: 1.15,

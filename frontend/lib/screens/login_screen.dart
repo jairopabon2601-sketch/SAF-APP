@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../utils/responsive.dart';
 import 'forgot_password_screen.dart';
 
 // ── Particle ──────────────────────────────────────────────────────────────────
@@ -368,7 +369,7 @@ class _LoginScreenState extends State<LoginScreen>
         // ── Content ───────────────────────────────────────────────────
         SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: EdgeInsets.symmetric(horizontal: context.sp(24)),
             child: FadeTransition(
               opacity: _fadeIn,
               child: SlideTransition(
@@ -380,18 +381,23 @@ class _LoginScreenState extends State<LoginScreen>
                   AnimatedBuilder(
                     animation: Listenable.merge([_pulse, _float]),
                     builder: (_, __) {
+                      final logoH = context.h(0.200);
+                      final logoBox = context.w(0.906);
+                      final outerR = context.w(0.400);
+                      final haloR = context.w(0.347);
+                      final glassR = context.w(0.320);
                       return Transform.translate(
                         offset: Offset(0, _float.value),
                         child: SizedBox(
-                          height: 164,
+                          height: logoH,
                           child: OverflowBox(
-                            maxWidth: 340,
-                            maxHeight: 340,
+                            maxWidth: logoBox,
+                            maxHeight: logoBox,
                             child:
                                 Stack(alignment: Alignment.center, children: [
                               Container(
-                                width: 150,
-                                height: 150,
+                                width: outerR,
+                                height: outerR,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   gradient: RadialGradient(
@@ -406,17 +412,17 @@ class _LoginScreenState extends State<LoginScreen>
                                   ),
                                 ),
                               ),
-                              // Logo area (164x164)
+                              // Logo area
                               SizedBox(
-                                width: 164,
-                                height: 164,
+                                width: logoH,
+                                height: logoH,
                                 child: Stack(
                                     alignment: Alignment.center,
                                     children: [
                                       // Pulsing glow halo
                                       Container(
-                                        width: 130,
-                                        height: 130,
+                                        width: haloR,
+                                        height: haloR,
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
                                           boxShadow: [
@@ -447,8 +453,8 @@ class _LoginScreenState extends State<LoginScreen>
                                           filter: ImageFilter.blur(
                                               sigmaX: 18, sigmaY: 18),
                                           child: Container(
-                                            width: 120,
-                                            height: 120,
+                                            width: glassR,
+                                            height: glassR,
                                             decoration: BoxDecoration(
                                               shape: BoxShape.circle,
                                               gradient: RadialGradient(colors: [
@@ -463,7 +469,7 @@ class _LoginScreenState extends State<LoginScreen>
                                                 width: 1.2,
                                               ),
                                             ),
-                                            padding: const EdgeInsets.all(24),
+                                            padding: EdgeInsets.all(glassR * 0.20),
                                             child: const CustomPaint(
                                                 painter: _SafLogoPainter(
                                                     Colors.white)),
@@ -507,9 +513,9 @@ class _LoginScreenState extends State<LoginScreen>
                         child: Text(
                           'SAF',
                           style: TextStyle(
-                            fontSize: 54,
+                            fontSize: context.sp(54),
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 16,
+                            letterSpacing: context.sp(16),
                             color: Colors.white,
                             height: 1.0,
                             shadows: [
@@ -626,8 +632,8 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ),
                               Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(24, 28, 24, 28),
+                                padding: EdgeInsets.fromLTRB(
+                                    context.sp(24), 28, context.sp(24), 28),
                                 child: Form(
                                   key: _formKey,
                                   child: Column(
@@ -664,7 +670,7 @@ class _LoginScreenState extends State<LoginScreen>
                                             ),
                                           ),
                                           const SizedBox(width: 14),
-                                          const Expanded(
+                                          Expanded(
                                             child: Column(
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
@@ -673,18 +679,18 @@ class _LoginScreenState extends State<LoginScreen>
                                                   'Bienvenido de nuevo',
                                                   style: TextStyle(
                                                     color: Colors.white,
-                                                    fontSize: 22,
+                                                    fontSize: context.sp(22),
                                                     fontWeight: FontWeight.w800,
                                                     letterSpacing: 0.2,
                                                   ),
                                                 ),
-                                                SizedBox(height: 5),
+                                                const SizedBox(height: 5),
                                                 Text(
                                                     'Ingresa tus credenciales para continuar',
                                                     style: TextStyle(
                                                         color:
                                                             Color(0xFF8BA7E8),
-                                                        fontSize: 12.5)),
+                                                        fontSize: context.sp(12.5))),
                                               ],
                                             ),
                                           ),
@@ -1098,9 +1104,10 @@ class _ShimmerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final btnH = (MediaQuery.of(context).size.height * 0.072).clamp(50.0, 66.0);
     return SizedBox(
       width: double.infinity,
-      height: 58,
+      height: btnH,
       child: Stack(children: [
         Positioned.fill(
           child: AnimatedBuilder(

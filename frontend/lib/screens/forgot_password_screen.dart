@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../utils/responsive.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -350,7 +351,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
         // Content
         SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: EdgeInsets.symmetric(horizontal: context.sp(24)),
             child: FadeTransition(
               opacity: _fadeIn,
               child: SlideTransition(
@@ -364,99 +365,80 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                     builder: (_, __) {
                       return Transform.translate(
                         offset: Offset(0, _float.value),
-                        child: SizedBox(
-                          height: 164,
-                          child: OverflowBox(
-                            maxWidth: 320,
-                            maxHeight: 320,
-                            child:
-                                Stack(alignment: Alignment.center, children: [
-                              Container(
-                                width: 150,
-                                height: 150,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: RadialGradient(
-                                    colors: [
+                        child: Builder(builder: (context) {
+                          final logoH = context.h(0.200);
+                          final logoBox = context.w(0.853);
+                          final outerR = context.w(0.400);
+                          final haloR  = context.w(0.347);
+                          final glassR = context.w(0.320);
+                          return SizedBox(
+                            height: logoH,
+                            child: OverflowBox(
+                              maxWidth: logoBox,
+                              maxHeight: logoBox,
+                              child: Stack(alignment: Alignment.center, children: [
+                                Container(
+                                  width: outerR, height: outerR,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: RadialGradient(colors: [
                                       const Color(0xFF00D2FF).withValues(
                                           alpha: 0.24 + 0.08 * _pulse.value),
                                       const Color(0xFF6C63FF).withValues(
                                           alpha: 0.18 + 0.08 * _pulse.value),
                                       Colors.transparent,
-                                    ],
-                                    stops: const [0.0, 0.42, 1.0],
+                                    ], stops: const [0.0, 0.42, 1.0]),
                                   ),
                                 ),
-                              ),
-                              // Icon area (148x148)
-                              SizedBox(
-                                width: 164,
-                                height: 164,
-                                child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      // Glow
-                                      Container(
-                                        width: 130,
-                                        height: 130,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: const Color(0xFF6C63FF)
-                                                  .withValues(
-                                                      alpha: 0.24 +
-                                                          0.34 * _pulse.value),
-                                              blurRadius:
-                                                  44 + 28 * _pulse.value,
-                                              spreadRadius:
-                                                  -1 + 5 * _pulse.value,
-                                            ),
-                                            BoxShadow(
-                                              color: const Color(0xFF00D2FF)
-                                                  .withValues(
-                                                      alpha: 0.10 +
-                                                          0.16 * _pulse.value),
-                                              blurRadius:
-                                                  58 + 20 * _pulse.value,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      // Glass icon
-                                      ClipOval(
-                                        child: BackdropFilter(
-                                          filter: ImageFilter.blur(
-                                              sigmaX: 18, sigmaY: 18),
-                                          child: Container(
-                                            width: 120,
-                                            height: 120,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              gradient: RadialGradient(colors: [
-                                                Colors.white
-                                                    .withValues(alpha: 0.14),
-                                                Colors.white
-                                                    .withValues(alpha: 0.05),
-                                              ]),
-                                              border: Border.all(
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.22),
-                                                  width: 1.2),
-                                            ),
-                                            child: const Icon(
-                                              Icons.lock_reset_rounded,
-                                              color: Colors.white,
-                                              size: 58,
-                                            ),
+                                SizedBox(
+                                  width: logoH, height: logoH,
+                                  child: Stack(alignment: Alignment.center, children: [
+                                    Container(
+                                      width: haloR, height: haloR,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF6C63FF)
+                                                .withValues(alpha: 0.24 + 0.34 * _pulse.value),
+                                            blurRadius: 44 + 28 * _pulse.value,
+                                            spreadRadius: -1 + 5 * _pulse.value,
                                           ),
+                                          BoxShadow(
+                                            color: const Color(0xFF00D2FF)
+                                                .withValues(alpha: 0.10 + 0.16 * _pulse.value),
+                                            blurRadius: 58 + 20 * _pulse.value,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    ClipOval(
+                                      child: BackdropFilter(
+                                        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                                        child: Container(
+                                          width: glassR, height: glassR,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            gradient: RadialGradient(colors: [
+                                              Colors.white.withValues(alpha: 0.14),
+                                              Colors.white.withValues(alpha: 0.05),
+                                            ]),
+                                            border: Border.all(
+                                                color: Colors.white.withValues(alpha: 0.22),
+                                                width: 1.2),
+                                          ),
+                                          child: Icon(Icons.lock_reset_rounded,
+                                              color: Colors.white,
+                                              size: context.sp(58)),
                                         ),
                                       ),
-                                    ]),
-                              ),
-                            ]),
-                          ),
-                        ),
+                                    ),
+                                  ]),
+                                ),
+                              ]),
+                            ),
+                          );
+                        }),
                       );
                     },
                   ),
@@ -489,9 +471,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                         child: Text(
                           'SAF',
                           style: TextStyle(
-                            fontSize: 44,
+                            fontSize: context.sp(44),
                             fontWeight: FontWeight.w900,
-                            letterSpacing: 14,
+                            letterSpacing: context.sp(14),
                             color: Colors.white,
                             height: 1.0,
                             shadows: [
