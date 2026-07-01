@@ -3282,6 +3282,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       child: _miniActionBtn(Icons.list_alt_rounded, 'Cuotas',
                           homeNavy, () => _showCuotasDialog(c))),
                   const SizedBox(width: 6),
+                  if (activo)
+                    Expanded(
+                        child: _miniActionBtn(
+                            Icons.request_quote_outlined,
+                            'Liquidar',
+                            const Color(0xFF7C3AED),
+                            () => _showLiquidarCreditoDialog(c))),
+                  if (activo) const SizedBox(width: 6),
                   Expanded(
                       child: _miniActionBtn(
                           Icons.verified_outlined,
@@ -5192,6 +5200,394 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           strokeWidth: 2, color: Colors.white))
                   : const Text('Guardar cambios'),
             ),
+          ],
+        );
+      }),
+    );
+  }
+
+  // ── Liquidación anticipada ────────────────────────────────────────
+  Future<void> _showLiquidarCreditoDialog(Map<String, dynamic> credito) async {
+    final cod = credito['cod']?.toString() ?? '';
+    final cliente = (credito['cliente'] ?? '').toString();
+    DateTime fechaLiquidacion = DateTime.now();
+    String fuente = '';
+    final comentCtrl = TextEditingController();
+    final fuentesPago = <Map<String, String>>[];
+    final codigosFuente = <String>{};
+    for (final cuenta in accounts) {
+      final codigo =
+          (cuenta['codigo'] ?? cuenta['codigo_cuenta'] ?? '').toString().trim();
+      final nombre =
+          (cuenta['nombre'] ?? cuenta['cuenta'] ?? '').toString().trim();
+      final activa = (cuenta['estado'] ?? '1').toString() != '0';
+      if (codigo.isNotEmpty &&
+          nombre.isNotEmpty &&
+          activa &&
+          codigosFuente.add(codigo)) {
+        fuentesPago.add({'codigo': codigo, 'nombre': nombre});
+      }
+    }
+    fuentesPago.sort((a, b) =>
+        a['nombre']!.toLowerCase().compareTo(b['nombre']!.toLowerCase()));
+
+    bool calculando = false;
+    bool confirmando = false;
+    String? errorCalculo;
+    Map<String, dynamic>? calculo; // resultado de la simulación vigente
+
+    await showDialog(
+      context: screenContext,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        String fechaStr() {
+          return '${fechaLiquidacion.year}-${fechaLiquidacion.month.toString().padLeft(2, '0')}-${fechaLiquidacion.day.toString().padLeft(2, '0')}';
+        }
+
+        Future<void> calcular() async {
+          setS(() {
+            calculando = true;
+            errorCalculo = null;
+            calculo = null;
+          });
+          final r = await repository.post(
+              '/ajax/simular_liquidacion_credito.php', {
+            'codigo_credito': cod,
+            'fecha_liquidacion': fechaStr(),
+          });
+          final decoded = decodeJsonMap(r.body);
+          if (!ctx.mounted) return;
+          if (r.statusCode == 200 && decoded['success'] == true) {
+            setS(() {
+              calculando = false;
+              calculo = decoded;
+            });
+          } else {
+            setS(() {
+              calculando = false;
+              errorCalculo = (decoded['error'] ?? 'No se pudo calcular la liquidación')
+                  .toString();
+            });
+          }
+        }
+
+        final valorLiquidacion =
+            numberValue(calculo?['valor_liquidacion'] ?? 0);
+        final capitalPendiente =
+            numberValue(calculo?['capital_pendiente'] ?? 0);
+        final interesTotal = numberValue(calculo?['interes_total'] ?? 0);
+        final cuotasPendientes =
+            int.tryParse(calculo?['cuotas_pendientes']?.toString() ?? '0') ?? 0;
+
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Liquidar crédito #$cod',
+              style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF0D1B4B))),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('Cliente: $cliente',
+                  style: const TextStyle(
+                      fontSize: 12, color: Color(0xFF667395))),
+              const SizedBox(height: 12),
+              // Fecha de liquidación
+              GestureDetector(
+                onTap: () async {
+                  final d = await showLightDatePicker(
+                    ctx,
+                    initialDate: fechaLiquidacion,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2035),
+                  );
+                  if (d != null && ctx.mounted) {
+                    setS(() {
+                      fechaLiquidacion = d;
+                      calculo = null;
+                      errorCalculo = null;
+                    });
+                  }
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE7E9F5),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFD3D7EB)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.calendar_today_outlined,
+                        size: 14, color: Color(0xFF3B3B8A)),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Fecha de liquidación: ${fechaLiquidacion.day.toString().padLeft(2, '0')}/${fechaLiquidacion.month.toString().padLeft(2, '0')}/${fechaLiquidacion.year}',
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF0D1B4B)),
+                    ),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: calculando ? null : calcular,
+                child: Container(
+                  width: double.infinity,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF4F46E5), Color(0xFF3B3B8A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                          color: const Color(0xFF3B3B8A).withValues(alpha: 0.45),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    if (calculando)
+                      const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                    else
+                      const Icon(Icons.calculate_outlined,
+                          size: 16, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(calculando ? 'Calculando...' : 'Calcular valor a pagar',
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white)),
+                  ]),
+                ),
+              ),
+              if (errorCalculo != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD7DB),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFF3A8B0)),
+                  ),
+                  child: Text(errorCalculo!,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFB71C1C))),
+                ),
+              ],
+              if (calculo != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDF2E1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFB8DFC0)),
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Capital pendiente: ${formatCop(capitalPendiente)}',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF1B5E20))),
+                    Text('Interés prorateado: ${formatCop(interesTotal)}',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF1B5E20))),
+                    Text('Cuotas que se cancelan/fusionan: $cuotasPendientes',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF1B5E20))),
+                    const SizedBox(height: 4),
+                    Text('Total a pagar: ${formatCop(valorLiquidacion)}',
+                        style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1B5E20))),
+                  ]),
+                ),
+              ],
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                initialValue: fuente,
+                isExpanded: true,
+                dropdownColor: Colors.white,
+                iconEnabledColor: const Color(0xFF3B3B8A),
+                style: const TextStyle(
+                  color: Color(0xFF0D1B4B),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Fuente',
+                  labelStyle: const TextStyle(
+                    color: Color(0xFF5B5BB0),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFE7E9F5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                items: [
+                  const DropdownMenuItem(
+                    value: '',
+                    child: Text('[Seleccione]',
+                        style: TextStyle(color: Color(0xFF667395))),
+                  ),
+                  ...fuentesPago.map((f) => DropdownMenuItem(
+                      value: f['codigo'],
+                      child:
+                          Text(f['nombre']!, overflow: TextOverflow.ellipsis))),
+                ],
+                onChanged: (v) => setS(() => fuente = v ?? ''),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: comentCtrl,
+                maxLines: 3,
+                style: const TextStyle(
+                    color: Color(0xFF0D1B4B), fontSize: 14, fontWeight: FontWeight.w500),
+                cursorColor: const Color(0xFF3B3B8A),
+                decoration: InputDecoration(
+                  hintText: 'Comentarios (opcional)',
+                  hintStyle: const TextStyle(color: Color(0xFF667395)),
+                  filled: true,
+                  fillColor: const Color(0xFFE7E9F5),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ]),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          actions: [
+            Row(children: [
+              Expanded(
+                flex: 2,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(ctx),
+                  child: Container(
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                            color: const Color(0xFFDC2626).withValues(alpha: 0.4),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text('Cerrar',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 3,
+                child: GestureDetector(
+                  onTap: (calculo == null || confirmando)
+                      ? null
+                      : () async {
+                          if (fuente.isEmpty) {
+                            showResult(false,
+                                'Selecciona la fuente donde ingresó el pago');
+                            return;
+                          }
+                          setS(() => confirmando = true);
+                          final r = await repository
+                              .post('/ajax/liquidar_credito.php', {
+                            'codigo_credito': cod,
+                            'fecha_liquidacion': fechaStr(),
+                            'fuente_cuota': fuente,
+                            'comentarios': comentCtrl.text.trim(),
+                          });
+                          setS(() => confirmando = false);
+                          if (!ctx.mounted) return;
+                          final decoded = decodeJsonMap(r.body);
+                          final ok =
+                              r.statusCode == 200 && decoded['success'] == true;
+                          if (ok) {
+                            Navigator.pop(ctx);
+                            repository
+                                .invalidateCache('/ajax/get_creditos_lista.php');
+                            await fetchCredits('');
+                            if (isMounted) refresh(() {});
+                          }
+                          showResult(
+                              ok,
+                              ok
+                                  ? 'Crédito liquidado correctamente'
+                                  : friendlyError(
+                                      (decoded['error'] ?? r.body).toString()));
+                        },
+                  child: Opacity(
+                    opacity: (calculo == null || confirmando) ? 0.4 : 1,
+                    child: Container(
+                      height: 40,
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF7C3AED), Color(0xFFA855F7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                              color:
+                                  const Color(0xFF7C3AED).withValues(alpha: 0.45),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: confirmando
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Text('Confirmar liquidación',
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ),
+              ),
+            ]),
           ],
         );
       }),
