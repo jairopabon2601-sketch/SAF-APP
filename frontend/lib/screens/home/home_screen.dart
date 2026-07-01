@@ -51,14 +51,21 @@ class _HomeScreenState extends HomeController<HomeScreen> {
       backgroundColor: homeBackground,
       extendBody: true,
       bottomNavigationBar: buildHomeBottomNavigation(),
-      body: CustomScrollView(
-        slivers: [
-          buildHomeAppBar(),
-          SliverToBoxAdapter(
-            child: _buildTabContent(greeting, firstName),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 90)),
-        ],
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await fetchCredits('');
+          if (isMounted) refresh(() {});
+        },
+        color: const Color(0xFF4338CA),
+        child: CustomScrollView(
+          slivers: [
+            buildHomeAppBar(),
+            SliverToBoxAdapter(
+              child: _buildTabContent(greeting, firstName),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 90)),
+          ],
+        ),
       ),
     );
   }

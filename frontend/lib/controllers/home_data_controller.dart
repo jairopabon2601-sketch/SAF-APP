@@ -644,6 +644,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         'asesor': asesorCodigo,
         'pagina': creditsPage.toString(),
         'por_pagina': creditsPageSize.toString(),
+        if (creditsBuscar.isNotEmpty) 'buscar': creditsBuscar,
       });
       if (r.statusCode == 200) {
         final decoded = jsonDecode(r.body);

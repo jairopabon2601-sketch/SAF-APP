@@ -44,6 +44,7 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
 
   String creditStatusFilter = '';
   String creditAdvisorFilter = '';
+  String creditsBuscar = '';
   bool queryingCredits = false;
   int creditsPage = 1;
   int creditsTotal = 0;

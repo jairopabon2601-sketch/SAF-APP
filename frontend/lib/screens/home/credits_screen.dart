@@ -2,7 +2,6 @@
 
 import '../../controllers/home_actions.dart';
 import '../../controllers/home_data_controller.dart';
-import 'package:http/http.dart' as http;
 import 'dashboard_screen.dart';
 import 'home_dependencies.dart';
 import 'movements_screen.dart';
@@ -16,7 +15,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final totalPagado = creditsPaidTotal;
     final totalPendiente = creditsPendingTotal;
 
-    final creditosFiltrados = credits;
+    final creditosFiltrados = creditsBuscar.isEmpty
+        ? credits
+        : credits.where((c) {
+            final txt = creditsBuscar.toLowerCase();
+            return (c['cliente'] ?? '').toString().toLowerCase().contains(txt) ||
+                (c['cod'] ?? '').toString().contains(txt);
+          }).toList();
 
     // ── Cálculo del simulador (igual que web: tasa mensual simple) ──
     final meses = simulationMonths.round();
@@ -492,6 +497,46 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF8899BB),
                       letterSpacing: 0.3)),
+              const SizedBox(height: 10),
+              TextField(
+                decoration: InputDecoration(
+                  hintText: 'Buscar por cliente o código...',
+                  hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF8899BB)),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF8899BB)),
+                  suffixIcon: creditsBuscar.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () async {
+                            refresh(() { creditsBuscar = ''; creditsPage = 1; queryingCredits = true; });
+                            await fetchCredits('');
+                            if (isMounted) refresh(() => queryingCredits = false);
+                          },
+                          child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF8899BB)),
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: const Color(0xFFF5F6FA),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFF4338CA), width: 1.5),
+                  ),
+                ),
+                style: const TextStyle(fontSize: 13, color: Color(0xFF0D1B4B)),
+                onChanged: (v) => refresh(() => creditsBuscar = v.trim()),
+                onSubmitted: (_) async {
+                  refresh(() { creditsPage = 1; queryingCredits = true; });
+                  await fetchCredits('');
+                  if (isMounted) refresh(() => queryingCredits = false);
+                },
+              ),
               const SizedBox(height: 10),
               Row(children: [
                 if (isAdmin) Expanded(
@@ -3237,8 +3282,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       child: _miniActionBtn(Icons.list_alt_rounded, 'Cuotas',
                           homeNavy, () => _showCuotasDialog(c))),
                   const SizedBox(width: 6),
-                  _whatsAppBtn(() => _enviarRecordatorioWhatsApp(c)),
-                  const SizedBox(width: 6),
                   Expanded(
                       child: _miniActionBtn(
                           Icons.verified_outlined,
@@ -4243,43 +4286,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     );
   }
 
-  Widget _whatsAppBtn(VoidCallback onTap) => Tooltip(
-        message: 'Enviar recordatorio por WhatsApp',
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(10),
-            child: Ink(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: const Color(0xFF25D366),
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF128C7E).withValues(alpha: 0.28),
-                    blurRadius: 7,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: SvgPicture.asset(
-                  'assets/icons/whatsapp.svg',
-                  width: 21,
-                  height: 21,
-                  colorFilter: const ColorFilter.mode(
-                    Colors.white,
-                    BlendMode.srcIn,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-
   Future<void> _showCuotasDialog(Map<String, dynamic> credito) async {
     final cod = credito['cod']?.toString() ?? '';
     final cliente = (credito['cliente'] ?? '').toString();
@@ -4527,6 +4533,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                           } catch (_) {}
                                         }
                                         if (ctx.mounted) setS(() {});
+                                        repository.invalidateCache('/ajax/get_creditos_lista.php');
+                                        fetchCredits('').then((_) {
+                                          if (isMounted) refresh(() {});
+                                        });
                                       });
                                     }),
                                     child: const Padding(
@@ -4939,7 +4949,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         'interes': interes,
                         'valor_pagado': valorCtrl.text.trim(),
                         'fuente_cuota': fuente,
-                        'fecha_registro_pago': fechaStr(),
+                        'fecha_pago': fechaStr(),
                         'comentarios': comentCtrl.text.trim(),
                       });
                       setS(() => saving = false);
@@ -5186,112 +5196,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         );
       }),
     );
-  }
-
-  // ── Recordatorio por WhatsApp ────────────────────────────────────
-  Future<void> _enviarRecordatorioWhatsApp(Map<String, dynamic> credito) async {
-    final cliente = (credito['cliente'] ?? 'cliente').toString().trim();
-    final cod = credito['cod']?.toString() ?? '';
-    final proxima = (credito['proxima_fecha'] ?? '').toString().trim();
-    final vencidas = int.tryParse(
-          (credito['cuotas_vencidas'] ??
-                  credito['vencidas'] ??
-                  credito['cantidad_vencidas'] ??
-                  '0')
-              .toString(),
-        ) ??
-        0;
-    var telefono = (credito['telefono'] ??
-            credito['celular'] ??
-            credito['telefono_cliente'] ??
-            credito['numero_telefono'] ??
-            '')
-        .toString()
-        .replaceAll(RegExp(r'\D'), '');
-
-    if (telefono.startsWith('00')) telefono = telefono.substring(2);
-    if (telefono.startsWith('57') && telefono.length == 12) {
-      telefono = telefono.substring(2);
-    }
-
-    if (telefono.length != 10) {
-      showResult(false,
-          'El crédito #$cod no tiene un número de WhatsApp válido registrado.');
-      return;
-    }
-
-    final mensaje = vencidas > 0
-        ? 'Hola Sr(a) $cliente, tienes $vencidas cuota(s) vencida(s), recuerde que su fecha de pago'
-            '${proxima.isNotEmpty ? ' es $proxima' : ' ya se encuentra vencida'}.'
-        : 'Hola Sr(a) $cliente, le recordamos que su próxima fecha de pago'
-            '${proxima.isNotEmpty ? ' es $proxima' : ' está próxima'}.';
-
-    if (!isMounted) return;
-    showDialog<void>(
-      context: screenContext,
-      barrierDismissible: false,
-      builder: (_) => const Center(
-        child: Card(
-          color: Colors.white,
-          child: Padding(
-            padding: EdgeInsets.all(22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(color: Color(0xFF25D366)),
-                SizedBox(height: 14),
-                Text(
-                  'Enviando recordatorio...',
-                  style: TextStyle(
-                    color: Color(0xFF0D1B4B),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    bool enviado = false;
-    String resultado = 'No se pudo enviar el recordatorio.';
-    try {
-      final response = await http
-          .post(
-            Uri.parse('https://whatsapp-bot-s66s.onrender.com/enviar'),
-            headers: const {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-            body: jsonEncode({
-              'telefono': telefono,
-              'mensaje': mensaje,
-            }),
-          )
-          .timeout(const Duration(seconds: 30));
-      final decoded = jsonDecode(response.body);
-      if (decoded is Map) {
-        enviado = response.statusCode == 200 && decoded['ok'] == true;
-        resultado = enviado
-            ? (decoded['mensaje']?.toString() ??
-                'Recordatorio enviado correctamente.')
-            : (decoded['error']?.toString() ??
-                decoded['mensaje']?.toString() ??
-                'El servicio de WhatsApp rechazó el envío.');
-      } else {
-        resultado = 'El servicio devolvió una respuesta no válida.';
-      }
-    } on TimeoutException {
-      resultado = 'El servicio de WhatsApp tardó demasiado en responder.';
-    } catch (e) {
-      resultado = 'No fue posible conectar con el servicio de WhatsApp.';
-      debugPrint('[SAF] WhatsApp: $e');
-    }
-
-    if (!isMounted) return;
-    Navigator.of(screenContext, rootNavigator: true).pop();
-    showResult(enviado, resultado);
   }
 
   // ── Confirmar eliminar ───────────────────────────────────────────
