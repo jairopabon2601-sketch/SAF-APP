@@ -102,6 +102,7 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
   static const int savingsPageSize = 10;
   List<Map<String, dynamic>> credits = [];
   final Set<String> expandedCredits = {};
+  final Set<String> expandedPending = {};
 
   double? cachedBalanceTotal;
   double? cachedIncomeTotal;

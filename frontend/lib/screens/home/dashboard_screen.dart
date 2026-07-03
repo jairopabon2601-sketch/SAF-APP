@@ -1023,7 +1023,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     final total = totalPagado + totalPendiente;
     final ratio = total > 0 ? (totalPagado / total).clamp(0.0, 1.0) : 0.0;
     final activeCount = credits.length;
-    final pendingCount = pendingRequests.length;
+    final pendingCount = pendingRequests
+        .where((p) => (int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0) != 3)
+        .length;
 
     // Últimos créditos (5)
     final recentCredits = credits.take(5).toList();

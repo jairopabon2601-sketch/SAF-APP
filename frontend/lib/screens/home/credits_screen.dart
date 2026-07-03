@@ -23,6 +23,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 (c['cod'] ?? '').toString().contains(txt);
           }).toList();
 
+    // Solicitudes: separa pendientes reales de rechazadas (estado 3)
+    final pendientesActivas = pendingRequests
+        .where((p) => (int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0) != 3)
+        .toList();
+    final solicitudesRechazadas = pendingRequests
+        .where((p) => (int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0) == 3)
+        .toList();
+
     // ── Cálculo del simulador (igual que web: tasa mensual simple) ──
     final meses = simulationMonths.round();
     // Interés mensual = monto × tasa% (tasa es mensual)
@@ -174,7 +182,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           const SizedBox(width: 8),
                           _creditHeaderBadge(
                             Icons.schedule_rounded,
-                            '${pendingRequests.length} pendientes',
+                            '${pendientesActivas.length} pendientes',
                             const Color(0xFFFBBF24),
                           ),
                         ]),
@@ -221,6 +229,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               _creditoTabBtn(
                   0, 'Aprobados', Icons.check_circle_outline_rounded),
               _creditoTabBtn(1, 'Pendientes', Icons.schedule_rounded),
+              _creditoTabBtn(4, 'Rechazadas', Icons.cancel_outlined),
               _creditoTabBtn(2, 'Simular crédito', Icons.calculate_outlined),
               _creditoTabBtn(
                   3, 'Estadística por fuente', Icons.bar_chart_rounded),
@@ -826,7 +835,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             buildPendingSkeleton()
           else if (pendingError != null && !pendingLoaded)
             _pendientesRetryCard()
-          else if (pendingRequests.isEmpty)
+          else if (pendientesActivas.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: buildEmptyActivity(),
@@ -836,7 +845,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Column(
                   children:
-                      pendingRequests.map((p) => _pendienteCard(p)).toList()),
+                      pendientesActivas.map((p) => _pendienteCard(p)).toList()),
             ),
           if (pendingLoading && pendingLoaded)
             const Padding(
@@ -1091,9 +1100,28 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             ),
           ]),
         ),
-      ] else ...[
+      ] else if (creditSubTab == 3) ...[
         // ── ESTADÍSTICA POR FUENTE ───────────────────────────
         _estadisticaCreditosWidget(),
+      ] else if (creditSubTab == 4) ...[
+        // ── Lista Rechazadas ──
+        if (pendingLoading && !pendingLoaded)
+          buildPendingSkeleton()
+        else if (pendingError != null && !pendingLoaded)
+          _pendientesRetryCard()
+        else if (solicitudesRechazadas.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: buildEmptyActivity(),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Column(
+                children: solicitudesRechazadas
+                    .map((p) => _pendienteCard(p))
+                    .toList()),
+          ),
       ],
     ]);
   }
@@ -1645,22 +1673,40 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     );
   }
 
+  // Colores por pestaña: 0 Aprobados=verde, 1 Pendientes=amarillo,
+  // 2 Simular crédito=azul/índigo, 3 Estadística=fucsia, 4 Rechazadas=rojo
+  static const _tabGradients = <int, List<Color>>{
+    0: [Color(0xFF064E3B), Color(0xFF10B981)],
+    1: [Color(0xFF92400E), Color(0xFFF59E0B)],
+    2: [Color(0xFF0F0A3C), Color(0xFF2D2B96), Color(0xFF4F46E5)],
+    3: [Color(0xFF701A75), Color(0xFFEC4899)],
+    4: [Color(0xFF7F1D1D), Color(0xFFDC2626)],
+  };
+  static const _tabAccents = <int, Color>{
+    0: Color(0xFF10B981),
+    1: Color(0xFFF59E0B),
+    2: Color(0xFF4F46E5),
+    3: Color(0xFFEC4899),
+    4: Color(0xFFDC2626),
+  };
+
   Widget _creditoTabBtn(int index, String label, IconData icon) {
     final active = creditSubTab == index;
+    final accent = _tabAccents[index] ?? const Color(0xFF4F46E5);
+    final gradientColors = _tabGradients[index] ?? _tabGradients[2]!;
     const dur = Duration(milliseconds: 220);
     return GestureDetector(
       onTap: () {
         refresh(() => creditSubTab = index);
-        if (index == 1) unawaited(fetchPending());
+        if (index == 1 || index == 4) unawaited(fetchPending());
       },
       child: AnimatedContainer(
         duration: dur,
         curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
           gradient: active
-              ? const LinearGradient(
-                  colors: [Color(0xFF0F0A3C), Color(0xFF2D2B96), Color(0xFF4F46E5)],
-                  stops: [0.0, 0.5, 1.0],
+              ? LinearGradient(
+                  colors: gradientColors,
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
@@ -1669,14 +1715,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: active
-                ? const Color(0xFF4F46E5).withValues(alpha: 0.55)
+                ? accent.withValues(alpha: 0.55)
                 : const Color(0xFFE2E8F0),
             width: 1.2,
           ),
           boxShadow: active
               ? [
                   BoxShadow(
-                    color: const Color(0xFF4F46E5).withValues(alpha: 0.38),
+                    color: accent.withValues(alpha: 0.38),
                     blurRadius: 14,
                     offset: const Offset(0, 4),
                   ),
@@ -2917,7 +2963,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
       final nombre = (c['asesor'] ?? '').toString().trim();
       final aCod = (c['asesor_cod'] ?? '').toString().trim();
       final sigla = creditAdvisorInitials(aCod).trim();
-      return sigla.isNotEmpty ? sigla : nombre;
+      return sigla.isNotEmpty ? advisorName(sigla) : nombre;
     })();
     final nombre = (c['cliente'] ?? 'Cliente').toString();
     final monto = numberValue(c['valor_prestamo'] ?? 0);
@@ -3074,53 +3120,52 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             fontSize: 14,
                             color: homeNavy)),
                     const SizedBox(height: 2),
-                    Row(children: [
-                      if (cod.isNotEmpty)
-                        Text('#$cod',
-                            style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF8899BB),
-                                fontWeight: FontWeight.w600)),
-                      if (cod.isNotEmpty && asesor.isNotEmpty)
-                        const SizedBox(width: 6),
-                      if (asesor.isNotEmpty)
-                        Flexible(
-                            child: Text('· $asesor',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    fontSize: 11, color: Color(0xFF8899BB)))),
-                    ]),
+                    if (asesor.isNotEmpty)
+                      Text('· $asesor',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 11, color: Color(0xFF8899BB))),
                   ])),
               const SizedBox(width: 8),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: estadoBg,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: estadoColor.withValues(alpha: 0.30),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    Container(
-                      width: 6, height: 6,
-                      decoration: BoxDecoration(
-                        color: estadoColor,
-                        shape: BoxShape.circle,
+                Row(mainAxisSize: MainAxisSize.min, children: [
+                  if (cod.isNotEmpty) ...[
+                    Text('#$cod',
+                        style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF8899BB),
+                            fontWeight: FontWeight.w600)),
+                    const SizedBox(width: 6),
+                  ],
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: estadoBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: estadoColor.withValues(alpha: 0.30),
+                        width: 1,
                       ),
                     ),
-                    const SizedBox(width: 5),
-                    Text(estado,
-                        style: TextStyle(
-                            color: estadoColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700)),
-                  ]),
-                ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Container(
+                        width: 6, height: 6,
+                        decoration: BoxDecoration(
+                          color: estadoColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(estado,
+                          style: TextStyle(
+                              color: estadoColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700)),
+                    ]),
+                  ),
+                ]),
                 const SizedBox(height: 6),
                 AnimatedRotation(
                   turns: expanded ? 0.5 : 0,
@@ -3473,17 +3518,21 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     : tiempoRaw;
     final interes = (p['tasa_interes'] ?? p['interes'] ?? '').toString();
     final codigoAsesor = (p['codigo_asesor'] ?? '').toString().trim();
-    final nombreAsesor = (p['nombre_asesor'] ?? codigoAsesor).toString().trim();
+    final nombreAsesorRaw = (p['nombre_asesor'] ?? '').toString().trim();
+    final asesorSigla = creditAdvisorInitials(codigoAsesor).trim();
+    final nombreAsesor = nombreAsesorRaw.isNotEmpty
+        ? nombreAsesorRaw
+        : (asesorSigla.isNotEmpty ? advisorName(asesorSigla) : codigoAsesor);
     final estadoCod = int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0;
 
     // Verde = asesor asignado, Rojo = rechazado (estado 3), Blanco = pendiente
     final tieneAsesor = codigoAsesor.isNotEmpty;
     final rechazado = estadoCod == 3;
-    final cardBg = rechazado
-        ? const Color(0xFFFFCDD2)
+    final cardGradient = rechazado
+        ? const [Color(0xFFFFF0F0), Color(0xFFFFCDD2)]
         : tieneAsesor
-            ? const Color(0xFFC8E6C9)
-            : Colors.white;
+            ? const [Color(0xFFEAF8EB), Color(0xFFC8E6C9)]
+            : const [Color(0xFFFDFEFF), Color(0xFFF2F5FF)];
     final cardBorder = rechazado
         ? const Color(0xFFEF9A9A)
         : tieneAsesor
@@ -3512,140 +3561,128 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             .toUpperCase()
         : '?';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: cardBorder, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: accentColor.withValues(alpha: 0.10),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    final cardKey = cod.isNotEmpty ? cod : '$solicitante|$doc';
+    final expanded = expandedPending.contains(cardKey);
+
+    return GestureDetector(
+      onTap: () => refresh(() => expanded
+          ? expandedPending.remove(cardKey)
+          : expandedPending.add(cardKey)),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: cardGradient,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: IntrinsicHeight(
-          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            // Left accent bar
-            Container(
-              width: 4,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color.lerp(accentColor, Colors.white, 0.22) ?? accentColor,
-                    accentColor,
-                    Color.lerp(accentColor, Colors.black, 0.28) ?? accentColor,
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: cardBorder, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: accentColor.withValues(alpha: expanded ? 0.18 : 0.10),
+              blurRadius: expanded ? 18 : 12,
+              offset: const Offset(0, 4),
             ),
-            Expanded(
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
               child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Container(
-                      width: 42, height: 42,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color.lerp(accentColor, Colors.white, 0.28) ?? accentColor,
-                            accentColor,
-                            Color.lerp(accentColor, Colors.black, 0.22) ?? accentColor,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: accentColor.withValues(alpha: 0.38),
-                            blurRadius: 8, offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: Text(initials,
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 15)),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(solicitante.isNotEmpty ? solicitante : 'Sin nombre',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                color: homeNavy)),
-                        const SizedBox(height: 2),
-                        if (doc.isNotEmpty)
-                          Text('Doc: $doc',
-                              style: const TextStyle(
-                                  fontSize: 11, color: Color(0xFF8899BB))),
-                      ]),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  padding: const EdgeInsets.all(14),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        width: 42, height: 42,
                         decoration: BoxDecoration(
-                          color: accentColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: accentColor.withValues(alpha: 0.28), width: 1),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Container(
-                            width: 6, height: 6,
-                            decoration: BoxDecoration(
-                                color: accentColor, shape: BoxShape.circle),
+                          gradient: LinearGradient(
+                            colors: [
+                              Color.lerp(accentColor, Colors.white, 0.28) ?? accentColor,
+                              accentColor,
+                              Color.lerp(accentColor, Colors.black, 0.22) ?? accentColor,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          const SizedBox(width: 4),
-                          Text(estadoLabel,
-                              style: TextStyle(
-                                  color: accentColor,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700)),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: accentColor.withValues(alpha: 0.38),
+                              blurRadius: 8, offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Center(
+                          child: Text(initials,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 15)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(solicitante.isNotEmpty ? solicitante : 'Sin nombre',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: homeNavy)),
+                          const SizedBox(height: 2),
+                          if (doc.isNotEmpty)
+                            Text('Doc: $doc',
+                                style: const TextStyle(
+                                    fontSize: 11, color: Color(0xFF8899BB))),
                         ]),
                       ),
-                      if (cod.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text('#$cod',
-                            style: const TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF8899BB),
-                                fontWeight: FontWeight.w600)),
-                      ],
+                      const SizedBox(width: 8),
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        if (cod.isNotEmpty) ...[
+                          Text('#$cod',
+                              style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFF8899BB),
+                                  fontWeight: FontWeight.w600)),
+                          const SizedBox(width: 6),
+                        ],
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: accentColor.withValues(alpha: 0.28), width: 1),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Container(
+                              width: 6, height: 6,
+                              decoration: BoxDecoration(
+                                  color: accentColor, shape: BoxShape.circle),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(estadoLabel,
+                                style: TextStyle(
+                                    color: accentColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700)),
+                          ]),
+                        ),
+                      ]),
+                      const SizedBox(width: 6),
+                      AnimatedRotation(
+                        turns: expanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 220),
+                        child: const Icon(Icons.keyboard_arrow_down_rounded,
+                            color: Color(0xFF8899BB), size: 18),
+                      ),
                     ]),
-                  ]),
-                  const SizedBox(height: 10),
-                  Wrap(spacing: 8, runSpacing: 4, children: [
-                    if (tel.isNotEmpty) _cTag('Tel', tel),
-                    if (tipo.isNotEmpty) _cTag('Tipo', tipo),
-                    if (numCuotas.isNotEmpty) _cTag('Cuotas', numCuotas),
-                    if (interes.isNotEmpty) _cTag('Interés', '$interes%'),
-                    if (nombreAsesor.isNotEmpty) _cTag('Asesor', nombreAsesor),
-                  ]),
-                  if (email.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(email,
-                        style: const TextStyle(fontSize: 10, color: Color(0xFF8899BB))),
-                  ],
-                  const SizedBox(height: 10),
-                  Container(height: 1, color: cardBorder),
-                  const SizedBox(height: 10),
-                  Row(children: [
+                    const SizedBox(height: 10),
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       const Text('SOLICITADO',
                           style: TextStyle(
@@ -3659,25 +3696,74 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               fontWeight: FontWeight.w800,
                               color: accentColor)),
                     ]),
-                    const Spacer(),
-                    _miniIconBtn(Icons.edit_rounded, homeNavy,
-                        () => _showEditarSolicitudDialog(p)),
-                    const SizedBox(width: 8),
-                    if (tieneAsesor && !rechazado)
-                      _accionBtn(Icons.cancel_outlined, 'Rechazar',
-                          const Color(0xFFDC2626), () => _rechazarSolicitud(p))
-                    else if (rechazado)
-                      _accionBtn(Icons.check_circle_outline_rounded, 'Aprobar',
-                          const Color(0xFF16A34A), () => _aprobarSolicitud(p))
-                    else ...[
-                      _accionBtn(Icons.check_circle_outline_rounded, 'Aprobar',
-                          const Color(0xFF16A34A), () => _aprobarSolicitud(p)),
-                      const SizedBox(width: 8),
-                      _accionBtn(Icons.cancel_outlined, 'Rechazar',
-                          const Color(0xFFDC2626), () => _rechazarSolicitud(p)),
-                    ],
+                    AnimatedCrossFade(
+                      firstChild: const SizedBox.shrink(),
+                      secondChild: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                        const SizedBox(height: 10),
+                        Wrap(spacing: 8, runSpacing: 6, children: [
+                          if (tel.isNotEmpty)
+                            _infoBadge(Icons.phone_outlined, tel),
+                          if (email.isNotEmpty)
+                            _infoBadge(Icons.email_outlined, email),
+                          if (tipo.isNotEmpty || numCuotas.isNotEmpty)
+                            _infoBadge(
+                                Icons.repeat_rounded,
+                                [
+                                  if (numCuotas.isNotEmpty) '$numCuotas cuotas',
+                                  if (tipo.isNotEmpty) tipo,
+                                ].join(' · ')),
+                          if (interes.isNotEmpty)
+                            _infoBadge(Icons.percent_rounded, '$interes%'),
+                          if (nombreAsesor.isNotEmpty)
+                            _infoBadge(Icons.person_outline_rounded, nombreAsesor),
+                        ]),
+                        const SizedBox(height: 10),
+                        Container(height: 1, color: cardBorder),
+                        const SizedBox(height: 10),
+                        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                          _miniIconBtn(Icons.edit_rounded, homeNavy,
+                              () => _showEditarSolicitudDialog(p)),
+                          const SizedBox(width: 8),
+                          if (tieneAsesor && !rechazado)
+                            _accionBtn(Icons.cancel_outlined, 'Rechazar',
+                                const Color(0xFFDC2626), () => _rechazarSolicitud(p))
+                          else if (rechazado)
+                            _accionBtn(Icons.check_circle_outline_rounded, 'Aprobar',
+                                const Color(0xFF16A34A), () => _aprobarSolicitud(p))
+                          else ...[
+                            _accionBtn(Icons.check_circle_outline_rounded, 'Aprobar',
+                                const Color(0xFF16A34A), () => _aprobarSolicitud(p)),
+                            const SizedBox(width: 8),
+                            _accionBtn(Icons.cancel_outlined, 'Rechazar',
+                                const Color(0xFFDC2626), () => _rechazarSolicitud(p)),
+                          ],
+                        ]),
+                      ]),
+                      crossFadeState: expanded
+                          ? CrossFadeState.showSecond
+                          : CrossFadeState.showFirst,
+                      duration: const Duration(milliseconds: 250),
+                    ),
                   ]),
-                ]),
+                ),
+              ),
+            Positioned(
+              left: 0, top: 0, bottom: 0,
+              child: Container(
+                width: 4,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color.lerp(accentColor, Colors.white, 0.22) ?? accentColor,
+                      accentColor,
+                      Color.lerp(accentColor, Colors.black, 0.28) ?? accentColor,
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
               ),
             ),
           ]),
@@ -3736,6 +3822,35 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         (p['codigo_fuente'] ?? p['fuente'] ?? '').toString().trim();
     String? selectedFuente = fuenteRaw.isEmpty ? null : fuenteRaw;
 
+    // Tipo de interés (1=Fijo, 2=Variable)
+    final tipoIntRaw = (p['tipo_interes'] ?? '').toString().trim();
+    String? selectedTipoInt = tipoIntRaw.isNotEmpty ? tipoIntRaw : '1';
+    const tipoIntOpciones = [
+      ('1', 'Interés Fijo'),
+      ('2', 'Interés Variable'),
+    ];
+
+    // Tasa de interés (porcentaje, ej. '6.6')
+    String? selectedTasa = (p['tasa_interes'] ?? p['interes'] ?? '')
+        .toString()
+        .replaceAll('%', '')
+        .trim();
+    if (selectedTasa.isEmpty) selectedTasa = null;
+
+    List<String> tasaOpciones() {
+      if (rates.isNotEmpty) {
+        return rates
+            .map((t) =>
+                (t['tasa'] ?? t['porcentaje'] ?? t['valor'] ?? t['nombre'] ?? '')
+                    .toString()
+                    .replaceAll('%', '')
+                    .trim())
+            .where((t) => t.isNotEmpty)
+            .toList();
+      }
+      return ['0', '8', '10', '15', '17.5', '18', '20'];
+    }
+
     bool saving = false;
     bool listsLoaded = sources.isNotEmpty;
 
@@ -3749,8 +3864,38 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             await Future.wait([
               if (sources.isEmpty) fetchSources(),
               if (advisors.isEmpty) fetchAdvisors(),
+              if (rates.isEmpty) fetchRates(),
             ]);
             if (ctx.mounted) setS(() {});
+          });
+        }
+
+        // ── Proyección de cuotas (recalcula con cada cambio) ──
+        List<Map<String, dynamic>> cuotasProyectadas() {
+          final valor = double.tryParse(
+                  valorCtrl.text.replaceAll('.', '').replaceAll(',', '.')) ??
+              0;
+          final cuotas = int.tryParse(cuotasCtrl.text) ?? 0;
+          if (valor <= 0 || cuotas <= 0) return [];
+          final tasa = double.tryParse(
+                  (selectedTasa ?? '0').replaceAll('%', '').trim()) ??
+              0;
+          final tiempoCod = tiempoMap[selectedTiempo] ?? '1';
+          final diasPorCuota = {
+                '1': 30,
+                '2': 15,
+                '4': 7,
+                '30': 1,
+              }[tiempoCod] ??
+              30;
+          final totalDias = cuotas * diasPorCuota;
+          final tasaDiaria = tasa / 100 / 30;
+          final total = valor + (valor * tasaDiaria * totalDias);
+          final valorCuota = total / cuotas;
+          final hoy = DateTime.now();
+          return List.generate(cuotas, (i) {
+            final fecha = hoy.add(Duration(days: diasPorCuota * (i + 1)));
+            return {'fecha': fecha, 'valor': valorCuota};
           });
         }
 
@@ -3786,6 +3931,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               'valor_solicitado': valorCtrl.text.trim(),
               'tiempo_cuota': tiempoCod,
               'num_cuotas': cuotasCtrl.text.trim(),
+              'tipo_interes': selectedTipoInt ?? '',
+              'tasa_interes': selectedTasa ?? '',
             });
             final ok =
                 r.statusCode == 200 && !r.body.toLowerCase().contains('error');
@@ -3845,7 +3992,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             );
 
         Widget field(String label, TextEditingController ctrl, IconData icon,
-                {TextInputType? kb, bool required = false}) =>
+                {TextInputType? kb,
+                bool required = false,
+                ValueChanged<String>? onChanged}) =>
             Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: TextFormField(
@@ -3853,6 +4002,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   keyboardType: kb,
                   decoration: fieldDeco(label, icon),
                   style: const TextStyle(fontSize: 13, color: homeNavy),
+                  onChanged: onChanged,
                   validator: required
                       ? (v) =>
                           (v == null || v.trim().isEmpty) ? 'Requerido' : null
@@ -3873,6 +4023,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   onChanged: onChange,
                   decoration: fieldDeco(label, icon),
                   dropdownColor: Colors.white,
+                  isExpanded: true,
                   icon: const Icon(Icons.keyboard_arrow_down_rounded,
                       size: 18, color: hintCol),
                   style: const TextStyle(fontSize: 13, color: homeNavy),
@@ -3901,6 +4052,63 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               const SizedBox(width: 10),
               Expanded(child: b)
             ]);
+
+        Widget cuotasTable() {
+          final cuotas = cuotasProyectadas();
+          if (cuotas.isEmpty) return const SizedBox.shrink();
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: borderCol),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(children: [
+              Container(
+                color: indigo,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                child: const Row(children: [
+                  Expanded(
+                      child: Text('Fecha',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12))),
+                  Expanded(
+                      child: Text('Valor',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12))),
+                ]),
+              ),
+              ...List.generate(cuotas.length, (i) {
+                final fecha = cuotas[i]['fecha'] as DateTime;
+                final valor = cuotas[i]['valor'] as double;
+                final fechaStr =
+                    '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}';
+                return Container(
+                  color: i.isOdd ? const Color(0xFFF8F9FC) : Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  child: Row(children: [
+                    Expanded(
+                        child: Text(fechaStr,
+                            style:
+                                const TextStyle(fontSize: 12.5, color: homeNavy))),
+                    Expanded(
+                        child: Text(formatCop(valor),
+                            style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: homeNavy))),
+                  ]),
+                );
+              }),
+            ]),
+          );
+        }
 
         return Dialog(
           backgroundColor: Colors.white,
@@ -4040,7 +4248,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
 
                           field('Valor Solicitado', valorCtrl,
                               Icons.attach_money_rounded,
-                              kb: TextInputType.number, required: true),
+                              kb: TextInputType.number,
+                              required: true,
+                              onChanged: (_) => setS(() {})),
                           rowFields(
                             dropdown<String>(
                                 'Tiempo Cuotas',
@@ -4053,8 +4263,34 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 (v) => setS(() => selectedTiempo = v)),
                             field('N° Cuotas', cuotasCtrl,
                                 Icons.format_list_numbered_rounded,
-                                kb: TextInputType.number),
+                                kb: TextInputType.number,
+                                onChanged: (_) => setS(() {})),
                           ),
+                          rowFields(
+                            dropdown<String>(
+                                'Tipo de Interés',
+                                Icons.percent_rounded,
+                                selectedTipoInt,
+                                tipoIntOpciones
+                                    .map((o) => DropdownMenuItem(
+                                        value: o.$1, child: Text(o.$2)))
+                                    .toList(),
+                                (v) => setS(() => selectedTipoInt = v)),
+                            dropdown<String>(
+                                'Tasa interés',
+                                Icons.percent_rounded,
+                                tasaOpciones().contains(selectedTasa)
+                                    ? selectedTasa
+                                    : null,
+                                tasaOpciones()
+                                    .map((t) => DropdownMenuItem(
+                                        value: t, child: Text('$t%')))
+                                    .toList(),
+                                (v) => setS(() => selectedTasa = v)),
+                          ),
+
+                          sectionLabel('Proyección de cuotas'),
+                          cuotasTable(),
 
                           const SizedBox(height: 16),
                           // ── Botones ──
@@ -5839,20 +6075,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               size: 20),
         ),
       );
-
-  Widget _cTag(String label, String value) => RichText(
-          text: TextSpan(
-        style: const TextStyle(fontSize: 11),
-        children: [
-          TextSpan(
-              text: '$label: ',
-              style: const TextStyle(color: Color(0xFF8899BB))),
-          TextSpan(
-              text: value,
-              style: const TextStyle(
-                  color: Color(0xFF0D1B4B), fontWeight: FontWeight.w600)),
-        ],
-      ));
 
   Widget buildSaverCard(Map<String, dynamic> a) => ExpandableSaverCard(
       data: a,
