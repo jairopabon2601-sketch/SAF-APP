@@ -3418,6 +3418,33 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 fontSize: 11, fontWeight: FontWeight.w800, color: color)),
       ]));
 
+  // Chip con gradiente (usado en las cards de Pendientes/Rechazadas)
+  Widget _infoBadgeGrad(IconData icon, String text, Color color) {
+    return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              color.withValues(alpha: 0.05),
+              color.withValues(alpha: 0.16),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.22), width: 1),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 11, color: color.withValues(alpha: 0.85)),
+          const SizedBox(width: 5),
+          Text(text,
+              style: const TextStyle(
+                  fontSize: 10,
+                  color: homeNavy,
+                  fontWeight: FontWeight.w700)),
+        ]));
+  }
+
   Widget _infoBadge(IconData icon, String text) {
     const color = Color(0xFF4361EE);
     return Container(
@@ -3704,20 +3731,25 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         const SizedBox(height: 10),
                         Wrap(spacing: 8, runSpacing: 6, children: [
                           if (tel.isNotEmpty)
-                            _infoBadge(Icons.phone_outlined, tel),
+                            _infoBadgeGrad(Icons.phone_outlined, tel,
+                                const Color(0xFF3B82F6)),
                           if (email.isNotEmpty)
-                            _infoBadge(Icons.email_outlined, email),
+                            _infoBadgeGrad(Icons.email_outlined, email,
+                                const Color(0xFF8B5CF6)),
                           if (tipo.isNotEmpty || numCuotas.isNotEmpty)
-                            _infoBadge(
+                            _infoBadgeGrad(
                                 Icons.repeat_rounded,
                                 [
                                   if (numCuotas.isNotEmpty) '$numCuotas cuotas',
                                   if (tipo.isNotEmpty) tipo,
-                                ].join(' · ')),
+                                ].join(' · '),
+                                const Color(0xFF14B8A6)),
                           if (interes.isNotEmpty)
-                            _infoBadge(Icons.percent_rounded, '$interes%'),
+                            _infoBadgeGrad(Icons.percent_rounded, '$interes%',
+                                const Color(0xFFF59E0B)),
                           if (nombreAsesor.isNotEmpty)
-                            _infoBadge(Icons.person_outline_rounded, nombreAsesor),
+                            _infoBadgeGrad(Icons.person_outline_rounded,
+                                nombreAsesor, const Color(0xFF16A34A)),
                         ]),
                         const SizedBox(height: 10),
                         Container(height: 1, color: cardBorder),
