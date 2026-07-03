@@ -838,7 +838,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           else if (pendientesActivas.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: buildEmptyActivity(),
+              child: buildEmptyActivity(
+                title: 'Sin solicitudes pendientes',
+                subtitle: 'No hay solicitudes registradas',
+                icon: Icons.schedule_rounded,
+                accent: const Color(0xFFF59E0B),
+              ),
             )
           else
             Padding(
@@ -1112,7 +1117,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         else if (solicitudesRechazadas.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: buildEmptyActivity(),
+            child: buildEmptyActivity(
+              title: 'Sin solicitudes rechazadas',
+              subtitle: 'No hay solicitudes rechazadas registradas',
+              icon: Icons.cancel_outlined,
+              accent: const Color(0xFFDC2626),
+            ),
           )
         else
           Padding(
