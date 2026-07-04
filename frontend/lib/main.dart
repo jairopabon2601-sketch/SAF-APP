@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
+import 'screens/home/home_constants.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/api_service.dart';
@@ -12,6 +13,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiService().init();
+  await loadThemePreference();
 
   final prefs = await SharedPreferences.getInstance();
   final onboardingDone = prefs.getBool('onboarding_done') ?? false;
@@ -75,7 +77,7 @@ class _SafAppState extends State<SafApp> with WidgetsBindingObserver {
       context: ctx,
       barrierDismissible: false,
       builder: (_) => Dialog(
-        backgroundColor: Colors.white,
+        backgroundColor: dialogBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -98,20 +100,20 @@ class _SafAppState extends State<SafApp> with WidgetsBindingObserver {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Sesión cerrada por inactividad',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0D1B4B),
+                  color: textMain,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Estuviste más de 5 minutos inactivo. Por favor inicia sesión nuevamente.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                style: TextStyle(fontSize: 13, color: textSoft),
               ),
               const SizedBox(height: 22),
               GestureDetector(
@@ -156,36 +158,53 @@ class _SafAppState extends State<SafApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      title: 'SAF',
-      debugShowCheckedModeBanner: false,
-      theme: _buildTheme(),
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [Locale('es'), Locale('en')],
-      locale: const Locale('es'),
-      initialRoute: widget.initialRoute,
-      routes: {
-        '/onboarding': (_) => const OnboardingScreen(),
-        '/login': (_) => const LoginScreen(),
-        '/home': (_) => const HomeScreen(),
-      },
+    return ValueListenableBuilder<bool>(
+      valueListenable: appThemeDark,
+      builder: (_, dark, __) => MaterialApp(
+        navigatorKey: navigatorKey,
+        title: 'SAF',
+        debugShowCheckedModeBanner: false,
+        theme: _buildTheme(false),
+        darkTheme: _buildTheme(true),
+        themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('es'), Locale('en')],
+        locale: const Locale('es'),
+        initialRoute: widget.initialRoute,
+        routes: {
+          '/onboarding': (_) => const OnboardingScreen(),
+          '/login': (_) => const LoginScreen(),
+          '/home': (_) => const HomeScreen(),
+        },
+      ),
     );
   }
 
-  ThemeData _buildTheme() {
+  ThemeData _buildTheme(bool dark) {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF6C63FF),
+      brightness: dark ? Brightness.dark : Brightness.light,
+    ).copyWith(
+      surface: dark ? const Color(0xFF10162F) : Colors.white,
+      onSurface: dark ? const Color(0xFFE9EDFF) : const Color(0xFF0D1B4B),
+    );
+
     return ThemeData(
       useMaterial3: true,
       fontFamily: 'SF Pro Display',
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF6C63FF),
-        brightness: Brightness.dark,
+      brightness: dark ? Brightness.dark : Brightness.light,
+      colorScheme: scheme,
+      scaffoldBackgroundColor:
+          dark ? const Color(0xFF070A1C) : const Color(0xFFF0F2FA),
+      cardColor: dark ? const Color(0xFF10162F) : Colors.white,
+      canvasColor: dark ? const Color(0xFF070A1C) : const Color(0xFFF0F2FA),
+      dialogTheme: DialogThemeData(
+        backgroundColor: dark ? const Color(0xFF121838) : Colors.white,
       ),
-      scaffoldBackgroundColor: const Color(0xFF060818),
     );
   }
 }

@@ -51,7 +51,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             children: [
               _dashboardSectionHeader(
                 icon: Icons.insights_rounded,
-                title: 'Resumen del mes',
+                title: 'Resumen general',
                 subtitle: 'Indicadores financieros consolidados',
                 gradient: const [Color(0xFF10B981), Color(0xFF059669)],
               ),
@@ -581,9 +581,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       builder: (_, animRatio, __) => Container(
         padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEEF0F8)),
+          border: Border.all(color: lineCol),
           boxShadow: [
             BoxShadow(
               color: statusColor.withValues(alpha: 0.07),
@@ -616,10 +616,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                       color: statusColor)),
               const Spacer(),
               Text('${(ratio * 100).toStringAsFixed(0)}% al día',
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF8899BB))),
+                      color: textSoft)),
             ]),
             const SizedBox(height: 8),
             ClipRRect(
@@ -667,10 +667,18 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
         : '?';
 
     final accent = isMora ? const Color(0xFFEF4444) : const Color(0xFF059669);
-    final lightBg =
-        isMora ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4);
-    final borderColor =
-        isMora ? const Color(0xFFFECACA) : const Color(0xFFBBF7D0);
+    final cardGradient = isDarkTheme
+        ? [
+            Color.lerp(cardBg, accent, isMora ? 0.12 : 0.10)!,
+            const Color(0xFF111832),
+          ]
+        : [
+            isMora ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
+            Colors.white,
+          ];
+    final borderColor = isDarkTheme
+        ? accent.withValues(alpha: isMora ? 0.38 : 0.30)
+        : (isMora ? const Color(0xFFFECACA) : const Color(0xFFBBF7D0));
     final avatarGrad = isMora
         ? [const Color(0xFFFF6B6B), const Color(0xFFEF4444)]
         : [const Color(0xFF34D399), const Color(0xFF059669)];
@@ -704,7 +712,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [lightBg, Colors.white],
+            colors: cardGradient,
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
@@ -712,10 +720,18 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           border: Border.all(color: borderColor, width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: accent.withValues(alpha: 0.12),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+              color: isDarkTheme
+                  ? Colors.black.withValues(alpha: 0.30)
+                  : accent.withValues(alpha: 0.12),
+              blurRadius: isDarkTheme ? 18 : 14,
+              offset: const Offset(0, 5),
             ),
+            if (isDarkTheme)
+              BoxShadow(
+                color: accent.withValues(alpha: 0.12),
+                blurRadius: 12,
+                offset: const Offset(0, 1),
+              ),
           ],
         ),
         child: IntrinsicHeight(
@@ -781,10 +797,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                           Text(nombre,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 13.5,
-                                  color: homeNavy,
+                                  color: textMain,
                                   letterSpacing: -0.2)),
                           const SizedBox(height: 5),
                           Container(
@@ -830,15 +846,15 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(formatCop(monto),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 13,
-                                color: homeNavy,
+                                color: textMain,
                                 letterSpacing: -0.5)),
                         const SizedBox(height: 2),
-                        const Text('ahorrado',
+                        Text('ahorrado',
                             style: TextStyle(
-                                fontSize: 10, color: Color(0xFF8899BB))),
+                                fontSize: 10, color: textSoft)),
                       ],
                     ),
                   ]),
@@ -879,19 +895,36 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFF5F3FF), Colors.white],
+          gradient: LinearGradient(
+            colors: isDarkTheme
+                ? [
+                    Color.lerp(cardBg, homeAccent, 0.12)!,
+                    const Color(0xFF111832),
+                  ]
+                : const [Color(0xFFF5F3FF), Colors.white],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE0E7FF), width: 1.2),
+          border: Border.all(
+              color: isDarkTheme
+                  ? homeAccent.withValues(alpha: 0.32)
+                  : const Color(0xFFE0E7FF),
+              width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: homeAccent.withValues(alpha: 0.09),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+              color: isDarkTheme
+                  ? Colors.black.withValues(alpha: 0.30)
+                  : homeAccent.withValues(alpha: 0.09),
+              blurRadius: isDarkTheme ? 18 : 14,
+              offset: const Offset(0, 5),
             ),
+            if (isDarkTheme)
+              BoxShadow(
+                color: homeAccent.withValues(alpha: 0.10),
+                blurRadius: 12,
+                offset: const Offset(0, 1),
+              ),
           ],
         ),
         child: IntrinsicHeight(
@@ -954,10 +987,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                           Text(nombre,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontWeight: FontWeight.w800,
                                   fontSize: 13.5,
-                                  color: homeNavy,
+                                  color: textMain,
                                   letterSpacing: -0.2)),
                           const SizedBox(height: 5),
                           Container(
@@ -997,9 +1030,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                 color: Color(0xFF059669),
                                 letterSpacing: -0.5)),
                         const SizedBox(height: 2),
-                        const Text('pagado',
+                        Text('pagado',
                             style: TextStyle(
-                                fontSize: 10, color: Color(0xFF8899BB))),
+                                fontSize: 10, color: textSoft)),
                       ],
                     ),
                   ]),
@@ -1426,9 +1459,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       builder: (_, animRatio, __) => Container(
         padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEEF0F8)),
+          border: Border.all(color: lineCol),
           boxShadow: [
             BoxShadow(
               color: statusColor.withValues(alpha: 0.07),
@@ -1458,10 +1491,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                     color: statusColor)),
             const Spacer(),
             Text(formatCop(total),
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF8899BB))),
+                    color: textSoft)),
           ]),
           const SizedBox(height: 8),
           ClipRRect(
@@ -1535,7 +1568,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     final statusColor = !activo
         ? const Color(0xFF059669)
         : vencido ? const Color(0xFFDC2626) : const Color(0xFF4361EE);
-    final statusBg = statusColor.withValues(alpha: 0.10);
+    final statusBg = statusColor.withValues(alpha: isDarkTheme ? 0.18 : 0.10);
     final statusLabel = !activo ? 'Pagado' : vencido ? 'Vencido' : 'Activo';
     final statusIcon = !activo
         ? Icons.check_circle_rounded
@@ -1555,7 +1588,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardBg,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: grad[0].withValues(alpha: 0.18), width: 1.2),
           boxShadow: [
@@ -1629,10 +1662,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                               Text(cliente,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 13.5,
-                                      color: homeNavy,
+                                      color: textMain,
                                       letterSpacing: -0.2)),
                               const SizedBox(height: 3),
                               Row(children: [
@@ -1653,13 +1686,13 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                   const SizedBox(width: 6),
                                 ],
                                 if (numCuotas.isNotEmpty && numCuotas != '0') ...[
-                                  const Icon(Icons.repeat_rounded,
-                                      size: 10, color: Color(0xFFB0BACC)),
+                                  Icon(Icons.repeat_rounded,
+                                      size: 10, color: textSoft),
                                   const SizedBox(width: 3),
                                   Text('$numCuotas cuotas',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           fontSize: 10,
-                                          color: Color(0xFF8899BB),
+                                          color: textSoft,
                                           fontWeight: FontWeight.w500)),
                                 ],
                               ]),
@@ -1731,12 +1764,12 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                       fontSize: 14.5,
                                       color: pendiente > 0 && vencido
                                           ? const Color(0xFFDC2626)
-                                          : homeNavy,
+                                          : textMain,
                                       letterSpacing: -0.5)),
                               Text('saldo pendiente',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontSize: 9.5,
-                                      color: Color(0xFF8899BB),
+                                      color: textSoft,
                                       fontWeight: FontWeight.w500)),
                             ],
                           ),
@@ -1746,9 +1779,19 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                   horizontal: 9, vertical: 5),
                               decoration: BoxDecoration(
                                 color: vencido
-                                    ? const Color(0xFFFEE2E2)
-                                    : const Color(0xFFF0F2FA),
+                                    ? (isDarkTheme
+                                        ? const Color(0xFF4A1620)
+                                        : const Color(0xFFFEE2E2))
+                                    : (isDarkTheme
+                                        ? inputFill
+                                        : const Color(0xFFF0F2FA)),
                                 borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: vencido
+                                      ? const Color(0xFFDC2626).withValues(
+                                          alpha: isDarkTheme ? 0.35 : 0.12)
+                                      : lineCol,
+                                ),
                               ),
                               child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -1756,16 +1799,22 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                     Icon(Icons.calendar_month_rounded,
                                         size: 11,
                                         color: vencido
-                                            ? const Color(0xFFDC2626)
-                                            : const Color(0xFF8899BB)),
+                                            ? (isDarkTheme
+                                                ? const Color(0xFFFCA5A5)
+                                                : const Color(0xFFDC2626))
+                                            : textSoft),
                                     const SizedBox(width: 4),
                                     Text(proxStr,
                                         style: TextStyle(
                                             fontSize: 10.5,
                                             fontWeight: FontWeight.w700,
                                             color: vencido
-                                                ? const Color(0xFFDC2626)
-                                                : const Color(0xFF5A6A8A))),
+                                                ? (isDarkTheme
+                                                    ? const Color(0xFFFCA5A5)
+                                                    : const Color(0xFFDC2626))
+                                                : (isDarkTheme
+                                                    ? textMain
+                                                    : const Color(0xFF5A6A8A)))),
                                   ]),
                             ),
                           if (valorPrestamo > 0)
@@ -1773,15 +1822,15 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(formatCop(valorPrestamo),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 11.5,
-                                        color: Color(0xFF8899BB),
+                                        color: textSoft,
                                         letterSpacing: -0.3)),
-                                const Text('valor crédito',
+                                Text('valor crédito',
                                     style: TextStyle(
                                         fontSize: 9.5,
-                                        color: Color(0xFFB0BACC),
+                                        color: textSoft,
                                         fontWeight: FontWeight.w500)),
                               ],
                             ),
@@ -1828,9 +1877,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardBg,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFEEF2FF), width: 1.2),
+          border: Border.all(color: lineCol, width: 1.2),
           boxShadow: [
             BoxShadow(
               color: accentColor.withValues(alpha: 0.08),
@@ -1897,10 +1946,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                           Text(desc,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13,
-                                  color: homeNavy,
+                                  color: textMain,
                                   letterSpacing: -0.2)),
                           const SizedBox(height: 4),
                           Row(children: [
@@ -1917,9 +1966,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                 child: Text(cuenta,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontSize: 10.5,
-                                        color: Color(0xFF8899BB),
+                                        color: textSoft,
                                         fontWeight: FontWeight.w500)),
                               ),
                               const SizedBox(width: 8),
@@ -1994,9 +2043,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       builder: (_, animRatio, __) => Container(
         padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFEEF0F8)),
+          border: Border.all(color: lineCol),
           boxShadow: [
             BoxShadow(
               color: statusColor.withValues(alpha: 0.07),
@@ -2035,10 +2084,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                 const Spacer(),
                 Text(
                   '${(ratio * 100).toStringAsFixed(0)}% ingresos',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF8899BB),
+                    color: textSoft,
                   ),
                 ),
               ],
@@ -2094,9 +2143,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           const SizedBox(width: 5),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 9.5,
-              color: Color(0xFF8899BB),
+              color: textSoft,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -2162,9 +2211,16 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               colors: gradColors,
               stops: const [0.0, 0.38, 0.72, 1.0],
             ),
+            // En oscuro la card se funde con el fondo: borde + glow más fuertes
+            border: isDarkTheme
+                ? Border.all(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.55),
+                    width: 1.4)
+                : null,
             boxShadow: [
               BoxShadow(
-                color: glowColor.withValues(alpha: 0.38 + 0.18 * shimmer.value),
+                color: glowColor.withValues(
+                    alpha: (isDarkTheme ? 0.55 : 0.38) + 0.18 * shimmer.value),
                 blurRadius: 28 + 14 * shimmer.value,
                 offset: const Offset(0, 12),
               ),
@@ -2550,8 +2606,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: homeNavy,
+                style: TextStyle(
+                  color: textMain,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.2,
@@ -2560,8 +2616,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  color: Color(0xFF8899BB),
+                style: TextStyle(
+                  color: textSoft,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w500,
                 ),
@@ -2905,11 +2961,17 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           width: 154,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                Color.lerp(color, Colors.white, 0.72)!,
-                Color.lerp(color, Colors.white, 0.42)!,
-                Color.lerp(color, Colors.white, 0.18)!,
-              ],
+              colors: isDarkTheme
+                  ? [
+                      Color.lerp(color, Colors.black, 0.42)!,
+                      Color.lerp(color, Colors.black, 0.60)!,
+                      Color.lerp(color, Colors.black, 0.74)!,
+                    ]
+                  : [
+                      Color.lerp(color, Colors.white, 0.72)!,
+                      Color.lerp(color, Colors.white, 0.42)!,
+                      Color.lerp(color, Colors.white, 0.18)!,
+                    ],
               stops: const [0.0, 0.55, 1.0],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -3030,7 +3092,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                               saldo >= 0 ? 'Activa' : 'Revisar',
                               style: TextStyle(
                                 color: saldo >= 0
-                                    ? color
+                                    ? (isDarkTheme
+                                        ? Color.lerp(
+                                            color, Colors.white, 0.55)!
+                                        : color)
                                     : const Color(0xFFDC2626),
                                 fontSize: 8.5,
                                 fontWeight: FontWeight.w700,
@@ -3046,7 +3111,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                           style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
-                              color: cDark)),
+                              color: isDarkTheme
+                                  ? Color.lerp(color, Colors.white, 0.62)!
+                                  : cDark)),
                       const SizedBox(height: 4),
                       FittedBox(
                         fit: BoxFit.scaleDown,
@@ -3056,8 +3123,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                 fontSize: 16,
                                 fontWeight: FontWeight.w900,
                                 color: saldo >= 0
-                                    ? homeNavy
-                                    : const Color(0xFFDC2626))),
+                                    ? (isDarkTheme ? Colors.white : textMain)
+                                    : (isDarkTheme
+                                        ? const Color(0xFFF87171)
+                                        : const Color(0xFFDC2626)))),
                       ),
                     ]),
               ),
@@ -3079,9 +3148,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(22, 26, 22, 26),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFEAF0FB)),
+          border: Border.all(color: lineCol),
           boxShadow: [
             BoxShadow(
                 color: homeNavy.withValues(alpha: 0.06),
@@ -3110,15 +3179,15 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             ),
             const SizedBox(height: 12),
             Text(title,
-                style: const TextStyle(
-                    color: Color(0xFF24345F),
+                style: TextStyle(
+                    color: textMain,
                     fontWeight: FontWeight.w800,
                     fontSize: 15)),
             const SizedBox(height: 4),
             Text(subtitle,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: const Color(0xFF8899BB).withValues(alpha: 0.8),
+                    color: textSoft.withValues(alpha: 0.8),
                     fontSize: 12)),
             if (badge != null) ...[
               const SizedBox(height: 14),
@@ -3161,7 +3230,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                     color: Colors.white.withValues(alpha: 0.72),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: const Color(0xFFE2E8F0).withValues(alpha: 0.65),
+                      color: lineCol.withValues(alpha: 0.65),
                     ),
                   ),
                   child: Column(
@@ -3187,7 +3256,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                       const SizedBox(height: 12),
                       Divider(
                         height: 1,
-                        color: const Color(0xFFE2E8F0).withValues(alpha: 0.55),
+                        color: lineCol.withValues(alpha: 0.55),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -3214,8 +3283,11 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           AnimatedBuilder(
             animation: shimmer,
             builder: (_, __) {
-              final c = Color.lerp(const Color(0xFFCED7EE),
-                  const Color(0xFFDDE5F5), shimmer.value)!;
+              final c = isDarkTheme
+                  ? Color.lerp(const Color(0xFF1B2348),
+                      const Color(0xFF232C58), shimmer.value)!
+                  : Color.lerp(const Color(0xFFCED7EE),
+                      const Color(0xFFDDE5F5), shimmer.value)!;
               return Container(
                 margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 height: 190,

@@ -16,7 +16,7 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
               const SizedBox(height: 16),
               Text('Cargando datos...',
                   style: TextStyle(
-                      color: const Color(0xFF8899BB).withValues(alpha: 0.8),
+                      color: textSoft.withValues(alpha: 0.8),
                       fontSize: 13)),
             ],
           ),
@@ -212,7 +212,7 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       child: Container(
-        color: Colors.white,
+        color: cardBg,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -668,7 +668,7 @@ class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
           insetPadding: const EdgeInsets.symmetric(horizontal: 28),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -731,9 +731,9 @@ class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
                   Text(
                     'Se cerrará tu sesión activa y tendrás que\nvolver a iniciar sesión para continuar.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF8899BB),
+                        color: textSoft,
                         height: 1.6),
                   ),
                   const SizedBox(height: 22),
@@ -778,8 +778,8 @@ class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF8899BB),
                       minimumSize: const Size(double.infinity, 46),
-                      side: const BorderSide(
-                          color: Color(0xFFE2E8F0), width: 1.5),
+                      side: BorderSide(
+                          color: lineCol, width: 1.5),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
                     ),

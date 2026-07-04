@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../repositories/home_repository.dart';
+import '../screens/home/home_constants.dart';
 
 /// Estado compartido por las secciones de la pantalla principal.
 ///
@@ -122,8 +123,11 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
   Widget skelBox(double w, double h, {double r = 10}) => AnimatedBuilder(
         animation: shimmer,
         builder: (_, __) {
-          final c = Color.lerp(
-              const Color(0xFFCED7EE), const Color(0xFFDDE5F5), shimmer.value)!;
+          final c = isDarkTheme
+              ? Color.lerp(const Color(0xFF1B2348), const Color(0xFF232C58),
+                  shimmer.value)!
+              : Color.lerp(const Color(0xFFCED7EE), const Color(0xFFDDE5F5),
+                  shimmer.value)!;
           return Container(
             width: w == double.infinity ? null : w,
             height: h,

@@ -305,7 +305,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
           }).length;
 
           return Dialog.fullscreen(
-            backgroundColor: const Color(0xFFF0F3FC),
+            backgroundColor: appBg,
             child: SafeArea(
               child: Column(
                 children: [
@@ -327,7 +327,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                       Expanded(
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: cardBg,
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
@@ -336,11 +336,11 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                                 offset: const Offset(0, 4),
                               ),
                             ],
-                            border: Border.all(color: const Color(0xFFE2E8F4)),
+                            border: Border.all(color: lineCol),
                           ),
                           child: TextField(
                             onChanged: (v) => setS(() => query = v.trim()),
-                            style: const TextStyle(color: homeNavy, fontSize: 14),
+                            style: TextStyle(color: textMain, fontSize: 14),
                             decoration: InputDecoration(
                               hintText: 'Buscar usuario, perfil o estado',
                               hintStyle: const TextStyle(color: Color(0xFFB0BBCC), fontSize: 13),
@@ -360,7 +360,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                               suffixIcon: query.isNotEmpty
                                   ? GestureDetector(
                                       onTap: () => setS(() => query = ''),
-                                      child: const Icon(Icons.close_rounded, color: Color(0xFF8899BB), size: 18),
+                                      child: Icon(Icons.close_rounded, color: textSoft, size: 18),
                                     )
                                   : null,
                               border: InputBorder.none,
@@ -392,9 +392,9 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                           query.isEmpty
                               ? '${usuarios.length} usuarios registrados'
                               : '${filtrados.length} de ${usuarios.length} resultados',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11.5,
-                            color: Color(0xFF8899BB),
+                            color: textSoft,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -594,30 +594,30 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
           child: Container(
             height: 72,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFEEF0F8)),
+              border: Border.all(color: lineCol),
             ),
             child: Row(children: [
               Container(
                 width: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F4),
+                  color: lineCol,
                   borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), bottomLeft: Radius.circular(16)),
                 ),
               ),
               const SizedBox(width: 12),
-              Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFEEF0F8), borderRadius: BorderRadius.circular(12))),
+              Container(width: 44, height: 44, decoration: BoxDecoration(color: inputFill, borderRadius: BorderRadius.circular(12))),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-                Container(height: 12, width: double.infinity, decoration: BoxDecoration(color: const Color(0xFFEEF0F8), borderRadius: BorderRadius.circular(6))),
+                Container(height: 12, width: double.infinity, decoration: BoxDecoration(color: inputFill, borderRadius: BorderRadius.circular(6))),
                 const SizedBox(height: 8),
-                Container(height: 9, width: 180, decoration: BoxDecoration(color: const Color(0xFFF3F4F8), borderRadius: BorderRadius.circular(5))),
+                Container(height: 9, width: 180, decoration: BoxDecoration(color: inputFill, borderRadius: BorderRadius.circular(5))),
               ])),
               Container(
                 margin: const EdgeInsets.only(right: 12),
                 width: 34, height: 34,
-                decoration: BoxDecoration(color: const Color(0xFFEEF0F8), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(color: inputFill, borderRadius: BorderRadius.circular(10)),
               ),
             ]),
           ),
@@ -639,9 +639,9 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
           child: const Icon(Icons.cloud_off_rounded, size: 34, color: Color(0xFFDC2626)),
         ),
         const SizedBox(height: 16),
-        const Text('Error de conexión', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: homeNavy)),
+        Text('Error de conexión', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: textMain)),
         const SizedBox(height: 6),
-        Text(error, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+        Text(error, textAlign: TextAlign.center, style: TextStyle(color: textSoft, fontSize: 12)),
         const SizedBox(height: 20),
         GestureDetector(
           onTap: onRetry,
@@ -679,13 +679,13 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
         const SizedBox(height: 16),
         Text(
           isSearch ? 'Sin resultados' : 'Sin usuarios',
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: homeNavy),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: textMain),
         ),
         const SizedBox(height: 6),
         Text(
           isSearch ? 'Intenta con otro término de búsqueda' : 'Aún no hay usuarios registrados',
           textAlign: TextAlign.center,
-          style: const TextStyle(color: Color(0xFF8899BB), fontSize: 12),
+          style: TextStyle(color: textSoft, fontSize: 12),
         ),
       ]),
     ),
@@ -788,7 +788,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
           // ─── helpers ───────────────────────────────────────────────────
           InputDecoration fieldDeco(String hint, IconData icon, {bool active = false}) => InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Color(0xFF8E9BBA), fontSize: 14, fontWeight: FontWeight.w500),
+            hintStyle: TextStyle(color: textSoft, fontSize: 14, fontWeight: FontWeight.w500),
             prefixIcon: Container(
               margin: const EdgeInsets.all(9),
               width: 34, height: 34,
@@ -798,21 +798,21 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                         colors: [Color(0xFF4361EE), Color(0xFF00D2FF)],
                         begin: Alignment.topLeft, end: Alignment.bottomRight)
                     : null,
-                color: active ? null : const Color(0xFFE7ECFB),
+                color: active ? null : inputFill,
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: active
                     ? [BoxShadow(color: homeAccent.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 3))]
                     : null,
               ),
-              child: Icon(icon, color: active ? Colors.white : const Color(0xFF7E8DB8), size: 17),
+              child: Icon(icon, color: active ? Colors.white : textSoft, size: 17),
             ),
             filled: true,
-            fillColor: active ? Colors.white : const Color(0xFFF5F7FB),
+            fillColor: active ? cardBgAlt : inputFill,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFDCE3F2))),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: lineCol)),
             enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: active ? homeAccent.withValues(alpha: 0.45) : const Color(0xFFDCE3F2), width: active ? 1.4 : 1)),
+                borderSide: BorderSide(color: active ? homeAccent.withValues(alpha: 0.45) : lineCol, width: active ? 1.4 : 1)),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: homeAccent, width: 1.8)),
           );
 
@@ -824,9 +824,9 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                 borderRadius: BorderRadius.circular(2),
               )),
               const SizedBox(width: 8),
-              Icon(icon, size: 13, color: const Color(0xFF8899BB)),
+              Icon(icon, size: 13, color: textSoft),
               const SizedBox(width: 5),
-              Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF8899BB), letterSpacing: 0.3)),
+              Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: textSoft, letterSpacing: 0.3)),
             ]),
           );
 
@@ -844,7 +844,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                     insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: cardBg,
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [BoxShadow(color: homeAccent.withValues(alpha: 0.15), blurRadius: 32, offset: const Offset(0, 12))],
                       ),
@@ -864,10 +864,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                             const SizedBox(width: 11),
                             const Expanded(child: Text('Seleccionar Usuario',
                                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15))),
-                            GestureDetector(onTap: () => Navigator.pop(dCtx),
-                              child: Container(width: 32, height: 32,
-                                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(9)),
-                                child: const Icon(Icons.close_rounded, color: Colors.white70, size: 17))),
+                            appCloseX(() => Navigator.pop(dCtx)),
                           ]),
                         ),
                         Padding(
@@ -881,7 +878,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                               prefixIcon: Container(margin: const EdgeInsets.all(8), width: 30, height: 30,
                                 decoration: BoxDecoration(gradient: const LinearGradient(colors: [homeAccent, homeCyan]), borderRadius: BorderRadius.circular(8)),
                                 child: const Icon(Icons.search_rounded, color: Colors.white, size: 15)),
-                              filled: true, fillColor: const Color(0xFFF5F7FB),
+                              filled: true, fillColor: inputFill,
                               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
                               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
@@ -907,7 +904,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                                 decoration: BoxDecoration(
                                   color: isSel ? homeAccent.withValues(alpha: 0.07) : null,
-                                  border: Border(bottom: BorderSide(color: const Color(0xFFEEF0F8), width: i < filtered.length - 1 ? 1 : 0)),
+                                  border: Border(bottom: BorderSide(color: lineCol, width: i < filtered.length - 1 ? 1 : 0)),
                                 ),
                                 child: Row(children: [
                                   Container(width: 32, height: 32,
@@ -916,9 +913,9 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                                       color: isSel ? null : const Color(0xFFEEF0F8),
                                       borderRadius: BorderRadius.circular(9),
                                     ),
-                                    child: Icon(Icons.person_rounded, size: 16, color: isSel ? Colors.white : const Color(0xFF8899BB))),
+                                    child: Icon(Icons.person_rounded, size: 16, color: isSel ? Colors.white : textSoft)),
                                   const SizedBox(width: 10),
-                                  Expanded(child: Text(nom, style: TextStyle(fontSize: 13, color: isSel ? homeAccent : const Color(0xFF374151), fontWeight: isSel ? FontWeight.w700 : FontWeight.w500))),
+                                  Expanded(child: Text(nom, style: TextStyle(fontSize: 13, color: isSel ? homeAccent : textMid, fontWeight: isSel ? FontWeight.w700 : FontWeight.w500))),
                                   if (isSel) const Icon(Icons.check_circle_rounded, size: 17, color: homeAccent),
                                 ]),
                               ),
@@ -936,7 +933,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FB),
+                color: inputFill,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: origen.isNotEmpty ? homeAccent.withValues(alpha: 0.5) : const Color(0xFFE0E7FF), width: origen.isNotEmpty ? 1.5 : 1),
               ),
@@ -957,13 +954,13 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                   style: TextStyle(
                       fontSize: 14,
                       fontWeight: origen.isNotEmpty ? FontWeight.w600 : FontWeight.w500,
-                      color: origen.isNotEmpty && !loadingOrigenes ? homeNavy : const Color(0xFF8E9BBA)),
+                      color: origen.isNotEmpty && !loadingOrigenes ? textMain : textSoft),
                 )),
                 if (loadingOrigenes)
                   const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: homeAccent))
                 else
                   Icon(Icons.keyboard_arrow_down_rounded, size: 20,
-                      color: origen.isNotEmpty ? homeAccent : const Color(0xFFB0BCCF)),
+                      color: origen.isNotEmpty ? homeAccent : textSoft),
               ]),
             ),
           );
@@ -975,7 +972,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
             child: Container(
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(color: homeAccent.withValues(alpha: 0.18), blurRadius: 40, offset: const Offset(0, 16)),
@@ -1035,12 +1032,12 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                 ),
                 // ── CONTENT ──────────────────────────────────────
                 if (loadingData)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(vertical: 44),
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                       CircularProgressIndicator(color: homeAccent),
                       SizedBox(height: 14),
-                      Text('Cargando datos...', style: TextStyle(color: Color(0xFF8899BB), fontSize: 13)),
+                      Text('Cargando datos...', style: TextStyle(color: textSoft, fontSize: 13)),
                     ]),
                   )
                 else if (loadError.isNotEmpty)
@@ -1051,12 +1048,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                       const SizedBox(height: 10),
                       Text(loadError, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13)),
                       const SizedBox(height: 16),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(ctx, false),
-                        child: Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                          decoration: BoxDecoration(color: const Color(0xFFEEF2FF), borderRadius: BorderRadius.circular(10)),
-                          child: const Text('Cerrar', style: TextStyle(color: homeAccent, fontWeight: FontWeight.w700))),
-                      ),
+                      appCancelButton('Cerrar', () => Navigator.pop(ctx, false)),
                     ]),
                   )
                 else
@@ -1067,7 +1059,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                       TextField(
                         controller: emailCtrl,
                         keyboardType: TextInputType.emailAddress,
-                        style: const TextStyle(color: homeNavy, fontSize: 14, fontWeight: FontWeight.w600),
+                        style: TextStyle(color: textMain, fontSize: 14, fontWeight: FontWeight.w600),
                         decoration: fieldDeco('Email usuario', Icons.alternate_email_rounded, active: emailCtrl.text.isNotEmpty),
                       ),
                       const SizedBox(height: 16),
@@ -1075,16 +1067,16 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                       DropdownButtonFormField<String>(
                         initialValue: perfil.isEmpty ? null : perfil,
                         isExpanded: true,
-                        dropdownColor: Colors.white,
+                        dropdownColor: dialogBg,
                         borderRadius: BorderRadius.circular(14),
-                        style: const TextStyle(color: homeNavy, fontSize: 14, fontWeight: FontWeight.w600),
+                        style: TextStyle(color: textMain, fontSize: 14, fontWeight: FontWeight.w600),
                         icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF7E8DB8)),
                         hint: const Text('Seleccione un perfil',
                             style: TextStyle(color: Color(0xFF8E9BBA), fontSize: 14, fontWeight: FontWeight.w500)),
                         decoration: fieldDeco('Seleccione un perfil', Icons.shield_outlined, active: perfil.isNotEmpty),
                         items: perfiles.map((item) => DropdownMenuItem(
                           value: (item['codigo'] ?? '').toString(),
-                          child: Text((item['nombre'] ?? '').toString(), overflow: TextOverflow.ellipsis, style: const TextStyle(color: homeNavy)),
+                          child: Text((item['nombre'] ?? '').toString(), overflow: TextOverflow.ellipsis, style: TextStyle(color: textMain)),
                         )).toList(),
                         onChanged: saving ? null : (v) => setS(() => perfil = v ?? ''),
                       ),
@@ -1092,16 +1084,16 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                       DropdownButtonFormField<String>(
                         initialValue: tipo.isEmpty ? null : tipo,
                         isExpanded: true,
-                        dropdownColor: Colors.white,
+                        dropdownColor: dialogBg,
                         borderRadius: BorderRadius.circular(14),
-                        style: const TextStyle(color: homeNavy, fontSize: 14, fontWeight: FontWeight.w600),
+                        style: TextStyle(color: textMain, fontSize: 14, fontWeight: FontWeight.w600),
                         icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF7E8DB8)),
                         hint: const Text('Seleccione un tipo',
                             style: TextStyle(color: Color(0xFF8E9BBA), fontSize: 14, fontWeight: FontWeight.w500)),
                         decoration: fieldDeco('Seleccione un tipo', Icons.badge_outlined, active: tipo.isNotEmpty),
                         items: tipos.map((item) => DropdownMenuItem(
                           value: (item['codigo'] ?? '').toString(),
-                          child: Text((item['nombre'] ?? '').toString(), overflow: TextOverflow.ellipsis, style: const TextStyle(color: homeNavy)),
+                          child: Text((item['nombre'] ?? '').toString(), overflow: TextOverflow.ellipsis, style: TextStyle(color: textMain)),
                         )).toList(),
                         onChanged: saving ? null : (v) async {
                           final selected = v ?? '';
@@ -1124,16 +1116,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                         Expanded(
                           child: GestureDetector(
                             onTap: saving ? null : () => Navigator.pop(ctx, false),
-                            child: Container(
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF3F4F6),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: const Color(0xFFE0E7EF)),
-                              ),
-                              alignment: Alignment.center,
-                              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF6B7280), fontWeight: FontWeight.w700, fontSize: 14)),
-                            ),
+                            child: appCancelButton('Cancelar', null, height: 50),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -1317,9 +1300,9 @@ class _AdminUserTileState extends State<_AdminUserTile>
             scale: _press,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFEEF0F8)),
+                border: Border.all(color: lineCol),
                 boxShadow: [
                   BoxShadow(
                     color: (activo ? const Color(0xFF4361EE) : const Color(0xFF94A3B8))
@@ -1407,8 +1390,8 @@ class _AdminUserTileState extends State<_AdminUserTile>
                             email,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: homeNavy,
+                            style: TextStyle(
+                              color: textMain,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w800,
                             ),

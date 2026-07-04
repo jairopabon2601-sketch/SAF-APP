@@ -48,7 +48,7 @@ class _HomeScreenState extends HomeController<HomeScreen> {
     final firstName = fullName.split(' ').first;
 
     return Scaffold(
-      backgroundColor: homeBackground,
+      backgroundColor: appBg,
       extendBody: true,
       bottomNavigationBar: buildHomeBottomNavigation(),
       body: RefreshIndicator(

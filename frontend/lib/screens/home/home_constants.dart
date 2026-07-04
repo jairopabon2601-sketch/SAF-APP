@@ -1,18 +1,59 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const homeNavy = Color(0xFF0D1B4B);
 const homeAccent = Color(0xFF4361EE);
 const homeCyan = Color(0xFF00D2FF);
 const homeBackground = Color(0xFFF0F2FA);
 
+// ── Tema claro/oscuro ────────────────────────────────────────────
+// Preferencia persistida por dispositivo; se carga antes de runApp.
+final ValueNotifier<bool> appThemeDark = ValueNotifier<bool>(false);
+
+bool get isDarkTheme => appThemeDark.value;
+
+Future<void> loadThemePreference() async {
+  final prefs = await SharedPreferences.getInstance();
+  appThemeDark.value = prefs.getBool('dark_mode') ?? false;
+}
+
+Future<void> setThemeDark(bool dark) async {
+  appThemeDark.value = dark;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('dark_mode', dark);
+}
+
+// Tokens semánticos: mismos roles que las variables CSS de SAF-WEB.
+// Superficies
+Color get appBg => isDarkTheme ? const Color(0xFF070A1C) : homeBackground;
+Color get cardBg => isDarkTheme ? const Color(0xFF10162F) : Colors.white;
+Color get cardBgAlt => isDarkTheme ? const Color(0xFF161D3E) : const Color(0xFFF8F9FC);
+Color get dialogBg => isDarkTheme ? const Color(0xFF121838) : Colors.white;
+Color get inputFill => isDarkTheme ? const Color(0xFF1A2148) : const Color(0xFFF5F6FA);
+Color get lineCol => isDarkTheme ? const Color(0xFF272F5C) : const Color(0xFFE2E8F0);
+// Texto
+Color get textMain => isDarkTheme ? const Color(0xFFE9EDFF) : const Color(0xFF0D1B4B);
+Color get textMid => isDarkTheme ? const Color(0xFFB9C3E8) : const Color(0xFF374151);
+Color get textSoft => isDarkTheme ? const Color(0xFF8C99C6) : const Color(0xFF8899BB);
+// Botón primario sólido (navy en claro, índigo visible en oscuro)
+Color get btnPrimary => isDarkTheme ? const Color(0xFF4F46E5) : homeNavy;
+// Chip índigo suave (fondo de badges/etiquetas)
+Color get chipIndigo => isDarkTheme
+    ? const Color(0xFF4F46E5).withValues(alpha: 0.22)
+    : const Color(0xFFE0E7FF);
+// Gradiente sutil para cards (resalta sobre el fondo oscuro)
+List<Color> get cardSheen => isDarkTheme
+    ? const [Color(0xFF171F44), Color(0xFF0F1531)]
+    : const [Color(0xFFFDFEFF), Color(0xFFF2F5FF)];
+
 const statisticsPageSize = 10;
 const movementsPageSize = 25;
 const creditsPageSize = 20;
 
-const dialogTextStyle = TextStyle(fontSize: 13, color: Color(0xFF374151));
-const dialogHintStyle = TextStyle(fontSize: 13, color: Color(0xFF9CA3AF));
+TextStyle get dialogTextStyle => TextStyle(fontSize: 13, color: textMid);
+TextStyle get dialogHintStyle => TextStyle(fontSize: 13, color: textSoft);
 
 const homeNavigationColors = [
   Color(0xFF60A5FA),   // Inicio     — azul
@@ -156,27 +197,100 @@ Future<DateTime?> showLightDatePicker(
       firstDate: firstDate,
       lastDate: lastDate,
       builder: (ctx, child) => Theme(
-        data: ThemeData.light().copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: Color(0xFF4F46E5),
-            onPrimary: Colors.white,
-            surface: Colors.white,
-            onSurface: Color(0xFF0D1B4B),
-            onSurfaceVariant: Color(0xFF4A5578),
-          ),
+        data: (isDarkTheme ? ThemeData.dark() : ThemeData.light()).copyWith(
+          colorScheme: isDarkTheme
+              ? const ColorScheme.dark(
+                  primary: Color(0xFF6366F1),
+                  onPrimary: Colors.white,
+                  surface: Color(0xFF121838),
+                  onSurface: Color(0xFFE9EDFF),
+                  onSurfaceVariant: Color(0xFFB9C3E8),
+                )
+              : const ColorScheme.light(
+                  primary: Color(0xFF4F46E5),
+                  onPrimary: Colors.white,
+                  surface: Colors.white,
+                  onSurface: Color(0xFF0D1B4B),
+                  onSurfaceVariant: Color(0xFF4A5578),
+                ),
           textButtonTheme: TextButtonThemeData(
             style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF4F46E5),
+              foregroundColor:
+                  isDarkTheme ? const Color(0xFF8B9CF9) : const Color(0xFF4F46E5),
               textStyle: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
-          dialogTheme: const DialogThemeData(
-            shape: RoundedRectangleBorder(
+          dialogTheme: DialogThemeData(
+            backgroundColor: dialogBg,
+            shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.all(Radius.circular(20)),
             ),
           ),
         ),
         child: child!,
+      ),
+    );
+
+// ── Cierre estándar: X y botones Cancelar/Cerrar en gradiente rojo ──
+const List<Color> closeRedGradient = [
+  Color(0xFF991B1B),
+  Color(0xFFDC2626),
+  Color(0xFFF43F5E),
+];
+
+Widget appCloseX(VoidCallback? onTap, {double size = 32}) => GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: closeRedGradient,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(size * 0.28),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFDC2626).withValues(alpha: 0.45),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Icon(Icons.close_rounded,
+            color: Colors.white, size: size * 0.55),
+      ),
+    );
+
+Widget appCancelButton(String label, VoidCallback? onTap,
+        {double height = 42, double hPad = 18}) =>
+    GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: height,
+        padding: EdgeInsets.symmetric(horizontal: hPad),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: closeRedGradient,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFDC2626).withValues(alpha: 0.40),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Text(label,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w700)),
       ),
     );
 

@@ -30,7 +30,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -85,13 +85,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: saving ? null : () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded,
-                            color: Colors.white60, size: 20),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
+                      appCloseX(saving ? null : () => Navigator.pop(ctx)),
                     ],
                   ),
                 ),
@@ -196,11 +190,11 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 14),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF5F7FB),
+                                color: inputFill,
                                 border: Border.all(
                                   color: selectedTipo != null
                                       ? homeAccent.withValues(alpha: 0.6)
-                                      : const Color(0xFFDDE3EF),
+                                      : lineCol,
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -209,7 +203,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                     size: 18,
                                     color: selectedTipo != null
                                         ? homeAccent
-                                        : const Color(0xFF9CA3AF)),
+                                        : textSoft),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
@@ -220,13 +214,13 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                     style: TextStyle(
                                       fontSize: 14,
                                       color: selectedTipo != null
-                                          ? homeNavy
-                                          : const Color(0xFF6B7280),
+                                          ? textMain
+                                          : textSoft,
                                     ),
                                   ),
                                 ),
-                                const Icon(Icons.expand_more_rounded,
-                                    color: Color(0xFF9CA3AF), size: 20),
+                                Icon(Icons.expand_more_rounded,
+                                    color: textSoft, size: 20),
                               ]),
                             ),
                           ),
@@ -243,18 +237,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
-                          onPressed: saving ? null : () => Navigator.pop(ctx),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF8899BB),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: const BorderSide(color: Color(0xFFDDE3EF)),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: const Text('Cerrar',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                        ),
+                        child: appCancelButton('Cerrar', saving ? null : () => Navigator.pop(ctx), height: 46),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -435,11 +418,11 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         height: 48,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5F7FB),
+          color: inputFill,
           border: Border.all(
             color: value != null
                 ? homeAccent.withValues(alpha: 0.6)
-                : const Color(0xFFDDE3EF),
+                : lineCol,
           ),
           borderRadius: BorderRadius.circular(12),
         ),
@@ -447,19 +430,19 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
           children: [
             Icon(Icons.calendar_month_outlined,
                 size: 18,
-                color: value != null ? homeAccent : const Color(0xFF9CA3AF)),
+                color: value != null ? homeAccent : textSoft),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 value ?? hint,
                 style: TextStyle(
                   fontSize: 14,
-                  color: value != null ? homeNavy : const Color(0xFF6B7280),
+                  color: value != null ? textMain : textSoft,
                 ),
               ),
             ),
-            const Icon(Icons.expand_more_rounded,
-                color: Color(0xFF9CA3AF), size: 20),
+            Icon(Icons.expand_more_rounded,
+                color: textSoft, size: 20),
           ],
         ),
       );
@@ -547,7 +530,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
         if (!aniosLoaded && !loadingAnios) loadAnios(setS);
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -603,13 +586,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: saving ? null : () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded,
-                            color: Colors.white60, size: 20),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
+                      appCloseX(saving ? null : () => Navigator.pop(ctx)),
                     ],
                   ),
                 ),
@@ -644,11 +621,11 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 14),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF5F7FB),
+                                color: inputFill,
                                 border: Border.all(
                                   color: selectedAhorrador != null
                                       ? homeAccent.withValues(alpha: 0.6)
-                                      : const Color(0xFFDDE3EF),
+                                      : lineCol,
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -658,7 +635,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                       size: 18,
                                       color: selectedAhorrador != null
                                           ? homeAccent
-                                          : const Color(0xFF9CA3AF)),
+                                          : textSoft),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
@@ -668,13 +645,13 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: ahorradorLabel.isNotEmpty
-                                            ? homeNavy
-                                            : const Color(0xFF9CA3AF),
+                                            ? textMain
+                                            : textSoft,
                                       ),
                                     ),
                                   ),
-                                  const Icon(Icons.keyboard_arrow_down_rounded,
-                                      color: Color(0xFF9CA3AF), size: 20),
+                                  Icon(Icons.keyboard_arrow_down_rounded,
+                                      color: textSoft, size: 20),
                                 ],
                               ),
                             ),
@@ -700,11 +677,11 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 14),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF5F7FB),
+                                color: inputFill,
                                 border: Border.all(
                                   color: selectedAnioCodigo != null
                                       ? homeAccent.withValues(alpha: 0.6)
-                                      : const Color(0xFFDDE3EF),
+                                      : lineCol,
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -714,11 +691,11 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                       size: 18,
                                       color: selectedAnioCodigo != null
                                           ? homeAccent
-                                          : const Color(0xFF9CA3AF)),
+                                          : textSoft),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: loadingAnios
-                                        ? const Row(
+                                        ? Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               SizedBox(
@@ -733,7 +710,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                               SizedBox(width: 8),
                                               Text('Cargando...',
                                                   style: TextStyle(
-                                                      color: Color(0xFF9CA3AF),
+                                                      color: textSoft,
                                                       fontSize: 13)),
                                             ],
                                           )
@@ -759,14 +736,14 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                                 fontSize: 14,
                                                 color: selectedAnioCodigo !=
                                                         null
-                                                    ? homeNavy
-                                                    : const Color(0xFF6B7280),
+                                                    ? textMain
+                                                    : textSoft,
                                               ),
                                             );
                                           }),
                                   ),
-                                  const Icon(Icons.keyboard_arrow_down_rounded,
-                                      color: Color(0xFF9CA3AF), size: 20),
+                                  Icon(Icons.keyboard_arrow_down_rounded,
+                                      color: textSoft, size: 20),
                                 ],
                               ),
                             ),
@@ -791,11 +768,11 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 14),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF5F7FB),
+                                color: inputFill,
                                 border: Border.all(
                                   color: fechaIngreso != null
                                       ? homeAccent.withValues(alpha: 0.6)
-                                      : const Color(0xFFDDE3EF),
+                                      : lineCol,
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -805,7 +782,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                       size: 18,
                                       color: fechaIngreso != null
                                           ? homeAccent
-                                          : const Color(0xFF9CA3AF)),
+                                          : textSoft),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
@@ -815,13 +792,13 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: fechaIngreso != null
-                                            ? homeNavy
-                                            : const Color(0xFF9CA3AF),
+                                            ? textMain
+                                            : textSoft,
                                       ),
                                     ),
                                   ),
-                                  const Icon(Icons.expand_more_rounded,
-                                      color: Color(0xFF9CA3AF), size: 20),
+                                  Icon(Icons.expand_more_rounded,
+                                      color: textSoft, size: 20),
                                 ],
                               ),
                             ),
@@ -851,18 +828,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
-                          onPressed: saving ? null : () => Navigator.pop(ctx),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF8899BB),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: const BorderSide(color: Color(0xFFDDE3EF)),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: const Text('Cerrar',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                        ),
+                        child: appCancelButton('Cerrar', saving ? null : () => Navigator.pop(ctx), height: 46),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1028,7 +994,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
     return showDialog<Map<String, dynamic>>(
       context: ctx,
       builder: (aCtx) => Dialog(
-        backgroundColor: Colors.white,
+        backgroundColor: dialogBg,
         surfaceTintColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 120),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -1053,13 +1019,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                             fontSize: 14,
                             fontWeight: FontWeight.w700)),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(aCtx),
-                    icon: const Icon(Icons.close_rounded,
-                        color: Colors.white60, size: 18),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
+                  appCloseX(() => Navigator.pop(aCtx)),
                 ],
               ),
             ),
@@ -1082,8 +1042,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(label,
-                              style: const TextStyle(
-                                  color: homeNavy,
+                              style: TextStyle(
+                                  color: textMain,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500)),
                         ),
@@ -1131,7 +1091,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
           }).toList();
 
           return Dialog(
-            backgroundColor: Colors.white,
+            backgroundColor: dialogBg,
             surfaceTintColor: Colors.transparent,
             insetPadding:
                 const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
@@ -1166,13 +1126,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                 fontWeight: FontWeight.w700),
                           ),
                         ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(aCtx),
-                          icon: const Icon(Icons.close_rounded,
-                              color: Colors.white60, size: 18),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
+                        appCloseX(() => Navigator.pop(aCtx)),
                       ],
                     ),
                   ),
@@ -1181,25 +1135,25 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                     child: TextField(
                       autofocus: true,
                       onChanged: (v) => setA(() => query = v.trim()),
-                      style: const TextStyle(color: homeNavy, fontSize: 13),
+                      style: TextStyle(color: textMain, fontSize: 13),
                       decoration: InputDecoration(
                         hintText: 'Buscar ahorrador...',
                         hintStyle: const TextStyle(
                             color: Color(0xFFB0BBCC), fontSize: 13),
-                        prefixIcon: const Icon(Icons.search_rounded,
-                            color: Color(0xFF8899BB), size: 18),
+                        prefixIcon: Icon(Icons.search_rounded,
+                            color: textSoft, size: 18),
                         filled: true,
-                        fillColor: const Color(0xFFF5F7FB),
+                        fillColor: inputFill,
                         contentPadding:
                             const EdgeInsets.symmetric(vertical: 10),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide:
-                                const BorderSide(color: Color(0xFFDDE3EF))),
+                                BorderSide(color: lineCol)),
                         enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide:
-                                const BorderSide(color: Color(0xFFDDE3EF))),
+                                BorderSide(color: lineCol)),
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide: const BorderSide(
@@ -1253,8 +1207,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(n,
-                                        style: const TextStyle(
-                                          color: homeNavy,
+                                        style: TextStyle(
+                                          color: textMain,
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500,
                                         )),
@@ -1295,7 +1249,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -1353,13 +1307,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: saving ? null : () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded,
-                            color: Colors.white60, size: 20),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
+                      appCloseX(saving ? null : () => Navigator.pop(ctx)),
                     ],
                   ),
                 ),
@@ -1391,11 +1339,11 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                               padding:
                                   const EdgeInsets.symmetric(horizontal: 14),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF5F7FB),
+                                color: inputFill,
                                 border: Border.all(
                                   color: selectedAsesor != null
                                       ? homeAccent.withValues(alpha: 0.6)
-                                      : const Color(0xFFDDE3EF),
+                                      : lineCol,
                                 ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -1405,7 +1353,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                       size: 18,
                                       color: selectedAsesor != null
                                           ? homeAccent
-                                          : const Color(0xFF9CA3AF)),
+                                          : textSoft),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
@@ -1415,13 +1363,13 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                       style: TextStyle(
                                         fontSize: 14,
                                         color: asesorLabel.isNotEmpty
-                                            ? homeNavy
-                                            : const Color(0xFF9CA3AF),
+                                            ? textMain
+                                            : textSoft,
                                       ),
                                     ),
                                   ),
-                                  const Icon(Icons.keyboard_arrow_down_rounded,
-                                      color: Color(0xFF9CA3AF), size: 20),
+                                  Icon(Icons.keyboard_arrow_down_rounded,
+                                      color: textSoft, size: 20),
                                 ],
                               ),
                             ),
@@ -1498,18 +1446,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton(
-                          onPressed: saving ? null : () => Navigator.pop(ctx),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF8899BB),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: const BorderSide(color: Color(0xFFDDE3EF)),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: const Text('Cerrar',
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                        ),
+                        child: appCancelButton('Cerrar', saving ? null : () => Navigator.pop(ctx), height: 46),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1713,8 +1650,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
 
   Widget buildSavingsFieldLabel(String text) => Text(
         text,
-        style: const TextStyle(
-          color: homeNavy,
+        style: TextStyle(
+          color: textMain,
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
@@ -1730,23 +1667,23 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       TextFormField(
         controller: ctrl,
         keyboardType: keyboard,
-        style: const TextStyle(color: homeNavy, fontSize: 14),
+        style: TextStyle(color: textMain, fontSize: 14),
         validator: validator,
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: Color(0xFF8899BB), fontSize: 13),
+          labelStyle: TextStyle(color: textSoft, fontSize: 13),
           prefixIcon: Icon(icon, color: homeAccent, size: 18),
           filled: true,
-          fillColor: const Color(0xFFF5F7FB),
+          fillColor: inputFill,
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFDDE3EF)),
+            borderSide: BorderSide(color: lineCol),
           ),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFDDE3EF)),
+            borderSide: BorderSide(color: lineCol),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
@@ -1787,7 +1724,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   .toList();
 
           return Dialog(
-            backgroundColor: Colors.white,
+            backgroundColor: dialogBg,
             surfaceTintColor: Colors.transparent,
             insetPadding:
                 const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
@@ -1820,13 +1757,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700)),
                         ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(aCtx),
-                          icon: const Icon(Icons.close_rounded,
-                              color: Colors.white60, size: 18),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
+                        appCloseX(() => Navigator.pop(aCtx)),
                       ],
                     ),
                   ),
@@ -1835,25 +1766,25 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                     child: TextField(
                       autofocus: true,
                       onChanged: (v) => setA(() => query = v.trim()),
-                      style: const TextStyle(color: homeNavy, fontSize: 13),
+                      style: TextStyle(color: textMain, fontSize: 13),
                       decoration: InputDecoration(
                         hintText: 'Buscar asesor...',
                         hintStyle: const TextStyle(
                             color: Color(0xFFB0BBCC), fontSize: 13),
-                        prefixIcon: const Icon(Icons.search_rounded,
-                            color: Color(0xFF8899BB), size: 18),
+                        prefixIcon: Icon(Icons.search_rounded,
+                            color: textSoft, size: 18),
                         filled: true,
-                        fillColor: const Color(0xFFF5F7FB),
+                        fillColor: inputFill,
                         contentPadding:
                             const EdgeInsets.symmetric(vertical: 10),
                         border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide:
-                                const BorderSide(color: Color(0xFFDDE3EF))),
+                                BorderSide(color: lineCol)),
                         enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide:
-                                const BorderSide(color: Color(0xFFDDE3EF))),
+                                BorderSide(color: lineCol)),
                         focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide: const BorderSide(
@@ -1902,8 +1833,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Text(a['nombre']!,
-                                        style: const TextStyle(
-                                          color: homeNavy,
+                                        style: TextStyle(
+                                          color: textMain,
                                           fontSize: 13,
                                           fontWeight: FontWeight.w500,
                                         )),
@@ -1933,7 +1864,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
   Widget buildSavingsScreen() {
     if (loadingData) return _savingsSkeleton();
 
-    const navy = Color(0xFF0D1B4B);
+    final navy = textMain;
 
     // Años disponibles: solo 2025 y año actual
     final currentYear = DateTime.now().year;
@@ -1980,6 +1911,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       });
     }).length;
     final alDiaCount = lista.length - enMoraCount;
+    final savingsActionColor = isDarkTheme ? homeNavy : btnPrimary;
 
     Widget dropFilter({
       required String label,
@@ -1992,9 +1924,9 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardBg,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: lineCol),
             boxShadow: [
               BoxShadow(
                   color: Colors.black.withValues(alpha: 0.04),
@@ -2003,17 +1935,17 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             ],
           ),
           child: Row(children: [
-            Icon(icon, size: 15, color: const Color(0xFF8899BB)),
+            Icon(icon, size: 15, color: textSoft),
             const SizedBox(width: 6),
             Expanded(
                 child: DropdownButton<String>(
               value: value,
               isExpanded: true,
               underline: const SizedBox(),
-              dropdownColor: Colors.white,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 18, color: Color(0xFF8899BB)),
-              style: const TextStyle(
+              dropdownColor: dialogBg,
+              icon: Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 18, color: textSoft),
+              style: TextStyle(
                   color: navy, fontWeight: FontWeight.w600, fontSize: 13),
               items: items,
               onChanged: onChanged,
@@ -2031,17 +1963,17 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             buildActionButton(
                 icon: Icons.person_add_rounded,
                 label: 'Agregar Ahorrador',
-                color: navy,
+                color: savingsActionColor,
                 onTap: () => _showCrearAhorradorDialog()),
             buildActionButton(
                 icon: Icons.savings_rounded,
                 label: 'Agregar Ahorro',
-                color: navy,
+                color: savingsActionColor,
                 onTap: () => _showCrearAhorroDialog()),
             buildActionButton(
                 icon: Icons.settings_rounded,
                 label: 'Configurar Ahorro',
-                color: navy,
+                color: savingsActionColor,
                 onTap: () => _showConfigurarAhorroDialog()),
           ]),
         ),
@@ -2264,7 +2196,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   color: Colors.white, size: 15),
             ),
             const SizedBox(width: 9),
-            const Expanded(
+            Expanded(
                 child: Text('Lista de Ahorradores',
                     style: TextStyle(
                         fontSize: 15,
@@ -2296,7 +2228,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             child: Center(
                 child: Text('No hay ahorradores para los filtros seleccionados',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Color(0xFF8899BB)))),
+                    style: TextStyle(color: textSoft))),
           )
         else
           Builder(builder: (_) {
@@ -2337,8 +2269,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFF8FAFF), Color(0xFFEEF2FF)],
+                      gradient: LinearGradient(
+                        colors: cardSheen,
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -2368,7 +2300,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                     end: Alignment.bottomRight,
                                   )
                                 : null,
-                            color: pag > 1 ? null : const Color(0xFFE2E8F0),
+                            color: pag > 1 ? null : inputFill,
                             borderRadius: BorderRadius.circular(10),
                             boxShadow: pag > 1
                                 ? [
@@ -2381,7 +2313,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                 : null,
                           ),
                           child: Icon(Icons.chevron_left_rounded,
-                              color: pag > 1 ? Colors.white : const Color(0xFF9CA3AF),
+                              color: pag > 1 ? Colors.white : textSoft,
                               size: 22),
                         ),
                       ),
@@ -2390,15 +2322,15 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                       Expanded(
                         child: Column(children: [
                           Text('Página $pag de $totalPags',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w800,
-                                  color: Color(0xFF0D1B4B))),
+                                  color: textMain)),
                           const SizedBox(height: 2),
                           Text('${lista.length} ahorradores · ${pagina.length} en esta página',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 10,
-                                  color: Color(0xFF8899BB),
+                                  color: textSoft,
                                   fontWeight: FontWeight.w500)),
                         ]),
                       ),
@@ -2420,7 +2352,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                     end: Alignment.bottomRight,
                                   )
                                 : null,
-                            color: pag < totalPags ? null : const Color(0xFFE2E8F0),
+                            color: pag < totalPags ? null : inputFill,
                             borderRadius: BorderRadius.circular(10),
                             boxShadow: pag < totalPags
                                 ? [
@@ -2433,7 +2365,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                 : null,
                           ),
                           child: Icon(Icons.chevron_right_rounded,
-                              color: pag < totalPags ? Colors.white : const Color(0xFF9CA3AF),
+                              color: pag < totalPags ? Colors.white : textSoft,
                               size: 22),
                         ),
                       ),
@@ -2661,8 +2593,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             ),
             inputDecorationTheme: InputDecorationTheme(
               filled: true,
-              fillColor: const Color(0xFFF4F6FF),
-              labelStyle: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+              fillColor: inputFill,
+              labelStyle: TextStyle(color: textSoft, fontSize: 13),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: const BorderSide(color: Color(0xFFDDE3F0)),
@@ -2680,7 +2612,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             ),
           ),
           child: Dialog(
-            backgroundColor: Colors.white,
+            backgroundColor: dialogBg,
             surfaceTintColor: Colors.transparent,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             elevation: 0,
@@ -2798,7 +2730,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   TextField(
                     controller: valorCtrl,
                     keyboardType: TextInputType.number,
-                    style: const TextStyle(color: Color(0xFF0D1B4B), fontWeight: FontWeight.w600, fontSize: 15),
+                    style: TextStyle(color: textMain, fontWeight: FontWeight.w600, fontSize: 15),
                     decoration: const InputDecoration(
                       labelText: 'Valor pagado',
                       prefixText: '\$ ',
@@ -2824,7 +2756,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                       height: 54,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF4F6FF),
+                        color: inputFill,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: const Color(0xFFDDE3F0)),
                       ),
@@ -2837,15 +2769,15 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text('Fecha de pago',
+                              Text('Fecha de pago',
                                   style: TextStyle(
                                       fontSize: 11,
-                                      color: Color(0xFF6B7280))),
+                                      color: textSoft)),
                               Text(fechaTexto(),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: Color(0xFF0D1B4B))),
+                                      color: textMain)),
                             ],
                           ),
                         ),
@@ -2861,7 +2793,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                     controller: detalleCtrl,
                     minLines: 2,
                     maxLines: 3,
-                    style: const TextStyle(color: Color(0xFF0D1B4B), fontSize: 13),
+                    style: TextStyle(color: textMain, fontSize: 13),
                     decoration: const InputDecoration(
                       labelText: 'Comentario (opcional)',
                       prefixIcon: Icon(Icons.comment_outlined),
@@ -3100,7 +3032,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             child: Container(
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(26),
                 boxShadow: [
                   BoxShadow(
@@ -3888,7 +3820,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         margin: const EdgeInsets.only(bottom: 6),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardBg,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0xFFE0E7FF)),
         ),
@@ -3896,17 +3828,17 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
           SizedBox(
             width: 105,
             child: Text(label,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF6B7280),
+                    color: textSoft,
                     fontWeight: FontWeight.w600)),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(value.isEmpty ? 'Sin información' : value,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 12,
-                    color: homeNavy,
+                    color: textMain,
                     fontWeight: FontWeight.w800)),
           ),
         ]),
@@ -3996,7 +3928,6 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
   }
 
   static const _purple = Color(0xFF4361EE);
-  static const homeNavy = Color(0xFF0D1B4B);
 
   @override
   Widget build(BuildContext context) {
@@ -4049,12 +3980,12 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 260),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cardBg,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: _expanded
                 ? _purple.withValues(alpha: 0.25)
-                : const Color(0xFFE8ECF4),
+                : lineCol,
             width: 1.5,
           ),
           boxShadow: [
@@ -4159,10 +4090,10 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                       Text(nombre,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
-                              color: homeNavy,
+                              color: textMain,
                               height: 1.25,
                               letterSpacing: -0.2)),
                       const SizedBox(height: 6),
@@ -4254,10 +4185,15 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                                     const Color(0xFF3730A3).withValues(alpha: 0.2),
                                     const Color(0xFF4F46E5).withValues(alpha: 0.3)
                                   ]
-                                : [
-                                    const Color(0xFFE8ECF4),
-                                    const Color(0xFFF0F2FA)
-                                  ],
+                                : (isDarkTheme
+                                    ? [
+                                        const Color(0xFF1B2348),
+                                        const Color(0xFF161D3E)
+                                      ]
+                                    : [
+                                        const Color(0xFFE8ECF4),
+                                        const Color(0xFFF0F2FA)
+                                      ]),
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
@@ -4267,7 +4203,7 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                             size: 15,
                             color: _expanded
                                 ? const Color(0xFF4361EE)
-                                : const Color(0xFF8899BB)),
+                                : textSoft),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -4354,14 +4290,20 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
             SizeTransition(
               sizeFactor: _anim,
               child: Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      Color(0xFFF0F3FF),
-                      Color(0xFFF5F0FF),
-                      Color(0xFFF8FAFF),
-                    ],
-                    stops: [0.0, 0.5, 1.0],
+                    colors: isDarkTheme
+                        ? const [
+                            Color(0xFF141B3D),
+                            Color(0xFF171D44),
+                            Color(0xFF10162F),
+                          ]
+                        : const [
+                            Color(0xFFF0F3FF),
+                            Color(0xFFF5F0FF),
+                            Color(0xFFF8FAFF),
+                          ],
+                    stops: const [0.0, 0.5, 1.0],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -4390,7 +4332,7 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                     Container(
                       height: 1,
                       margin: const EdgeInsets.symmetric(horizontal: 16),
-                      color: const Color(0xFFE8ECF4),
+                      color: lineCol,
                     ),
                     const SizedBox(height: 14),
 
@@ -4457,11 +4399,11 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                             ),
                           ),
                           const SizedBox(width: 7),
-                          const Text('Cuotas mensuales',
+                          Text('Cuotas mensuales',
                               style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
-                                  color: homeNavy)),
+                                  color: textMain)),
                         ]),
                       ),
                       SizedBox(
@@ -4508,44 +4450,92 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
   }
 
   Widget _detailChip(
-      IconData icon, String label, String value, Color c1, Color c2) =>
-      ClipRRect(
+      IconData icon, String label, String value, Color c1, Color c2) {
+    final glowColor = isDarkTheme
+        ? Color.lerp(c1, Colors.white, 0.14) ?? c1
+        : Color.lerp(c1, Colors.white, 0.72) ?? c1;
+    final baseColor = isDarkTheme
+        ? Color.lerp(c2, const Color(0xFF060A1A), 0.52) ?? c2
+        : Color.lerp(c2, Colors.white, 0.78) ?? c2;
+    final labelColor = isDarkTheme
+        ? Color.lerp(c1, Colors.white, 0.34) ?? c1
+        : Color.lerp(c1, Colors.black, 0.10) ?? c1;
+    final valueColor = isDarkTheme
+        ? Color.lerp(c2, Colors.white, 0.20) ?? c2
+        : Color.lerp(c1, Colors.black, 0.08) ?? c1;
+
+    return ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Stack(children: [
+          Positioned(
+            right: -18,
+            top: -24,
+            child: Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color:
+                    Colors.white.withValues(alpha: isDarkTheme ? 0.06 : 0.22),
+              ),
+            ),
+          ),
           Container(
             padding: const EdgeInsets.fromLTRB(15, 10, 12, 10),
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [c1.withValues(alpha: 0.15), c2.withValues(alpha: 0.25)],
+                colors: isDarkTheme
+                    ? [
+                        glowColor.withValues(alpha: 0.36),
+                        c1.withValues(alpha: 0.22),
+                        baseColor.withValues(alpha: 0.36),
+                      ]
+                    : [
+                        glowColor.withValues(alpha: 0.98),
+                        c1.withValues(alpha: 0.16),
+                        baseColor.withValues(alpha: 0.96),
+                      ],
+                stops: const [0.0, 0.48, 1.0],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: c1.withValues(alpha: 0.25)),
+              border: Border.all(
+                color: c1.withValues(alpha: isDarkTheme ? 0.42 : 0.28),
+              ),
               boxShadow: [
                 BoxShadow(
-                    color: c1.withValues(alpha: 0.12),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3)),
+                    color: c1.withValues(alpha: isDarkTheme ? 0.22 : 0.13),
+                    blurRadius: 14,
+                    offset: const Offset(0, 6)),
               ],
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               Row(children: [
                 Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: c1.withValues(alpha: 0.18),
+                    gradient: LinearGradient(
+                      colors: [
+                        c1.withValues(alpha: isDarkTheme ? 0.30 : 0.16),
+                        c2.withValues(alpha: isDarkTheme ? 0.22 : 0.12),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: Icon(icon, size: 11, color: c1),
+                  child: Icon(icon, size: 11, color: labelColor),
                 ),
                 const SizedBox(width: 5),
                 Flexible(
                   child: Text(label,
                       style: TextStyle(
                           fontSize: 10,
-                          color: c1.withValues(alpha: 0.8),
-                          fontWeight: FontWeight.w600)),
+                          color: labelColor.withValues(alpha: 0.88),
+                          fontWeight: FontWeight.w700)),
                 ),
               ]),
               const SizedBox(height: 6),
@@ -4554,8 +4544,8 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: c1.withValues(alpha: 0.95))),
+                      fontWeight: FontWeight.w800,
+                      color: valueColor)),
             ]),
           ),
           Positioned(
@@ -4575,6 +4565,7 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
           ),
         ]),
       );
+  }
 
   // Fecha actual en Colombia (UTC-5, sin horario de verano), sólo Y-M-D.
   static DateTime _hoyColombia() {
@@ -4601,21 +4592,40 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
             : Icons.radio_button_unchecked_rounded;
 
     final List<Color> gradColors = esPagado
-        ? [const Color(0xFF064E3B), const Color(0xFF059669), const Color(0xFF34D399)]
+        ? [
+            const Color(0xFF064E3B),
+            const Color(0xFF059669),
+            const Color(0xFF34D399)
+          ]
         : esNoPago
-            ? [const Color(0xFF7F1D1D), const Color(0xFFDC2626), const Color(0xFFF87171)]
-            : [
-                const Color(0xFFEEF2FF),
-                const Color(0xFFE0E7FF),
-              ];
+            ? [
+                const Color(0xFF7F1D1D),
+                const Color(0xFFDC2626),
+                const Color(0xFFF87171)
+              ]
+            : (isDarkTheme
+                ? [
+                    const Color(0xFF111A3D),
+                    const Color(0xFF1E2B62),
+                    const Color(0xFF253579),
+                  ]
+                : [
+                    const Color(0xFFEEF2FF),
+                    const Color(0xFFE0E7FF),
+                  ]);
 
-    final iconColor = esFuturo ? const Color(0xFF4F46E5) : Colors.white;
-    final textColor = esFuturo ? const Color(0xFF3730A3) : Colors.white;
+    final iconColor = esFuturo
+        ? (isDarkTheme ? const Color(0xFFA5B4FC) : const Color(0xFF4F46E5))
+        : Colors.white;
+    final textColor = esFuturo
+        ? (isDarkTheme ? const Color(0xFFE0E7FF) : const Color(0xFF3730A3))
+        : Colors.white;
     final borderColor = esPagado
         ? const Color(0xFF059669).withValues(alpha: 0.50)
         : esNoPago
             ? const Color(0xFFDC2626).withValues(alpha: 0.50)
-            : const Color(0xFF4F46E5).withValues(alpha: 0.20);
+            : const Color(0xFF818CF8)
+                .withValues(alpha: isDarkTheme ? 0.45 : 0.20);
 
     final glowColor = esPagado
         ? const Color(0xFF059669)
@@ -4692,7 +4702,8 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                     height: 28,
                     decoration: BoxDecoration(
                       color: esFuturo
-                          ? const Color(0xFF4361EE).withValues(alpha: 0.12)
+                          ? const Color(0xFF818CF8)
+                              .withValues(alpha: isDarkTheme ? 0.18 : 0.12)
                           : Colors.white.withValues(alpha: 0.18),
                       shape: BoxShape.circle,
                     ),

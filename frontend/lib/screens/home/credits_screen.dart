@@ -220,7 +220,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         child: Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: const Color(0xFFF1F4FA),
+            color: inputFill,
             borderRadius: BorderRadius.circular(14),
           ),
           child: SingleChildScrollView(
@@ -489,7 +489,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -500,18 +500,18 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             ),
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Filtrar resultados',
+              Text('Filtrar resultados',
                   style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF8899BB),
+                      color: textSoft,
                       letterSpacing: 0.3)),
               const SizedBox(height: 10),
               TextField(
                 decoration: InputDecoration(
                   hintText: 'Buscar por cliente o código...',
-                  hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF8899BB)),
-                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF8899BB)),
+                  hintStyle: TextStyle(fontSize: 12, color: textSoft),
+                  prefixIcon: Icon(Icons.search_rounded, size: 18, color: textSoft),
                   suffixIcon: creditsBuscar.isNotEmpty
                       ? GestureDetector(
                           onTap: () async {
@@ -519,26 +519,26 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             await fetchCredits('');
                             if (isMounted) refresh(() => queryingCredits = false);
                           },
-                          child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF8899BB)),
+                          child: Icon(Icons.close_rounded, size: 16, color: textSoft),
                         )
                       : null,
                   filled: true,
-                  fillColor: const Color(0xFFF5F6FA),
+                  fillColor: inputFill,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
                     borderSide: const BorderSide(color: Color(0xFF4338CA), width: 1.5),
                   ),
                 ),
-                style: const TextStyle(fontSize: 13, color: Color(0xFF0D1B4B)),
+                style: TextStyle(fontSize: 13, color: textMain),
                 onChanged: (v) => refresh(() => creditsBuscar = v.trim()),
                 onSubmitted: (_) async {
                   refresh(() { creditsPage = 1; queryingCredits = true; });
@@ -553,22 +553,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                       Row(children: [
-                        const Icon(Icons.person_outline_rounded, size: 12, color: homeNavy),
+                        Icon(Icons.person_outline_rounded, size: 12, color: textMain),
                         const SizedBox(width: 4),
-                        const Text('Asesor',
+                        Text('Asesor',
                             style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: homeNavy)),
+                                color: textMain)),
                       ]),
                       const SizedBox(height: 4),
                       Container(
                         height: 38,
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF5F6FA),
+                          color: inputFill,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: lineCol),
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
@@ -578,19 +578,19 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 ? creditAdvisorFilter
                                 : null,
                             isExpanded: true,
-                            dropdownColor: Colors.white,
-                            hint: const Text('Todos',
+                            dropdownColor: dialogBg,
+                            hint: Text('Todos',
                                 style: TextStyle(
-                                    fontSize: 11, color: Color(0xFF8899BB))),
+                                    fontSize: 11, color: textSoft)),
                             style:
-                                const TextStyle(fontSize: 12, color: homeNavy),
-                            icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                                size: 16, color: Color(0xFF8899BB)),
+                                TextStyle(fontSize: 12, color: textMain),
+                            icon: Icon(Icons.keyboard_arrow_down_rounded,
+                                size: 16, color: textSoft),
                             items: [
-                              const DropdownMenuItem(
+                              DropdownMenuItem(
                                   value: null,
                                   child: Text('Todos',
-                                      style: TextStyle(color: homeNavy))),
+                                      style: TextStyle(color: textMain))),
                               ...advisors.map((a) {
                                 final sigla = (a['sigla'] ??
                                         a['codigo_asesor'] ??
@@ -611,7 +611,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     child: Text(display,
                                         overflow: TextOverflow.ellipsis,
                                         style:
-                                            const TextStyle(color: homeNavy)));
+                                            TextStyle(color: textMain)));
                               }),
                             ],
                             onChanged: (v) async {
@@ -642,22 +642,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                       Row(children: [
-                        const Icon(Icons.radio_button_checked_rounded, size: 12, color: homeNavy),
+                        Icon(Icons.radio_button_checked_rounded, size: 12, color: textMain),
                         const SizedBox(width: 4),
-                        const Text('Estado',
+                        Text('Estado',
                             style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: homeNavy)),
+                                color: textMain)),
                       ]),
                       const SizedBox(height: 4),
                       Container(
                         height: 38,
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF5F6FA),
+                          color: inputFill,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: lineCol),
                         ),
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
@@ -665,19 +665,19 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 ? null
                                 : creditStatusFilter,
                             isExpanded: true,
-                            dropdownColor: Colors.white,
-                            hint: const Text('Todos',
+                            dropdownColor: dialogBg,
+                            hint: Text('Todos',
                                 style: TextStyle(
-                                    fontSize: 11, color: Color(0xFF8899BB))),
+                                    fontSize: 11, color: textSoft)),
                             style:
-                                const TextStyle(fontSize: 12, color: homeNavy),
-                            icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                                size: 16, color: Color(0xFF8899BB)),
+                                TextStyle(fontSize: 12, color: textMain),
+                            icon: Icon(Icons.keyboard_arrow_down_rounded,
+                                size: 16, color: textSoft),
                             items: [
-                              const DropdownMenuItem(
+                              DropdownMenuItem(
                                   value: null,
                                   child: Text('Todos',
-                                      style: TextStyle(color: homeNavy))),
+                                      style: TextStyle(color: textMain))),
                               DropdownMenuItem(
                                   value: '1',
                                   child: Row(children: [
@@ -817,7 +817,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         child: Text(
                   'Pág $creditsPage de ${((creditsTotal - 1) ~/ creditsPageSize) + 1}  ·  $creditsTotal registros',
                   style:
-                      const TextStyle(fontSize: 12, color: Color(0xFF8899BB)),
+                      TextStyle(fontSize: 12, color: textSoft),
                 ))),
                 const SizedBox(width: 8),
                 buildPaginationButton(Icons.chevron_right_rounded,
@@ -879,7 +879,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         child: Text(
                   'Pág $pendingPage de ${((pendingTotal - 1) ~/ creditsPageSize) + 1}  ·  $pendingTotal solicitudes',
                   style:
-                      const TextStyle(fontSize: 12, color: Color(0xFF8899BB)),
+                      TextStyle(fontSize: 12, color: textSoft),
                 ))),
                 const SizedBox(width: 8),
                 buildPaginationButton(Icons.chevron_right_rounded,
@@ -896,13 +896,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         Container(
           margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFDFEFF), Color(0xFFF2F5FF)],
+            gradient: LinearGradient(
+              colors: cardSheen,
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+            border: Border.all(color: lineCol, width: 1),
             boxShadow: [
               BoxShadow(
                   color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
@@ -1074,7 +1074,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             Container(
               margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFFE8EBFF), width: 1.2),
                 boxShadow: [
@@ -1178,23 +1178,23 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     }
 
     // helpers de estilo local
-    const borderCol = Color(0xFFE2E8F0);
-    const bgField = Color(0xFFF8F9FC);
-    const hintCol = Color(0xFF94A3B8);
+    final borderCol = lineCol;
+    final bgField = cardBgAlt;
+    final hintCol = textSoft;
 
     InputDecoration fieldDeco(String label, IconData icon) => InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(fontSize: 12, color: hintCol),
+          labelStyle: TextStyle(fontSize: 12, color: hintCol),
           prefixIcon: Icon(icon, size: 16, color: hintCol),
           filled: true,
           fillColor: bgField,
           isDense: true,
           border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: borderCol)),
+              borderSide: BorderSide(color: borderCol)),
           enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: borderCol)),
+              borderSide: BorderSide(color: borderCol)),
           focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
               borderSide: const BorderSide(color: homeNavy, width: 1.5)),
@@ -1219,7 +1219,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Text(fmtDate(val),
                       style: TextStyle(
                           fontSize: 13,
-                          color: val == null ? hintCol : homeNavy))),
+                          color: val == null ? hintCol : textMain))),
               if (val != null)
                 GestureDetector(
                     onTap: () => refresh(() {
@@ -1229,7 +1229,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             sourceStatisticsTo = null;
                           }
                         }),
-                    child: const Icon(Icons.close, size: 14, color: hintCol)),
+                    child: Icon(Icons.close, size: 14, color: hintCol)),
             ]),
           ),
         );
@@ -1328,7 +1328,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardBg,
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
@@ -1344,10 +1344,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               initialValue:
                   sourceStatisticsStatus.isEmpty ? '' : sourceStatisticsStatus,
               decoration: fieldDeco('Estado', Icons.filter_list_rounded),
-              dropdownColor: Colors.white,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded,
+              dropdownColor: dialogBg,
+              icon: Icon(Icons.keyboard_arrow_down_rounded,
                   size: 18, color: hintCol),
-              style: const TextStyle(fontSize: 13, color: homeNavy),
+              style: TextStyle(fontSize: 13, color: textMain),
               items: const [
                 DropdownMenuItem(value: '', child: Text('Todos')),
                 DropdownMenuItem(value: '1', child: Text('Activos')),
@@ -1367,7 +1367,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    const Text('Desde',
+                    Text('Desde',
                         style: TextStyle(
                             fontSize: 11,
                             color: hintCol,
@@ -1381,7 +1381,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    const Text('Hasta',
+                    Text('Hasta',
                         style: TextStyle(
                             fontSize: 11,
                             color: hintCol,
@@ -1397,10 +1397,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             DropdownButtonFormField<String>(
               initialValue: sourceStatisticsAccount,
               decoration: fieldDeco('Fuente', Icons.account_balance_outlined),
-              dropdownColor: Colors.white,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded,
+              dropdownColor: dialogBg,
+              icon: Icon(Icons.keyboard_arrow_down_rounded,
                   size: 18, color: hintCol),
-              style: const TextStyle(fontSize: 13, color: homeNavy),
+              style: TextStyle(fontSize: 13, color: textMain),
               items: fuenteItems,
               onChanged: (v) {
                 refresh(() => sourceStatisticsAccount = v ?? '0');
@@ -1512,13 +1512,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFDFEFF), Color(0xFFF4F6FF)],
+        gradient: LinearGradient(
+          colors: cardSheen,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+        border: Border.all(color: lineCol, width: 1),
         boxShadow: [
           BoxShadow(
               color: barColor.withValues(alpha: 0.10),
@@ -1546,10 +1546,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           const SizedBox(width: 10),
           Expanded(
               child: Text(title,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: homeNavy))),
+                      color: textMain))),
         ]),
         const SizedBox(height: 14),
         // Barras horizontales con gradiente y animación
@@ -1670,8 +1670,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(totalLabel,
-                style: const TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w700, color: homeNavy)),
+                style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700, color: textMain)),
           ),
           Text(formatCop(total),
               style: TextStyle(
@@ -1726,7 +1726,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           border: Border.all(
             color: active
                 ? accent.withValues(alpha: 0.55)
-                : const Color(0xFFE2E8F0),
+                : lineCol,
             width: 1.2,
           ),
           boxShadow: active
@@ -1746,7 +1746,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             child: Icon(icon,
                 size: 14,
                 key: ValueKey(active),
-                color: active ? Colors.white : const Color(0xFF8899BB)),
+                color: active ? Colors.white : textSoft),
           ),
           const SizedBox(width: 6),
           AnimatedDefaultTextStyle(
@@ -1754,7 +1754,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: active ? Colors.white : const Color(0xFF8899BB)),
+                color: active ? Colors.white : textSoft),
             child: Text(label),
           ),
         ]),
@@ -1849,10 +1849,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
   // Campo de fecha (Desde/Hasta) del simulador.
   Widget _simDateField(
       String label, DateTime? value, ValueChanged<DateTime> onPick) {
-    const navy = Color(0xFF0D1B4B);
+    final navy = textMain;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label,
-          style: const TextStyle(
+          style: TextStyle(
               fontSize: 12, fontWeight: FontWeight.w600, color: navy)),
       const SizedBox(height: 4),
       GestureDetector(
@@ -1869,9 +1869,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardBg,
             borderRadius: BorderRadius.circular(9),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            border: Border.all(color: lineCol),
           ),
           child: Row(children: [
             Expanded(
@@ -1882,11 +1882,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         '${value.month.toString().padLeft(2, '0')}/${value.year}',
                 style: TextStyle(
                     fontSize: 13,
-                    color: value == null ? const Color(0xFF94A3B8) : navy),
+                    color: value == null ? textSoft : navy),
               ),
             ),
-            const Icon(Icons.calendar_today_rounded,
-                size: 16, color: Color(0xFF8899BB)),
+            Icon(Icons.calendar_today_rounded,
+                size: 16, color: textSoft),
           ]),
         ),
       ),
@@ -1924,7 +1924,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
-                    color: homeNavy)),
+                    color: textMain)),
           ),
           Text(valor,
               style: TextStyle(
@@ -1948,16 +1948,16 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         const SizedBox(width: 10),
         Expanded(
           child: Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF64748B))),
+                  color: textSoft)),
         ),
         Text(valor,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
-                color: homeNavy)),
+                color: textMain)),
       ]),
     );
   }
@@ -2073,7 +2073,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         }
 
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -2088,12 +2088,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   // Título
                   Row(children: [
-                    const Expanded(
+                    Expanded(
                         child: Text('Crear Deudor',
                             style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF0D1B4B)))),
+                                color: textMain))),
                     IconButton(
                         icon: const Icon(Icons.close, size: 20),
                         onPressed: () => Navigator.pop(ctx),
@@ -2145,16 +2145,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   const SizedBox(height: 20),
                   // Botones
                   Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                    TextButton(
-                        onPressed: saving ? null : () => Navigator.pop(ctx),
-                        style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF6B7280)),
-                        child: const Text('Cerrar')),
+                    appCancelButton('Cerrar', saving ? null : () => Navigator.pop(ctx)),
                     const SizedBox(width: 8),
                     ElevatedButton(
                         onPressed: saving ? null : grabar,
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D1B4B),
+                            backgroundColor: btnPrimary,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8))),
@@ -2195,7 +2191,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               : allFiltered;
 
           return Dialog(
-            backgroundColor: Colors.white,
+            backgroundColor: dialogBg,
             surfaceTintColor: Colors.transparent,
             insetPadding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
@@ -2232,13 +2228,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             ),
                           ),
                         ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(dCtx),
-                          icon: const Icon(Icons.close_rounded,
-                              color: Colors.white60, size: 20),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                        ),
+                        appCloseX(() => Navigator.pop(dCtx)),
                       ],
                     ),
                   ),
@@ -2248,34 +2238,34 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     child: TextField(
                       autofocus: true,
                       onChanged: (v) => setD(() => query = v.trim()),
-                      style: const TextStyle(color: homeNavy, fontSize: 14),
+                      style: TextStyle(color: textMain, fontSize: 14),
                       decoration: InputDecoration(
                         hintText:
                             'Nombre del deudor... (${debtors.length} registrados)',
                         hintStyle: const TextStyle(
                             color: Color(0xFFB0BBCC), fontSize: 13),
-                        prefixIcon: const Icon(Icons.search_rounded,
-                            color: Color(0xFF8899BB), size: 20),
+                        prefixIcon: Icon(Icons.search_rounded,
+                            color: textSoft, size: 20),
                         suffixIcon: query.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear_rounded,
-                                    color: Color(0xFF8899BB), size: 18),
+                                icon: Icon(Icons.clear_rounded,
+                                    color: textSoft, size: 18),
                                 onPressed: () => setD(() => query = ''),
                               )
                             : null,
                         filled: true,
-                        fillColor: const Color(0xFFF5F7FB),
+                        fillColor: inputFill,
                         contentPadding:
                             const EdgeInsets.symmetric(vertical: 12),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide:
-                              const BorderSide(color: Color(0xFFDDE3EF)),
+                              BorderSide(color: lineCol),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide:
-                              const BorderSide(color: Color(0xFFDDE3EF)),
+                              BorderSide(color: lineCol),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -2296,15 +2286,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             : allFiltered.length > 100
                                 ? 'Mostrando 100 de ${allFiltered.length} — escribe para filtrar'
                                 : '${filtered.length} resultado${filtered.length == 1 ? '' : 's'}',
-                        style: const TextStyle(
-                            color: Color(0xFF8899BB), fontSize: 11),
+                        style: TextStyle(
+                            color: textSoft, fontSize: 11),
                       ),
                     ),
                   ),
                   // Lista
                   Flexible(
                     child: filtered.isEmpty
-                        ? const Padding(
+                        ? Padding(
                             padding: EdgeInsets.all(32),
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
@@ -2313,7 +2303,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     size: 40, color: Color(0xFFCBD5E1)),
                                 SizedBox(height: 10),
                                 Text('No se encontró ningún deudor',
-                                    style: TextStyle(color: Color(0xFF8899BB))),
+                                    style: TextStyle(color: textSoft)),
                               ],
                             ),
                           )
@@ -2374,8 +2364,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                         Expanded(
                                           child: Text(
                                             label.isNotEmpty ? label : id,
-                                            style: const TextStyle(
-                                              color: homeNavy,
+                                            style: TextStyle(
+                                              color: textMain,
                                               fontSize: 13,
                                               fontWeight: FontWeight.w500,
                                             ),
@@ -2578,7 +2568,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 maxHeight: MediaQuery.of(ctx).size.height * 0.92),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
@@ -2640,19 +2630,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           ],
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.close_rounded,
-                              color: Colors.white, size: 18),
-                        ),
-                      ),
+                      appCloseX(() => Navigator.pop(ctx)),
                     ]),
                   ),
                   // ── Form body ────────────────────────────────
@@ -2682,11 +2660,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         height: 40,
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF5F7FB),
+                          color: inputFill,
                           border: Border.all(
                             color: selectedDeudor != null
                                 ? homeAccent.withValues(alpha: 0.5)
-                                : const Color(0xFFDDE3EF),
+                                : lineCol,
                           ),
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -2703,9 +2681,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                             color: Color(0xFF9CA3AF)),
                                       ),
                                       const SizedBox(width: 8),
-                                      const Text('Cargando deudores...',
+                                      Text('Cargando deudores...',
                                           style: TextStyle(
-                                              color: Color(0xFF9CA3AF),
+                                              color: textSoft,
                                               fontSize: 13)),
                                     ])
                                   : Text(
@@ -2715,8 +2693,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         color: deudorLabel.isNotEmpty
-                                            ? const Color(0xFF0D1B4B)
-                                            : const Color(0xFF9CA3AF),
+                                            ? textMain
+                                            : textSoft,
                                         fontSize: 13,
                                       ),
                                     ),
@@ -2726,7 +2704,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               size: 18,
                               color: selectedDeudor != null
                                   ? homeAccent
-                                  : const Color(0xFF9CA3AF),
+                                  : textSoft,
                             ),
                           ],
                         ),
@@ -2751,8 +2729,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         height: 40,
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
-                            color: const Color(0xFFF5F7FB),
-                            border: Border.all(color: const Color(0xFFDDE3EF)),
+                            color: inputFill,
+                            border: Border.all(color: lineCol),
                             borderRadius: BorderRadius.circular(8)),
                         alignment: Alignment.centerLeft,
                         child: Row(children: [
@@ -2767,8 +2745,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                       : const Color(0xFF9CA3AF)),
                             ),
                           ),
-                          const Icon(Icons.calendar_today_outlined,
-                              size: 16, color: Color(0xFF9CA3AF)),
+                          Icon(Icons.calendar_today_outlined,
+                              size: 16, color: textSoft),
                         ]),
                       ),
                     ),
@@ -2878,15 +2856,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       height: 40,
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       decoration: BoxDecoration(
-                          color: const Color(0xFFF5F7FB),
-                          border: Border.all(color: const Color(0xFFDDE3EF)),
+                          color: inputFill,
+                          border: Border.all(color: lineCol),
                           borderRadius: BorderRadius.circular(8)),
                       alignment: Alignment.centerLeft,
                       child: Text(
                         totalAPagar > 0 ? formatCop(totalAPagar) : '',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF0D1B4B),
+                            color: textMain,
                             fontWeight: FontWeight.w600),
                       ),
                     ),
@@ -2894,16 +2872,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   const SizedBox(height: 20),
                   // Botones
                   Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                    TextButton(
-                        onPressed: saving ? null : () => Navigator.pop(ctx),
-                        style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF6B7280)),
-                        child: const Text('Cerrar')),
+                    appCancelButton('Cerrar', saving ? null : () => Navigator.pop(ctx)),
                     const SizedBox(width: 8),
                     ElevatedButton(
                         onPressed: saving ? null : grabar,
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D1B4B),
+                            backgroundColor: btnPrimary,
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8))),
@@ -3001,26 +2975,32 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         ? const Color(0xFF16A34A)
         : vencido
             ? const Color(0xFFDC2626)
-            : homeNavy;
+            : (isDarkTheme ? const Color(0xFF6366F1) : homeNavy);
 
 
     final Color borderColor = !activo
-        ? const Color(0xFF86EFAC)
+        ? (isDarkTheme ? const Color(0xFF1E5A3C) : const Color(0xFF86EFAC))
         : vencido
-            ? const Color(0xFFFCA5A5)
-            : const Color(0xFFE2E8F0);
+            ? (isDarkTheme ? const Color(0xFF5F2430) : const Color(0xFFFCA5A5))
+            : lineCol;
 
     final Color estadoColor = !activo
-        ? const Color(0xFF0369A1)
+        ? (isDarkTheme ? const Color(0xFF7CC4F8) : const Color(0xFF0369A1))
         : vencido
-            ? const Color(0xFFB71C1C)
+            ? (isDarkTheme ? const Color(0xFFF87171) : const Color(0xFFB71C1C))
             : const Color(0xFF16A34A);
 
     final Color estadoBg = !activo
-        ? const Color(0xFFDBEAFE)
+        ? (isDarkTheme
+            ? const Color(0xFF0369A1).withValues(alpha: 0.22)
+            : const Color(0xFFDBEAFE))
         : vencido
-            ? const Color(0xFFFFEBEE)
-            : const Color(0xFFDCFCE7);
+            ? (isDarkTheme
+                ? const Color(0xFFB71C1C).withValues(alpha: 0.22)
+                : const Color(0xFFFFEBEE))
+            : (isDarkTheme
+                ? const Color(0xFF16A34A).withValues(alpha: 0.20)
+                : const Color(0xFFDCFCE7));
 
     final initials = nombre
         .split(' ')
@@ -3060,10 +3040,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: !activo
-                ? [const Color(0xFFF0FDF4), const Color(0xFFE8FBF0)]
+                ? (isDarkTheme
+                    ? const [Color(0xFF10281C), Color(0xFF0D2018)]
+                    : const [Color(0xFFF0FDF4), Color(0xFFE8FBF0)])
                 : vencido
-                    ? [const Color(0xFFFFF5F5), const Color(0xFFFFF0F0)]
-                    : [const Color(0xFFFDFEFF), const Color(0xFFF2F5FF)],
+                    ? (isDarkTheme
+                        ? const [Color(0xFF2B1420), Color(0xFF221019)]
+                        : const [Color(0xFFFFF5F5), Color(0xFFFFF0F0)])
+                    : cardSheen,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -3125,26 +3109,26 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     Text(nombre,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
-                            color: homeNavy)),
+                            color: textMain)),
                     const SizedBox(height: 2),
                     if (asesor.isNotEmpty)
                       Text('· $asesor',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              fontSize: 11, color: Color(0xFF8899BB))),
+                          style: TextStyle(
+                              fontSize: 11, color: textSoft)),
                   ])),
               const SizedBox(width: 8),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Row(mainAxisSize: MainAxisSize.min, children: [
                   if (cod.isNotEmpty) ...[
                     Text('#$cod',
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 10,
-                            color: Color(0xFF8899BB),
+                            color: textSoft,
                             fontWeight: FontWeight.w600)),
                     const SizedBox(width: 6),
                   ],
@@ -3180,8 +3164,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 AnimatedRotation(
                   turns: expanded ? 0.5 : 0,
                   duration: const Duration(milliseconds: 220),
-                  child: const Icon(Icons.keyboard_arrow_down_rounded,
-                      color: Color(0xFF8899BB), size: 18),
+                  child: Icon(Icons.keyboard_arrow_down_rounded,
+                      color: textSoft, size: 18),
                 ),
               ]),
             ]),
@@ -3195,10 +3179,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    const Text('PENDIENTE',
+                    Text('PENDIENTE',
                         style: TextStyle(
                             fontSize: 9,
-                            color: Color(0xFF8899BB),
+                            color: textSoft,
                             fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
                     Text(formatCop(pendiente),
@@ -3211,17 +3195,17 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   ])),
               if (proxima.isNotEmpty)
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  const Text('PRÓX. CUOTA',
+                  Text('PRÓX. CUOTA',
                       style: TextStyle(
                           fontSize: 9,
-                          color: Color(0xFF8899BB),
+                          color: textSoft,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text(proxima,
                       style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
-                          color: vencido ? const Color(0xFFDC2626) : homeNavy)),
+                          color: vencido ? const Color(0xFFDC2626) : textMain)),
                 ]),
             ]),
           ),
@@ -3241,7 +3225,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                   fontSize: 9,
                                   color: progress >= 1.0
                                       ? const Color(0xFF16A34A)
-                                      : const Color(0xFF8899BB),
+                                      : textSoft,
                                   fontWeight: FontWeight.w600)),
                           if (numCuotas.isNotEmpty || tipo.isNotEmpty)
                             Text(
@@ -3249,8 +3233,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                   if (numCuotas.isNotEmpty) '$numCuotas cuotas',
                                   if (tipo.isNotEmpty) tipo
                                 ].join(' · '),
-                                style: const TextStyle(
-                                    fontSize: 9, color: Color(0xFF8899BB))),
+                                style: TextStyle(
+                                    fontSize: 9, color: textSoft)),
                         ]),
                     const SizedBox(height: 5),
                     TweenAnimationBuilder<double>(
@@ -3262,7 +3246,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         child: Stack(children: [
                           Container(
                             height: 5,
-                            color: const Color(0xFFE2E8F0),
+                            color: lineCol,
                           ),
                           FractionallySizedBox(
                             widthFactor: v,
@@ -3301,15 +3285,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             firstChild: const SizedBox.shrink(),
             secondChild:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 14),
-                child: Divider(height: 1, color: Color(0xFFE2E8F0)),
+                child: Divider(height: 1, color: lineCol),
               ),
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                 child: Row(children: [
-                  Expanded(child: _statMini('Crédito', formatCop(monto), homeNavy)),
+                  Expanded(child: _statMini('Crédito', formatCop(monto), isDarkTheme ? const Color(0xFF9AA8FF) : homeNavy)),
                   const SizedBox(width: 6),
                   Expanded(child: _statMini('A Pagar', formatCop(totalPagar), const Color(0xFF4F46E5))),
                   const SizedBox(width: 6),
@@ -3335,7 +3319,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 child: Row(children: [
                   Expanded(
                       child: _miniActionBtn(Icons.list_alt_rounded, 'Cuotas',
-                          homeNavy, () => _showCuotasDialog(c))),
+                          isDarkTheme
+                              ? const Color(0xFF38BDF8)
+                              : const Color(0xFF1D4ED8),
+                          () => _showCuotasDialog(c))),
                   const SizedBox(width: 6),
                   if (activo)
                     Expanded(
@@ -3408,25 +3395,67 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         ]),
       );
 
-  Widget _statMini(String label, String value, Color color) => Container(
+  Widget _statMini(String label, String value, Color color) {
+    final topColor = isDarkTheme
+        ? Color.lerp(color, Colors.white, 0.16) ?? color
+        : Color.lerp(color, Colors.white, 0.72) ?? color;
+    final bottomColor = isDarkTheme
+        ? Color.lerp(color, const Color(0xFF050816), 0.46) ?? color
+        : Color.lerp(color, Colors.white, 0.88) ?? color;
+    final labelColor = isDarkTheme
+        ? Color.lerp(color, Colors.white, 0.30) ?? color
+        : Color.lerp(color, Colors.black, 0.08) ?? color;
+    final valueColor = isDarkTheme
+        ? Color.lerp(color, Colors.white, 0.18) ?? color
+        : Color.lerp(color, Colors.black, 0.10) ?? color;
+
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.07),
+        gradient: LinearGradient(
+          colors: isDarkTheme
+              ? [
+                  topColor.withValues(alpha: 0.38),
+                  color.withValues(alpha: 0.20),
+                  bottomColor.withValues(alpha: 0.28),
+                ]
+              : [
+                  topColor.withValues(alpha: 0.96),
+                  color.withValues(alpha: 0.14),
+                  bottomColor.withValues(alpha: 0.98),
+                ],
+          stops: const [0.0, 0.52, 1.0],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.16), width: 1),
+        border: Border.all(
+          color: color.withValues(alpha: isDarkTheme ? 0.34 : 0.24),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: color.withValues(alpha: isDarkTheme ? 0.16 : 0.10),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
             style: TextStyle(
                 fontSize: 8.5,
-                color: color.withValues(alpha: 0.65),
+                color: labelColor.withValues(alpha: 0.88),
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.3)),
         const SizedBox(height: 3),
         Text(value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w800, color: color)),
+                fontSize: 11, fontWeight: FontWeight.w800, color: valueColor)),
       ]));
+  }
 
   // Chip con gradiente (usado en las cards de Pendientes/Rechazadas)
   Widget _infoBadgeGrad(IconData icon, String text, Color color) {
@@ -3448,9 +3477,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           Icon(icon, size: 11, color: color.withValues(alpha: 0.85)),
           const SizedBox(width: 5),
           Text(text,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 10,
-                  color: homeNavy,
+                  color: textMain,
                   fontWeight: FontWeight.w700)),
         ]));
   }
@@ -3468,42 +3497,75 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           Icon(icon, size: 11, color: color.withValues(alpha: 0.75)),
           const SizedBox(width: 5),
           Text(text,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 10,
-                  color: homeNavy,
+                  color: textMain,
                   fontWeight: FontWeight.w700)),
         ]));
   }
 
   Widget _miniActionBtn(
       IconData icon, String label, Color color, VoidCallback onTap) {
-    final colorDark = Color.lerp(color, Colors.black, 0.22) ?? color;
+    final colorTop =
+        Color.lerp(color, Colors.white, isDarkTheme ? 0.20 : 0.12) ?? color;
+    final colorDark =
+        Color.lerp(color, Colors.black, isDarkTheme ? 0.30 : 0.22) ?? color;
     return GestureDetector(
         onTap: onTap,
-        child: Container(
-          height: 34,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-                colors: [color, colorDark],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight),
-            borderRadius: BorderRadius.circular(10),
-            boxShadow: [
-              BoxShadow(
-                  color: colorDark.withValues(alpha: 0.45),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4))
-            ],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            height: 34,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  colors: [colorTop, color, colorDark],
+                  stops: const [0.0, 0.46, 1.0],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color:
+                    Colors.white.withValues(alpha: isDarkTheme ? 0.18 : 0.14),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                    color: color.withValues(alpha: isDarkTheme ? 0.40 : 0.28),
+                    blurRadius: 14,
+                    offset: const Offset(0, 5)),
+                BoxShadow(
+                    color: colorDark.withValues(alpha: 0.28),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8))
+              ],
+            ),
+            child: Stack(children: [
+              Positioned(
+                left: -12,
+                top: -18,
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.12),
+                  ),
+                ),
+              ),
+              Center(
+                child:
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(icon, size: 13, color: Colors.white),
+                  const SizedBox(width: 5),
+                  Text(label,
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white)),
+                ]),
+              ),
+            ]),
           ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(icon, size: 13, color: Colors.white),
-            const SizedBox(width: 5),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white)),
-          ]),
         ));
   }
 
@@ -3566,15 +3628,19 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final tieneAsesor = codigoAsesor.isNotEmpty;
     final rechazado = estadoCod == 3;
     final cardGradient = rechazado
-        ? const [Color(0xFFFFF0F0), Color(0xFFFFCDD2)]
+        ? (isDarkTheme
+            ? const [Color(0xFF2B1420), Color(0xFF3A1A28)]
+            : const [Color(0xFFFFF0F0), Color(0xFFFFCDD2)])
         : tieneAsesor
-            ? const [Color(0xFFEAF8EB), Color(0xFFC8E6C9)]
-            : const [Color(0xFFFDFEFF), Color(0xFFF2F5FF)];
+            ? (isDarkTheme
+                ? const [Color(0xFF10281C), Color(0xFF16352a)]
+                : const [Color(0xFFEAF8EB), Color(0xFFC8E6C9)])
+            : cardSheen;
     final cardBorder = rechazado
-        ? const Color(0xFFEF9A9A)
+        ? (isDarkTheme ? const Color(0xFF6B2837) : const Color(0xFFEF9A9A))
         : tieneAsesor
-            ? const Color(0xFFA5D6A7)
-            : const Color(0xFFE2E8F0);
+            ? (isDarkTheme ? const Color(0xFF1E5A3C) : const Color(0xFFA5D6A7))
+            : lineCol;
 
     final accentColor = rechazado
         ? const Color(0xFFDC2626)
@@ -3667,24 +3733,24 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           Text(solicitante.isNotEmpty ? solicitante : 'Sin nombre',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14,
-                                  color: homeNavy)),
+                                  color: textMain)),
                           const SizedBox(height: 2),
                           if (doc.isNotEmpty)
                             Text('Doc: $doc',
-                                style: const TextStyle(
-                                    fontSize: 11, color: Color(0xFF8899BB))),
+                                style: TextStyle(
+                                    fontSize: 11, color: textSoft)),
                         ]),
                       ),
                       const SizedBox(width: 8),
                       Row(mainAxisSize: MainAxisSize.min, children: [
                         if (cod.isNotEmpty) ...[
                           Text('#$cod',
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 10,
-                                  color: Color(0xFF8899BB),
+                                  color: textSoft,
                                   fontWeight: FontWeight.w600)),
                           const SizedBox(width: 6),
                         ],
@@ -3715,16 +3781,16 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       AnimatedRotation(
                         turns: expanded ? 0.5 : 0,
                         duration: const Duration(milliseconds: 220),
-                        child: const Icon(Icons.keyboard_arrow_down_rounded,
-                            color: Color(0xFF8899BB), size: 18),
+                        child: Icon(Icons.keyboard_arrow_down_rounded,
+                            color: textSoft, size: 18),
                       ),
                     ]),
                     const SizedBox(height: 10),
                     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('SOLICITADO',
+                      Text('SOLICITADO',
                           style: TextStyle(
                               fontSize: 9,
-                              color: Color(0xFF8899BB),
+                              color: textSoft,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(formatCop(valor),
@@ -4003,28 +4069,28 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         }
 
         // Helpers de estilo
-        const indigo = Color(0xFF0D1B4B);
-        const accentBlue = Color(0xFF1A3170);
-        const borderCol = Color(0xFFE2E8F0);
-        const hintCol = Color(0xFF94A3B8);
-        const bgField = Color(0xFFF8F9FC);
+        final indigo = isDarkTheme ? const Color(0xFF6366F1) : const Color(0xFF0D1B4B);
+        final accentBlue = isDarkTheme ? const Color(0xFF4F46E5) : const Color(0xFF1A3170);
+        final borderCol = lineCol;
+        final hintCol = textSoft;
+        final bgField = cardBgAlt;
 
         InputDecoration fieldDeco(String label, IconData icon) =>
             InputDecoration(
               labelText: label,
-              labelStyle: const TextStyle(fontSize: 12, color: hintCol),
+              labelStyle: TextStyle(fontSize: 12, color: hintCol),
               prefixIcon: Icon(icon, size: 16, color: hintCol),
               filled: true,
               fillColor: bgField,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: borderCol)),
+                  borderSide: BorderSide(color: borderCol)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: borderCol)),
+                  borderSide: BorderSide(color: borderCol)),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: accentBlue, width: 1.5)),
+                  borderSide: BorderSide(color: accentBlue, width: 1.5)),
               errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: const BorderSide(color: Color(0xFFEF4444))),
@@ -4043,7 +4109,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   controller: ctrl,
                   keyboardType: kb,
                   decoration: fieldDeco(label, icon),
-                  style: const TextStyle(fontSize: 13, color: homeNavy),
+                  style: TextStyle(fontSize: 13, color: textMain),
                   onChanged: onChanged,
                   validator: required
                       ? (v) =>
@@ -4064,11 +4130,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   items: items,
                   onChanged: onChange,
                   decoration: fieldDeco(label, icon),
-                  dropdownColor: Colors.white,
+                  dropdownColor: dialogBg,
                   isExpanded: true,
-                  icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                  icon: Icon(Icons.keyboard_arrow_down_rounded,
                       size: 18, color: hintCol),
-                  style: const TextStyle(fontSize: 13, color: homeNavy),
+                  style: TextStyle(fontSize: 13, color: textMain),
                 ));
 
         Widget sectionLabel(String text) => Padding(
@@ -4081,7 +4147,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       color: indigo, borderRadius: BorderRadius.circular(2))),
               const SizedBox(width: 7),
               Text(text.toUpperCase(),
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       color: hintCol,
@@ -4138,13 +4204,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     Expanded(
                         child: Text(fechaStr,
                             style:
-                                const TextStyle(fontSize: 12.5, color: homeNavy))),
+                                TextStyle(fontSize: 12.5, color: textMain))),
                     Expanded(
                         child: Text(formatCop(valor),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
-                                color: homeNavy))),
+                                color: textMain))),
                   ]),
                 );
               }),
@@ -4153,7 +4219,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         }
 
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
           insetPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -4198,15 +4264,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                   fontSize: 11,
                                   color: Colors.white.withValues(alpha: 0.75))),
                         ])),
-                    GestureDetector(
-                        onTap: () => Navigator.pop(ctx),
-                        child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(8)),
-                            child: const Icon(Icons.close,
-                                size: 16, color: Colors.white))),
+                    appCloseX(() => Navigator.pop(ctx)),
                   ]),
                 ),
 
@@ -4338,20 +4396,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           // ── Botones ──
                           Row(children: [
                             Expanded(
-                                child: OutlinedButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: borderCol),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12)),
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 13),
-                              ),
-                              child: const Text('Cerrar',
-                                  style: TextStyle(
-                                      color: hintCol,
-                                      fontWeight: FontWeight.w600)),
-                            )),
+                                child: appCancelButton('Cerrar', () => Navigator.pop(ctx), height: 46)),
                             const SizedBox(width: 10),
                             Expanded(
                                 child: GestureDetector(
@@ -4359,7 +4404,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               child: Container(
                                 height: 46,
                                 decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
+                                  gradient: LinearGradient(
                                       colors: [accentBlue, indigo],
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight),
@@ -4413,22 +4458,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           String? tmp = advisors.first['sigla']?.toString() ?? '';
           return StatefulBuilder(
               builder: (ctx, setS) => AlertDialog(
-                    backgroundColor: Colors.white,
+                    backgroundColor: dialogBg,
                     surfaceTintColor: Colors.transparent,
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16)),
-                    title: const Text('Asignar asesor',
+                    title: Text('Asignar asesor',
                         style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF0D1B4B))),
+                            color: textMain)),
                     content: InputDecorator(
                       decoration: const InputDecoration(
                           labelText: 'Asesor', border: OutlineInputBorder()),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: tmp,
-                          dropdownColor: Colors.white,
+                          dropdownColor: dialogBg,
                           isExpanded: true,
                           items: advisors.map((a) {
                             final sigla =
@@ -4449,12 +4494,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       ),
                     ),
                     actions: [
-                      TextButton(
-                          style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFFDC2626)),
-                          onPressed: () => Navigator.pop(ctx, null),
-                          child: const Text('Cancelar',
-                              style: TextStyle(fontWeight: FontWeight.w700))),
+                      appCancelButton('Cancelar', () => Navigator.pop(ctx, null)),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF16A34A),
@@ -4496,20 +4536,20 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final ok = await showDialog<bool>(
       context: screenContext,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: dialogBg,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(children: [
+        title: Row(children: [
           Icon(Icons.cancel_outlined, color: Color(0xFFDC2626)),
           SizedBox(width: 8),
           Text('Rechazar solicitud',
               style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF0D1B4B))),
+                  color: textMain)),
         ]),
         content: Text('¿Rechazar la solicitud #$cod de $nombre?',
-            style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
+            style: TextStyle(fontSize: 13, color: textMid)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -4609,23 +4649,42 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               (numberValue(q['valor_pagado'] ?? 0) >=
                       numberValue(q['valor_pago'] ?? 1) &&
                   numberValue(q['valor_pagado'] ?? 0) > 0);
-          if (pagada) return const Color(0xFFC8E6C9);
+          if (pagada) {
+            return isDarkTheme ? const Color(0xFF12341F) : const Color(0xFFC8E6C9);
+          }
           try {
             final fp = DateTime.parse((q['fecha_pago'] ?? '').toString());
-            if (fp.isBefore(hoy)) return const Color(0xFFFFCDD2);
+            if (fp.isBefore(hoy)) {
+              return isDarkTheme
+                  ? const Color(0xFF3A1A22)
+                  : const Color(0xFFFFCDD2);
+            }
           } catch (_) {}
-          return Colors.white;
+          return cardBg;
         }
 
         Color cuotaTextColor(Map<String, dynamic> q) {
-          final c = cuotaColor(q);
-          if (c == const Color(0xFFC8E6C9)) return const Color(0xFF1B5E20);
-          if (c == const Color(0xFFFFCDD2)) return const Color(0xFFB71C1C);
-          return const Color(0xFF0D1B4B);
+          final pagadoFlag = (q['pagado'] ?? '').toString().toLowerCase();
+          final pagada = pagadoFlag == 'si' ||
+              (numberValue(q['valor_pagado'] ?? 0) >=
+                      numberValue(q['valor_pago'] ?? 1) &&
+                  numberValue(q['valor_pagado'] ?? 0) > 0);
+          if (pagada) {
+            return isDarkTheme ? const Color(0xFF6EE7A0) : const Color(0xFF1B5E20);
+          }
+          try {
+            final fp = DateTime.parse((q['fecha_pago'] ?? '').toString());
+            if (fp.isBefore(hoy)) {
+              return isDarkTheme
+                  ? const Color(0xFFF87171)
+                  : const Color(0xFFB71C1C);
+            }
+          } catch (_) {}
+          return textMain;
         }
 
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -4659,14 +4718,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             color: Colors.white70, fontSize: 11),
                       ),
                     ])),
-                IconButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  icon:
-                      const Icon(Icons.close, color: Colors.white70, size: 18),
-                  padding: EdgeInsets.zero,
-                  constraints:
-                      const BoxConstraints.tightFor(width: 36, height: 36),
-                ),
+                appCloseX(() => Navigator.pop(ctx)),
               ]),
             ),
             // Cabecera tabla (color morado)
@@ -4730,10 +4782,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   padding: EdgeInsets.all(32),
                   child: CircularProgressIndicator())
             else if (cuotas.isEmpty)
-              const Padding(
+              Padding(
                   padding: EdgeInsets.all(32),
                   child: Text('Sin cuotas registradas',
-                      style: TextStyle(color: Color(0xFF8899BB))))
+                      style: TextStyle(color: textSoft)))
             else
               ConstrainedBox(
                 constraints: BoxConstraints(
@@ -4742,7 +4794,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   shrinkWrap: true,
                   itemCount: cuotas.length,
                   separatorBuilder: (_, __) =>
-                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      Divider(height: 1, color: lineCol),
                   itemBuilder: (_, i) {
                     final q = cuotas[i];
                     final bg = cuotaColor(q);
@@ -4872,16 +4924,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: Align(
                 alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4A4A9A),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cerrar'),
-                ),
+                child: appCancelButton('Cerrar', () => Navigator.pop(ctx)),
               ),
             ),
           ]),
@@ -4948,44 +4991,44 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         }
 
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Registro de pago',
+          title: Text('Registro de pago',
               style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF0D1B4B))),
+                  color: textMain)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               // Interés
               Row(children: [
-                const SizedBox(
+                SizedBox(
                     width: 80,
                     child: Text('Interés',
                         style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF0D1B4B)))),
+                            color: textMain))),
                 Expanded(
                     child: Container(
                   height: 40,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE7E9F5),
+                    color: inputFill,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFD3D7EB)),
+                    border: Border.all(color: lineCol),
                   ),
                   child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                     value: interes,
                     isExpanded: true,
-                    dropdownColor: Colors.white,
+                    dropdownColor: dialogBg,
                     iconEnabledColor: const Color(0xFF3B3B8A),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: Color(0xFF0D1B4B),
+                      color: textMain,
                       fontWeight: FontWeight.w500,
                     ),
                     items: const [
@@ -5001,8 +5044,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               TextField(
                 controller: valorCtrl,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(
-                  color: Color(0xFF0D1B4B),
+                style: TextStyle(
+                  color: textMain,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -5018,14 +5061,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     fontWeight: FontWeight.w700,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFE7E9F5),
+                  fillColor: inputFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -5073,10 +5116,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               DropdownButtonFormField<String>(
                 initialValue: fuente,
                 isExpanded: true,
-                dropdownColor: Colors.white,
+                dropdownColor: dialogBg,
                 iconEnabledColor: const Color(0xFF3B3B8A),
-                style: const TextStyle(
-                  color: Color(0xFF0D1B4B),
+                style: TextStyle(
+                  color: textMain,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
@@ -5091,14 +5134,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     fontWeight: FontWeight.w700,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFE7E9F5),
+                  fillColor: inputFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -5111,11 +5154,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
                 items: [
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                     value: '',
                     child: Text(
                       '[Seleccione]',
-                      style: TextStyle(color: Color(0xFF667395)),
+                      style: TextStyle(color: textSoft),
                     ),
                   ),
                   ...fuentesPago.map((f) {
@@ -5145,9 +5188,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE7E9F5),
+                    color: inputFill,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFD3D7EB)),
+                    border: Border.all(color: lineCol),
                   ),
                   child: Row(children: [
                     const Icon(Icons.calendar_today_outlined,
@@ -5155,8 +5198,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     const SizedBox(width: 8),
                     Text(
                       '${fechaPago.day.toString().padLeft(2, '0')}/${fechaPago.month.toString().padLeft(2, '0')}/${fechaPago.year}',
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF0D1B4B)),
+                      style: TextStyle(
+                          fontSize: 12, color: textMain),
                     ),
                   ]),
                 ),
@@ -5166,27 +5209,27 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               TextField(
                 controller: comentCtrl,
                 maxLines: 3,
-                style: const TextStyle(
-                  color: Color(0xFF0D1B4B),
+                style: TextStyle(
+                  color: textMain,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
                 cursorColor: const Color(0xFF3B3B8A),
                 decoration: InputDecoration(
                   hintText: 'Comentarios (opcional)',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFF667395),
+                  hintStyle: TextStyle(
+                    color: textSoft,
                     fontWeight: FontWeight.w500,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFE7E9F5),
+                  fillColor: inputFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -5202,11 +5245,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             ]),
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cerrar',
-                  style: TextStyle(color: Color(0xFF8899BB))),
-            ),
+            appCancelButton('Cerrar', () => Navigator.pop(ctx)),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B3B8A),
@@ -5297,22 +5336,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         }
 
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Editar Cuota',
+          title: Text('Editar Cuota',
               style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF0D1B4B))),
+                  color: textMain)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               TextField(
                 controller: valorCtrl,
                 keyboardType: TextInputType.number,
-                style: const TextStyle(
-                  color: Color(0xFF0D1B4B),
+                style: TextStyle(
+                  color: textMain,
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
@@ -5328,14 +5367,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     fontWeight: FontWeight.w700,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFE7E9F5),
+                  fillColor: inputFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -5364,9 +5403,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE7E9F5),
+                    color: inputFill,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFD3D7EB)),
+                    border: Border.all(color: lineCol),
                   ),
                   child: Row(children: [
                     const Icon(Icons.calendar_today_outlined,
@@ -5379,8 +5418,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       style: TextStyle(
                         fontSize: 12,
                         color: fechaPago != null
-                            ? const Color(0xFF0D1B4B)
-                            : const Color(0xFF8899BB),
+                            ? textMain
+                            : textSoft,
                       ),
                     ),
                   ]),
@@ -5390,27 +5429,27 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               TextField(
                 controller: obsCtrl,
                 maxLines: 3,
-                style: const TextStyle(
-                  color: Color(0xFF0D1B4B),
+                style: TextStyle(
+                  color: textMain,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
                 cursorColor: const Color(0xFF3B3B8A),
                 decoration: InputDecoration(
                   hintText: 'Observaciones (opcional)',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFF667395),
+                  hintStyle: TextStyle(
+                    color: textSoft,
                     fontWeight: FontWeight.w500,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFE7E9F5),
+                  fillColor: inputFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -5426,13 +5465,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             ]),
           ),
           actions: [
-            TextButton(
-              style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFDC2626)),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancelar',
-                  style: TextStyle(fontWeight: FontWeight.w700)),
-            ),
+            appCancelButton('Cancelar', () => Navigator.pop(ctx)),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3B3B8A),
@@ -5557,20 +5590,20 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             int.tryParse(calculo?['cuotas_pendientes']?.toString() ?? '0') ?? 0;
 
         return AlertDialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('Liquidar crédito #$cod',
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF0D1B4B))),
+                  color: textMain)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               Text('Cliente: $cliente',
-                  style: const TextStyle(
-                      fontSize: 12, color: Color(0xFF667395))),
+                  style: TextStyle(
+                      fontSize: 12, color: textSoft)),
               const SizedBox(height: 12),
               // Fecha de liquidación
               GestureDetector(
@@ -5594,9 +5627,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE7E9F5),
+                    color: inputFill,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFD3D7EB)),
+                    border: Border.all(color: lineCol),
                   ),
                   child: Row(children: [
                     const Icon(Icons.calendar_today_outlined,
@@ -5604,8 +5637,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     const SizedBox(width: 8),
                     Text(
                       'Fecha de liquidación: ${fechaLiquidacion.day.toString().padLeft(2, '0')}/${fechaLiquidacion.month.toString().padLeft(2, '0')}/${fechaLiquidacion.year}',
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF0D1B4B)),
+                      style: TextStyle(
+                          fontSize: 12, color: textMain),
                     ),
                   ]),
                 ),
@@ -5698,10 +5731,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               DropdownButtonFormField<String>(
                 initialValue: fuente,
                 isExpanded: true,
-                dropdownColor: Colors.white,
+                dropdownColor: dialogBg,
                 iconEnabledColor: const Color(0xFF3B3B8A),
-                style: const TextStyle(
-                  color: Color(0xFF0D1B4B),
+                style: TextStyle(
+                  color: textMain,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
@@ -5712,19 +5745,19 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     fontWeight: FontWeight.w600,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFFE7E9F5),
+                  fillColor: inputFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
                 items: [
-                  const DropdownMenuItem(
+                  DropdownMenuItem(
                     value: '',
                     child: Text('[Seleccione]',
-                        style: TextStyle(color: Color(0xFF667395))),
+                        style: TextStyle(color: textSoft)),
                   ),
                   ...fuentesPago.map((f) => DropdownMenuItem(
                       value: f['codigo'],
@@ -5737,17 +5770,17 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               TextField(
                 controller: comentCtrl,
                 maxLines: 3,
-                style: const TextStyle(
-                    color: Color(0xFF0D1B4B), fontSize: 14, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                    color: textMain, fontSize: 14, fontWeight: FontWeight.w500),
                 cursorColor: const Color(0xFF3B3B8A),
                 decoration: InputDecoration(
                   hintText: 'Comentarios (opcional)',
-                  hintStyle: const TextStyle(color: Color(0xFF667395)),
+                  hintStyle: TextStyle(color: textSoft),
                   filled: true,
-                  fillColor: const Color(0xFFE7E9F5),
+                  fillColor: inputFill,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFD3D7EB)),
+                    borderSide: BorderSide(color: lineCol),
                   ),
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -5925,7 +5958,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     showDialog(
       context: screenContext,
       builder: (ctx) => Dialog(
-        backgroundColor: Colors.white,
+        backgroundColor: dialogBg,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -5944,49 +5977,49 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     border:
                         Border.all(color: const Color(0xFF0D1B4B), width: 2),
                   ),
-                  child: const Icon(Icons.savings_rounded,
-                      color: Color(0xFF0D1B4B), size: 24),
+                  child: Icon(Icons.savings_rounded,
+                      color: textMain, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      const Text('SAF',
+                      Text('SAF',
                           style: TextStyle(
                               fontWeight: FontWeight.w900,
                               fontSize: 18,
-                              color: Color(0xFF0D1B4B))),
-                      const Text('Dirección · Tel: (316) 270-5951',
+                              color: textMain)),
+                      Text('Dirección · Tel: (316) 270-5951',
                           style: TextStyle(
-                              fontSize: 10, color: Color(0xFF64748B))),
+                              fontSize: 10, color: textSoft)),
                     ])),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Text(fechaFirma,
-                      style: const TextStyle(
-                          fontSize: 11, color: Color(0xFF64748B))),
-                  const Text('Paz y salvo',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      style: TextStyle(
+                          fontSize: 11, color: textSoft)),
+                  Text('Paz y salvo',
+                      style: TextStyle(fontSize: 11, color: textSoft)),
                 ]),
               ]),
               const SizedBox(height: 12),
               const Divider(color: Color(0xFF0D1B4B), thickness: 1.5),
               const SizedBox(height: 16),
               // Título
-              const Center(
+              Center(
                 child: Text('CERTIFICADO DE PAZ Y SALVO',
                     style: TextStyle(
                         fontWeight: FontWeight.w900,
                         fontSize: 15,
-                        color: Color(0xFF0D1B4B),
+                        color: textMain,
                         letterSpacing: 0.5)),
               ),
               const SizedBox(height: 20),
               // Cuerpo
               RichText(
                   text: TextSpan(
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF1E293B), height: 1.6),
+                      style: TextStyle(
+                          fontSize: 12, color: textMain, height: 1.6),
                       children: [
                     const TextSpan(
                         text: 'La presente certifica que el(la) señor(a) '),
@@ -6018,9 +6051,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               if (ultimaPago.isNotEmpty)
                 RichText(
                     text: TextSpan(
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF1E293B),
+                            color: textMain,
                             height: 1.6),
                         children: [
                       const TextSpan(
@@ -6029,16 +6062,16 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       TextSpan(text: '$ultimaPago.'),
                     ])),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Este certificado se expide a solicitud del interesado para los fines que estime convenientes.',
                 style: TextStyle(
-                    fontSize: 12, color: Color(0xFF1E293B), height: 1.6),
+                    fontSize: 12, color: textMain, height: 1.6),
               ),
               const SizedBox(height: 12),
               Text(
                 'En constancia de lo anterior, se firma a los $fechaFirma.',
-                style: const TextStyle(
-                    fontSize: 12, color: Color(0xFF1E293B), height: 1.6),
+                style: TextStyle(
+                    fontSize: 12, color: textMain, height: 1.6),
               ),
               const SizedBox(height: 24),
               // Sello
@@ -6075,25 +6108,21 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 Expanded(
                     child: Column(children: [
                   const Divider(color: Color(0xFF0D1B4B)),
-                  const Text('Asesor',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                  Text('Asesor',
+                      style: TextStyle(fontSize: 11, color: textSoft)),
                 ])),
                 const SizedBox(width: 32),
                 Expanded(
                     child: Column(children: [
                   const Divider(color: Color(0xFF0D1B4B)),
-                  const Text('Deudor',
-                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                  Text('Deudor',
+                      style: TextStyle(fontSize: 11, color: textSoft)),
                 ])),
               ]),
               const SizedBox(height: 12),
               // Botón cerrar
               Center(
-                  child: TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cerrar',
-                    style: TextStyle(color: Color(0xFF3B3B8A))),
-              )),
+                  child: appCancelButton('Cerrar', () => Navigator.pop(ctx))),
             ]),
           ),
         ),
@@ -6109,11 +6138,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: enabled ? homeNavy : const Color(0xFFE2E8F0),
+            color: enabled ? btnPrimary : inputFill,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon,
-              color: enabled ? Colors.white : const Color(0xFF9CA3AF),
+              color: enabled ? Colors.white : textSoft,
               size: 20),
         ),
       );
@@ -6216,7 +6245,7 @@ class _EliminarCreditoDialogState extends State<_EliminarCreditoDialog>
           insetPadding: const EdgeInsets.symmetric(horizontal: 28),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -6280,7 +6309,7 @@ class _EliminarCreditoDialogState extends State<_EliminarCreditoDialog>
                     decoration: BoxDecoration(
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: lineCol),
                     ),
                     child: Row(children: [
                       Container(
@@ -6303,15 +6332,15 @@ class _EliminarCreditoDialogState extends State<_EliminarCreditoDialog>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Crédito #${widget.cod}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 13,
-                                      color: Color(0xFF0D1B4B))),
+                                      color: textMain)),
                               const SizedBox(height: 2),
                               Text(widget.cliente,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontSize: 12,
-                                      color: Color(0xFF64748B))),
+                                      color: textSoft)),
                             ]),
                       ),
                     ]),
@@ -6320,20 +6349,7 @@ class _EliminarCreditoDialogState extends State<_EliminarCreditoDialog>
                   // Buttons
                   Row(children: [
                     Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF64748B),
-                          side: const BorderSide(
-                              color: Color(0xFFE2E8F0), width: 1.5),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancelar',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 14)),
-                      ),
+                      child: appCancelButton('Cancelar', () => Navigator.pop(context, false), height: 46),
                     ),
                     const SizedBox(width: 10),
                     Expanded(

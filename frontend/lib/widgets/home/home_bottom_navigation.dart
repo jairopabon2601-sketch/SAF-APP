@@ -436,7 +436,7 @@ class _SafAnimatedBottomNavigationBarState
               width: sz,
               height: sz,
               decoration: BoxDecoration(
-                color: i.isEven ? color : Colors.white,
+                color: i.isEven ? color : cardBg,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(

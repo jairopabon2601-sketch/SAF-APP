@@ -255,7 +255,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
                               style: TextStyle(
                                 color: activo
                                     ? Colors.white
-                                    : const Color(0xFF374151),
+                                    : textMid,
                                 fontWeight: activo
                                     ? FontWeight.w800
                                     : FontWeight.w600,
@@ -293,7 +293,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE0E7FF)),
               boxShadow: [
@@ -320,11 +320,11 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
                       size: 14, color: Colors.white),
                 ),
                 const SizedBox(width: 8),
-                const Text('Filtros',
+                Text('Filtros',
                     style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: homeNavy)),
+                        color: textMain)),
                 if (statisticsFilters.isNotEmpty) ...[
                   const SizedBox(width: 6),
                   Container(
@@ -390,7 +390,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 40),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardBg,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE0E7FF)),
           ),
@@ -409,14 +409,14 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
                   size: 28, color: Color(0xFF818CF8)),
             ),
             const SizedBox(height: 14),
-            const Text('Sin resultados',
+            Text('Sin resultados',
                 style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: homeNavy)),
+                    color: textMain)),
             const SizedBox(height: 6),
-            const Text('Ajusta los filtros para ver datos',
-                style: TextStyle(fontSize: 12, color: Color(0xFF8899BB))),
+            Text('Ajusta los filtros para ver datos',
+                style: TextStyle(fontSize: 12, color: textSoft)),
           ]),
         ),
       );
@@ -438,7 +438,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -498,8 +498,8 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
           });
         });
       },
-      style: const TextStyle(
-          fontSize: 13, color: homeNavy, fontWeight: FontWeight.w600),
+      style: TextStyle(
+          fontSize: 13, color: textMain, fontWeight: FontWeight.w600),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle:
@@ -513,7 +513,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         filled: true,
-        fillColor: const Color(0xFFF8FAFF),
+        fillColor: inputFill,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Color(0xFFE0E7FF)),
@@ -567,7 +567,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFFEEF2FF),
+            color: inputFill,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -616,7 +616,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accentColor.withValues(alpha: 0.16)),
         boxShadow: [
@@ -693,10 +693,10 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
                         Text(cliente,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
-                                color: homeNavy,
+                                color: textMain,
                                 letterSpacing: -0.2)),
                         const SizedBox(height: 3),
                         Container(
@@ -808,7 +808,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
                     ? Colors.transparent
                     : enabled
                         ? const Color(0xFFE0E7FF)
-                        : const Color(0xFFF1F5F9),
+                        : lineCol,
                 width: 1.2),
             boxShadow: activo
                 ? [
@@ -827,7 +827,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
                   color: activo
                       ? Colors.white
                       : enabled
-                          ? const Color(0xFF374151)
+                          ? textMid
                           : const Color(0xFFD1D5DB))),
         ),
       );
@@ -845,11 +845,11 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
           pageChip('1',
               onTap: () => refresh(() => statisticsPage = 0)),
           if (desde > 1)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: 4),
               child: Text('…',
                   style: TextStyle(
-                      color: Color(0xFF8899BB),
+                      color: textSoft,
                       fontWeight: FontWeight.w700)),
             ),
         ],
@@ -861,11 +861,11 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
                   : () => refresh(() => statisticsPage = p)),
         if (hasta < totalPaginas) ...[
           if (hasta < totalPaginas - 1)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(horizontal: 4),
               child: Text('…',
                   style: TextStyle(
-                      color: Color(0xFF8899BB),
+                      color: textSoft,
                       fontWeight: FontWeight.w700)),
             ),
           pageChip('$totalPaginas',

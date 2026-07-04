@@ -1,4 +1,5 @@
 import '../../controllers/home_actions.dart';
+import '../../controllers/home_data_controller.dart';
 import '../../screens/home/home_dependencies.dart';
 import 'home_dialogs.dart';
 
@@ -25,6 +26,46 @@ extension HomeAppBar<T extends StatefulWidget> on HomeController<T> {
               ),
             ),
             const Spacer(),
+            // ── Toggle tema claro/oscuro ──
+            GestureDetector(
+              onTap: () async {
+                final dark = !isDarkTheme;
+                await setThemeDark(dark);
+                refresh(() {});
+                // Persistir en el servidor para sincronizar con SAF-WEB
+                unawaited(saveThemeToServer(dark));
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.10),
+                  border: Border.all(
+                      color: (isDarkTheme
+                              ? const Color(0xFFFBBF24)
+                              : const Color(0xFFA78BFA))
+                          .withValues(alpha: 0.45)),
+                ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  transitionBuilder: (child, anim) =>
+                      RotationTransition(turns: anim, child: FadeTransition(opacity: anim, child: child)),
+                  child: Icon(
+                    isDarkTheme
+                        ? Icons.wb_sunny_rounded
+                        : Icons.dark_mode_rounded,
+                    key: ValueKey(isDarkTheme),
+                    size: 19,
+                    color: isDarkTheme
+                        ? const Color(0xFFFBBF24) // sol amarillo
+                        : const Color(0xFFA78BFA), // luna moradita
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
             GestureDetector(
               onTap: showProfileSheet,
               child: Container(

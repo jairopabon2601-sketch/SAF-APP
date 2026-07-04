@@ -14,15 +14,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     final activeAccounts =
         accounts.where((c) => (c['estado'] ?? '').toString() == '1').toList();
 
-    // Check if dates differ from the 31-day defaults
-    final now = DateTime.now().toUtc().subtract(const Duration(hours: 5));
-    final defaultDesde = now.subtract(const Duration(days: 31));
-    final datesAreDefault = filterFrom == null ||
-        (filterFrom!.difference(defaultDesde).inDays.abs() <= 1 &&
-            (filterTo == null || filterTo!.difference(now).inDays.abs() <= 1));
+    // Sin filtros → totales históricos (como la web); con filtros → filtrados
     final hasUserFilter = accountFilter.isNotEmpty ||
         movementTypeFilter.isNotEmpty ||
-        !datesAreDefault;
+        filterFrom != null ||
+        filterTo != null;
 
     // Server totals: default range → serverExpenses/serverIncome; filtered → filteredExpenses/filteredIncome
     final gastos = hasUserFilter
@@ -51,7 +47,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           child: Container(
             height: 46,
             decoration: BoxDecoration(
-              color: const Color(0xFFEEF0FB),
+              color: inputFill,
               borderRadius: BorderRadius.circular(14),
               boxShadow: [
                 BoxShadow(
@@ -74,9 +70,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFE8EDF5)),
+                border: Border.all(color: lineCol),
                 boxShadow: [
                   BoxShadow(
                     color: homeNavy.withValues(alpha: 0.09),
@@ -137,7 +133,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                             entranceDelay: 120,
                           ),
                         ),
-                        Container(width: 1, color: const Color(0xFFE8EDF5)),
+                        Container(width: 1, color: lineCol),
                         Expanded(
                           child: _ActionTile(
                             onTap: () => _showTransferirDialog(),
@@ -449,8 +445,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           ),
                         ),
                         const SizedBox(width: 7),
-                        const Text('Balance del período',
-                            style: TextStyle(
+                        Text(hasUserFilter ? 'Balance del período' : 'Balance total',
+                            style: const TextStyle(
                                 color: Colors.white60,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -490,7 +486,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                 formatCop(balance * t),
                                 style: TextStyle(
                                     color: balance >= 0
-                                        ? Colors.white
+                                        ? const Color(0xFF34D399)
                                         : const Color(0xFFF87171),
                                     fontSize: 32,
                                     fontWeight: FontWeight.w900,
@@ -498,9 +494,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                     shadows: [
                                       Shadow(
                                         color: (balance >= 0
-                                                ? const Color(0xFF6366F1)
+                                                ? const Color(0xFF10B981)
                                                 : const Color(0xFFDC2626))
-                                            .withValues(alpha: 0.4),
+                                            .withValues(alpha: 0.55),
                                         blurRadius: 16,
                                       )
                                     ]),
@@ -685,9 +681,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFE8EDF5)),
+                border: Border.all(color: lineCol),
                 boxShadow: [
                   BoxShadow(
                     color: homeNavy.withValues(alpha: 0.09),
@@ -747,9 +743,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           Container(
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE8EDF5)),
+              border: Border.all(color: lineCol),
               boxShadow: [
                 BoxShadow(
                     color: homeNavy.withValues(alpha: 0.07),
@@ -951,11 +947,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text('Movimientos',
+                  Text('Movimientos',
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF0D1B4B),
+                          color: textMain,
                           letterSpacing: -0.3)),
                 ]),
                 Container(
@@ -1030,8 +1026,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         child: Center(
                           child: Text(
                             'Pág $pag de $totalPags  ·  ${filtrados.length} registros',
-                            style: const TextStyle(
-                                fontSize: 12, color: Color(0xFF8899BB)),
+                            style: TextStyle(
+                                fontSize: 12, color: textSoft),
                           ),
                         ),
                       ),
@@ -1079,16 +1075,16 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   }) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF8899BB))),
+                color: textSoft)),
         const SizedBox(height: 4),
         Container(
           height: 36,
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFFF0F2FA),
+            color: inputFill,
             borderRadius: BorderRadius.circular(8),
           ),
           child: DropdownButtonHideUnderline(
@@ -1097,13 +1093,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               isExpanded: true,
               items: items,
               onChanged: onChanged,
-              dropdownColor: Colors.white,
-              style: const TextStyle(
+              dropdownColor: dialogBg,
+              style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF0D1B4B),
+                  color: textMain,
                   fontFamily: 'sans-serif'),
-              icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 18, color: Color(0xFF8899BB)),
+              icon: Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 18, color: textSoft),
             ),
           ),
         ),
@@ -1116,10 +1112,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   }) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF8899BB))),
+                color: textSoft)),
         const SizedBox(height: 4),
         GestureDetector(
           onTap: () async {
@@ -1135,12 +1131,12 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             height: 36,
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F2FA),
+              color: inputFill,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(children: [
-              const Icon(Icons.calendar_today_rounded,
-                  size: 14, color: Color(0xFF8899BB)),
+              Icon(Icons.calendar_today_rounded,
+                  size: 14, color: textSoft),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -1152,8 +1148,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   style: TextStyle(
                       fontSize: 12,
                       color: value != null
-                          ? const Color(0xFF0D1B4B)
-                          : const Color(0xFF8899BB)),
+                          ? textMain
+                          : textSoft),
                 ),
               ),
             ]),
@@ -1174,15 +1170,15 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFE2E8F0),
+                      color: lineCol,
                       borderRadius: BorderRadius.circular(6)),
                   child: Text(label,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF475569))),
+                          color: textMid)),
                 ),
               ),
               const SizedBox(width: 6),
@@ -1206,11 +1202,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         value: value,
         isExpanded: isExpanded,
         decoration: dialogInputDecoration(),
-        dropdownColor: Colors.white,
+        dropdownColor: dialogBg,
         style: dialogTextStyle,
         hint: Text(hint ?? '[Seleccione]', style: dialogHintStyle),
-        icon: const Icon(Icons.keyboard_arrow_down_rounded,
-            size: 18, color: Color(0xFF9CA3AF)),
+        icon: Icon(Icons.keyboard_arrow_down_rounded,
+            size: 18, color: textSoft),
         items: items,
         onChanged: onChanged,
         validator: validator,
@@ -1219,15 +1215,15 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   InputDecoration dialogInputDecoration() => InputDecoration(
         isDense: true,
         filled: true,
-        fillColor: const Color(0xFFF5F7FB),
+        fillColor: inputFill,
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFFDDE3EF))),
+            borderSide: BorderSide(color: _dialogFieldBorderColor())),
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFFDDE3EF))),
+            borderSide: BorderSide(color: _dialogFieldBorderColor())),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: Color(0xFF4361EE), width: 1.5)),
@@ -1238,6 +1234,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
       );
+
+  Color _dialogFieldBorderColor([Color accent = homeAccent]) => isDarkTheme
+      ? Color.lerp(lineCol, accent, 0.18)!.withValues(alpha: 0.72)
+      : const Color(0xFFE0E7FF);
 
   Widget buildDialogField(
     TextEditingController ctrl, {
@@ -1261,6 +1261,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       Icons.account_balance_wallet_rounded,
       Icons.receipt_long_rounded
     ];
+    // Colores por pestaña, visibles en claro y oscuro:
+    // Cuentas = azul/cian, Movimientos = ámbar/naranja
+    const gradients = [
+      [Color(0xFF1D4ED8), Color(0xFF0EA5E9)],
+      [Color(0xFFB45309), Color(0xFFF59E0B)],
+    ];
+    const accents = [Color(0xFF0EA5E9), Color(0xFFF59E0B)];
     final active = movementSubTab == index;
     return Expanded(
       child: GestureDetector(
@@ -1271,8 +1278,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           margin: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             gradient: active
-                ? const LinearGradient(
-                    colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                ? LinearGradient(
+                    colors: gradients[index],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
@@ -1282,8 +1289,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             boxShadow: active
                 ? [
                     BoxShadow(
-                      color: homeNavy.withValues(alpha: 0.30),
-                      blurRadius: 8,
+                      color: accents[index].withValues(alpha: 0.38),
+                      blurRadius: 10,
                       offset: const Offset(0, 3),
                     )
                   ]
@@ -1299,7 +1306,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   icons[index],
                   key: ValueKey(active),
                   size: 14,
-                  color: active ? Colors.white : const Color(0xFF8899BB),
+                  color: active ? Colors.white : textSoft,
                 ),
               ),
               const SizedBox(width: 5),
@@ -1308,7 +1315,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: active ? Colors.white : const Color(0xFF8899BB),
+                  color: active ? Colors.white : textSoft,
                 ),
               ),
             ],
@@ -1420,9 +1427,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFF),
+                color: inputFill,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE0E7FF)),
+                border: Border.all(color: _dialogFieldBorderColor(accentColor)),
               ),
               child: Row(children: [
                 Container(
@@ -1444,15 +1451,15 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(label,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 10,
-                              color: Color(0xFF8899BB),
+                              color: textSoft,
                               fontWeight: FontWeight.w600)),
                       const SizedBox(height: 2),
                       Text(value,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 14,
-                              color: homeNavy,
+                              color: textMain,
                               fontWeight: FontWeight.w800)),
                     ],
                   ),
@@ -1468,7 +1475,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           child: Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(26),
               boxShadow: [
                 BoxShadow(
@@ -1658,19 +1665,19 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         infoRow(Icons.savings_rounded, 'Saldo Actual',
                             formatCop(saldoActual)),
                         // Nuevo saldo input
-                        const Text('Nuevo Saldo',
+                        Text('Nuevo Saldo',
                             style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF374151))),
+                                color: textMid)),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: nuevoSaldoCtrl,
                           keyboardType: TextInputType.number,
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
-                              color: homeNavy),
+                              color: textMain),
                           decoration: InputDecoration(
                             hintText: '0',
                             hintStyle:
@@ -1697,12 +1704,14 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                 horizontal: 14, vertical: 14),
                             border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    const BorderSide(color: Color(0xFFD1D5DB))),
+                                borderSide: BorderSide(
+                                    color: _dialogFieldBorderColor(
+                                        const Color(0xFF4F46E5)))),
                             enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    const BorderSide(color: Color(0xFFE0E7FF))),
+                                borderSide: BorderSide(
+                                    color: _dialogFieldBorderColor(
+                                        const Color(0xFF4F46E5)))),
                             focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                                 borderSide: const BorderSide(
@@ -1712,7 +1721,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                 borderSide:
                                     const BorderSide(color: Color(0xFFDC2626))),
                             filled: true,
-                            fillColor: const Color(0xFFF8FAFF),
+                            fillColor: inputFill,
                           ),
                           validator: (v) => (v == null || v.trim().isEmpty)
                               ? 'Ingresa el nuevo saldo'
@@ -1949,15 +1958,19 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   ? Icon(icon, size: 18, color: const Color(0xFF4361EE))
                   : null,
               filled: true,
-              fillColor: const Color(0xFFF5F7FB),
+              fillColor: inputFill,
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
+                  borderSide: BorderSide(
+                      color:
+                          _dialogFieldBorderColor(const Color(0xFFF59E0B)))),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
+                  borderSide: BorderSide(
+                      color:
+                          _dialogFieldBorderColor(const Color(0xFFF59E0B)))),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide:
@@ -1977,10 +1990,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
                 const SizedBox(width: 7),
                 Text(label,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0D1B4B),
+                        color: textMain,
                         letterSpacing: 0.2)),
               ]),
             );
@@ -1997,11 +2010,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FB),
+                  color: inputFill,
                   border: Border.all(
                     color: value != null
                         ? const Color(0xFFF59E0B)
-                        : const Color(0xFFE0E7FF),
+                        : _dialogFieldBorderColor(const Color(0xFFF59E0B)),
                     width: value != null ? 1.5 : 1,
                   ),
                   borderRadius: BorderRadius.circular(10),
@@ -2011,7 +2024,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       size: 18,
                       color: value != null
                           ? const Color(0xFFF59E0B)
-                          : const Color(0xFF9CA3AF)),
+                          : textSoft),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(value ?? hint,
@@ -2020,14 +2033,14 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         style: TextStyle(
                             fontSize: 14,
                             color: value != null
-                                ? const Color(0xFF0D1B4B)
-                                : const Color(0xFF9CA3AF))),
+                                ? textMain
+                                : textSoft)),
                   ),
                   Icon(Icons.keyboard_arrow_down_rounded,
                       size: 20,
                       color: value != null
                           ? const Color(0xFFF59E0B)
-                          : const Color(0xFF9CA3AF)),
+                          : textSoft),
                 ]),
               ),
             );
@@ -2039,7 +2052,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -2101,19 +2114,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         ],
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(ctx),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.close_rounded,
-                            color: Colors.white, size: 18),
-                      ),
-                    ),
+                    appCloseX(() => Navigator.pop(ctx)),
                   ]),
                 ),
 
@@ -2196,8 +2197,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           TextFormField(
                             controller: valorCtrl,
                             keyboardType: TextInputType.number,
-                            style: const TextStyle(
-                                color: Color(0xFF0D1B4B),
+                            style: TextStyle(
+                                color: textMain,
                                 fontWeight: FontWeight.w600),
                             decoration: fieldDeco(
                                 hint: '0', icon: Icons.attach_money_rounded),
@@ -2241,8 +2242,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           TextFormField(
                             controller: descCtrl,
                             maxLines: 3,
-                            style: const TextStyle(
-                                color: Color(0xFF0D1B4B), fontSize: 14),
+                            style: TextStyle(
+                                color: textMain, fontSize: 14),
                             decoration: fieldDeco(
                               hint: 'Ej: Transferencia para gastos...',
                               icon: Icons.notes_rounded,
@@ -2458,15 +2459,19 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   : null,
               suffixIcon: suffix,
               filled: true,
-              fillColor: const Color(0xFFF5F7FB),
+              fillColor: inputFill,
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
+                  borderSide: BorderSide(
+                      color:
+                          _dialogFieldBorderColor(const Color(0xFF4361EE)))),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFE0E7FF))),
+                  borderSide: BorderSide(
+                      color:
+                          _dialogFieldBorderColor(const Color(0xFF4361EE)))),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide:
@@ -2489,10 +2494,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
                 const SizedBox(width: 7),
                 Text(label,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0D1B4B),
+                        color: textMain,
                         letterSpacing: 0.2)),
               ]),
             );
@@ -2510,11 +2515,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FB),
+                  color: inputFill,
                   border: Border.all(
                     color: value != null
                         ? const Color(0xFF4361EE)
-                        : const Color(0xFFE0E7FF),
+                        : _dialogFieldBorderColor(const Color(0xFF4361EE)),
                     width: value != null ? 1.5 : 1,
                   ),
                   borderRadius: BorderRadius.circular(10),
@@ -2524,7 +2529,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       size: 18,
                       color: value != null
                           ? valueColor ?? const Color(0xFF4361EE)
-                          : const Color(0xFF9CA3AF)),
+                          : textSoft),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(value ?? hint,
@@ -2533,14 +2538,14 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         style: TextStyle(
                             fontSize: 14,
                             color: value != null
-                                ? const Color(0xFF0D1B4B)
-                                : const Color(0xFF9CA3AF))),
+                                ? textMain
+                                : textSoft)),
                   ),
                   Icon(Icons.keyboard_arrow_down_rounded,
                       size: 20,
                       color: value != null
                           ? const Color(0xFF4361EE)
-                          : const Color(0xFF9CA3AF)),
+                          : textSoft),
                 ]),
               ),
             );
@@ -2552,7 +2557,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -2614,19 +2619,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         ],
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(ctx),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.close_rounded,
-                            color: Colors.white, size: 18),
-                      ),
-                    ),
+                    appCloseX(() => Navigator.pop(ctx)),
                   ]),
                 ),
 
@@ -2718,8 +2711,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           TextFormField(
                             controller: valorCtrl,
                             keyboardType: TextInputType.number,
-                            style: const TextStyle(
-                                color: Color(0xFF0D1B4B),
+                            style: TextStyle(
+                                color: textMain,
                                 fontWeight: FontWeight.w600),
                             decoration: fieldDeco(
                                 hint: '0', icon: Icons.attach_money_rounded),
@@ -2763,8 +2756,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           TextFormField(
                             controller: descCtrl,
                             maxLines: 3,
-                            style: const TextStyle(
-                                color: Color(0xFF0D1B4B), fontSize: 14),
+                            style: TextStyle(
+                                color: textMain, fontSize: 14),
                             decoration: fieldDeco(
                                 hint: 'Ej: Pago de servicios...',
                                 icon: Icons.notes_rounded),
@@ -2958,7 +2951,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -3020,19 +3013,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         ],
                       ),
                     ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(ctx),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.close_rounded,
-                            color: Colors.white, size: 18),
-                      ),
-                    ),
+                    appCloseX(() => Navigator.pop(ctx)),
                   ]),
                 ),
 
@@ -3061,18 +3042,18 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                 ),
                               ),
                               const SizedBox(width: 7),
-                              const Text('Nombre de la cuenta/fuente',
+                              Text('Nombre de la cuenta/fuente',
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
-                                      color: homeNavy,
+                                      color: textMain,
                                       letterSpacing: 0.2)),
                             ]),
                           ),
                           TextFormField(
                             controller: nombreCtrl,
-                            style: const TextStyle(
-                                color: homeNavy, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                                color: textMain, fontWeight: FontWeight.w600),
                             decoration: InputDecoration(
                               hintText: 'Ej. Nequi, Efectivo...',
                               hintStyle:
@@ -3082,15 +3063,17 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                   size: 18,
                                   color: Color(0xFF10B981)),
                               filled: true,
-                              fillColor: const Color(0xFFF5F7FB),
+                              fillColor: inputFill,
                               border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFFE0E7FF))),
+                                  borderSide: BorderSide(
+                                      color: _dialogFieldBorderColor(
+                                          const Color(0xFF10B981)))),
                               enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFFE0E7FF))),
+                                  borderSide: BorderSide(
+                                      color: _dialogFieldBorderColor(
+                                          const Color(0xFF10B981)))),
                               focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
                                   borderSide: const BorderSide(
@@ -3117,11 +3100,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                 ),
                               ),
                               const SizedBox(width: 7),
-                              const Text('Color (opcional)',
+                              Text('Color (opcional)',
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
-                                      color: homeNavy,
+                                      color: textMain,
                                       letterSpacing: 0.2)),
                             ]),
                           ),
@@ -3174,11 +3157,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                 ),
                               ),
                               const SizedBox(width: 7),
-                              const Text('Tipo de cuenta',
+                              Text('Tipo de cuenta',
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w700,
-                                      color: homeNavy,
+                                      color: textMain,
                                       letterSpacing: 0.2)),
                             ]),
                           ),
@@ -3209,11 +3192,12 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 14, vertical: 13),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF5F7FB),
+                                color: inputFill,
                                 border: Border.all(
                                     color: selectedTipo != null
                                         ? const Color(0xFF10B981)
-                                        : const Color(0xFFE0E7FF),
+                                        : _dialogFieldBorderColor(
+                                            const Color(0xFF10B981)),
                                     width: selectedTipo != null ? 1.5 : 1),
                                 borderRadius: BorderRadius.circular(10),
                               ),
@@ -3222,7 +3206,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                     size: 18,
                                     color: selectedTipo != null
                                         ? const Color(0xFF10B981)
-                                        : const Color(0xFF9CA3AF)),
+                                        : textSoft),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
@@ -3231,15 +3215,15 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                     style: TextStyle(
                                         fontSize: 14,
                                         color: selectedTipo != null
-                                            ? homeNavy
-                                            : const Color(0xFF9CA3AF)),
+                                            ? textMain
+                                            : textSoft),
                                   ),
                                 ),
                                 Icon(Icons.keyboard_arrow_down_rounded,
                                     size: 20,
                                     color: selectedTipo != null
                                         ? const Color(0xFF10B981)
-                                        : const Color(0xFF9CA3AF)),
+                                        : textSoft),
                               ]),
                             ),
                           ),
@@ -3488,7 +3472,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         final previewColor = parseHex(colorCtrl.text);
 
         return Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -3543,13 +3527,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           ],
                         ),
                       ),
-                      IconButton(
-                        onPressed: saving ? null : () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded,
-                            color: Colors.white60, size: 20),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
+                      appCloseX(saving ? null : () => Navigator.pop(ctx)),
                     ]),
                     const SizedBox(height: 12),
                     // Tabs dentro del header
@@ -3587,7 +3565,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                               color: previewColor,
                               borderRadius: BorderRadius.circular(10),
                               border:
-                                  Border.all(color: const Color(0xFFDDE3EF)),
+                                  Border.all(color: lineCol),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -3599,35 +3577,35 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                 color: previewColor,
                                 borderRadius: BorderRadius.circular(8),
                                 border:
-                                    Border.all(color: const Color(0xFFDDE3EF)),
+                                    Border.all(color: lineCol),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: TextFormField(
                                 controller: colorCtrl,
-                                style: const TextStyle(
-                                    color: homeNavy, fontSize: 14),
+                                style: TextStyle(
+                                    color: textMain, fontSize: 14),
                                 decoration: InputDecoration(
                                   prefixText: '#',
                                   prefixStyle: const TextStyle(
                                       color: homeAccent,
                                       fontWeight: FontWeight.bold),
                                   hintText: 'RRGGBB',
-                                  hintStyle: const TextStyle(
-                                      color: Color(0xFF9CA3AF), fontSize: 13),
+                                  hintStyle: TextStyle(
+                                      color: textSoft, fontSize: 13),
                                   filled: true,
-                                  fillColor: const Color(0xFFF5F7FB),
+                                  fillColor: inputFill,
                                   contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 12, vertical: 10),
                                   border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                          color: Color(0xFFDDE3EF))),
+                                      borderSide: BorderSide(
+                                          color: lineCol)),
                                   enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                          color: Color(0xFFDDE3EF))),
+                                      borderSide: BorderSide(
+                                          color: lineCol)),
                                   focusedBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(10),
                                       borderSide: const BorderSide(
@@ -3917,7 +3895,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                         width: 56,
                                         height: 56,
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFEEF2FF),
+                                          color: inputFill,
                                           shape: BoxShape.circle,
                                         ),
                                         child: const Icon(
@@ -3926,16 +3904,16 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                             size: 28),
                                       ),
                                       const SizedBox(height: 12),
-                                      const Text('Sin movimientos',
+                                      Text('Sin movimientos',
                                           style: TextStyle(
-                                              color: homeNavy,
+                                              color: textMain,
                                               fontWeight: FontWeight.w700,
                                               fontSize: 15)),
                                       const SizedBox(height: 4),
-                                      const Text(
+                                      Text(
                                           'No hay registros en esta cuenta',
                                           style: TextStyle(
-                                              color: Color(0xFF8899BB),
+                                              color: textSoft,
                                               fontSize: 12)),
                                     ],
                                   ),
@@ -4187,7 +4165,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                               margin: const EdgeInsets.only(
                                                   bottom: 7),
                                               decoration: BoxDecoration(
-                                                color: Colors.white,
+                                                color: cardBg,
                                                 borderRadius:
                                                     BorderRadius.circular(13),
                                                 border: Border(
@@ -4267,11 +4245,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                                         desc.isNotEmpty
                                                             ? desc
                                                             : tipoNom,
-                                                        style: const TextStyle(
+                                                        style: TextStyle(
                                                             fontSize: 12.5,
                                                             fontWeight:
                                                                 FontWeight.w600,
-                                                            color: homeNavy),
+                                                            color: textMain),
                                                         maxLines: 1,
                                                         overflow: TextOverflow
                                                             .ellipsis,
@@ -4343,10 +4321,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 12, vertical: 8),
-                                        decoration: const BoxDecoration(
+                                        decoration: BoxDecoration(
                                           border: Border(
                                               top: BorderSide(
-                                                  color: Color(0xFFE8EDF5))),
+                                                  color: lineCol)),
                                         ),
                                         child: Row(
                                             mainAxisAlignment:
@@ -4380,11 +4358,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                               ),
                                               const SizedBox(width: 14),
                                               Text('$movsPage / $totalPags',
-                                                  style: const TextStyle(
+                                                  style: TextStyle(
                                                       fontSize: 13,
                                                       fontWeight:
                                                           FontWeight.w700,
-                                                      color: homeNavy)),
+                                                      color: textMain)),
                                               const SizedBox(width: 14),
                                               GestureDetector(
                                                 onTap: movsPage < totalPags
@@ -4424,7 +4402,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                     child: SizedBox(
                       width: double.infinity,
                       child: gradBtn(
-                        colors: const [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                        colors: closeRedGradient,
                         onPressed: () => Navigator.pop(ctx),
                         child: const Text('Cerrar',
                             style: TextStyle(
@@ -4488,7 +4466,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.14)),
         boxShadow: [
@@ -4560,10 +4538,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                     Text(nombre,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 14,
-                            color: homeNavy)),
+                            color: textMain)),
                     const SizedBox(height: 5),
                     Row(children: [
                       Container(
@@ -4589,8 +4567,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                             horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
                           color: estado
-                              ? const Color(0xFFDCFCE7)
-                              : const Color(0xFFF1F5F9),
+                              ? (isDarkTheme
+                                  ? const Color(0xFF16A34A)
+                                      .withValues(alpha: 0.20)
+                                  : const Color(0xFFDCFCE7))
+                              : (isDarkTheme
+                                  ? Colors.white.withValues(alpha: 0.08)
+                                  : const Color(0xFFF1F5F9)),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -4608,8 +4591,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           Text(estado ? 'Activa' : 'Inactiva',
                               style: TextStyle(
                                   color: estado
-                                      ? const Color(0xFF15803D)
-                                      : const Color(0xFF8899BB),
+                                      ? (isDarkTheme
+                                          ? const Color(0xFF6EE7A0)
+                                          : const Color(0xFF15803D))
+                                      : textSoft,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600)),
                         ]),
@@ -4630,7 +4615,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           fontSize: 15,
                           letterSpacing: -0.4,
                           color:
-                              saldo >= 0 ? homeNavy : const Color(0xFFDC2626))),
+                              saldo >= 0 ? textMain : const Color(0xFFDC2626))),
                   const SizedBox(height: 8),
                   Row(children: [
                     _iconActionBtn(
@@ -4701,9 +4686,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEF2FF)),
+        border: Border.all(color: lineCol),
         boxShadow: [
           BoxShadow(
             color: color.withValues(alpha: 0.07),
@@ -4820,10 +4805,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                     Text(desc,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 13,
-                            color: homeNavy,
+                            color: textMain,
                             letterSpacing: -0.2)),
                     const SizedBox(height: 5),
                     Row(children: [
@@ -5077,12 +5062,21 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
   )..value = 1.0;
 
   Color get _light =>
-      Color.lerp(widget.color, Colors.white, 0.18) ?? widget.color;
-  Color get _mid => widget.color;
-  Color get _shade =>
-      Color.lerp(widget.color, Colors.black, 0.22) ?? widget.color;
-  Color get _deep =>
-      Color.lerp(widget.color, Colors.black, 0.48) ?? widget.color;
+      isDarkTheme
+          ? (Color.lerp(widget.color, const Color(0xFF243258), 0.52) ??
+              widget.color)
+          : (Color.lerp(widget.color, Colors.white, 0.18) ?? widget.color);
+  Color get _mid => isDarkTheme
+      ? (Color.lerp(widget.color, const Color(0xFF0B1731), 0.74) ??
+          widget.color)
+      : widget.color;
+  Color get _shade => isDarkTheme
+      ? (Color.lerp(widget.color, const Color(0xFF071426), 0.86) ??
+          widget.color)
+      : (Color.lerp(widget.color, Colors.black, 0.22) ?? widget.color);
+  Color get _deep => isDarkTheme
+      ? const Color(0xFF020617)
+      : (Color.lerp(widget.color, Colors.black, 0.48) ?? widget.color);
 
   @override
   void dispose() {
@@ -5103,42 +5097,71 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
         scale: _ctrl,
         child: Container(
           height: 48,
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [_light, _mid, _shade, _deep],
-              stops: const [0.0, 0.30, 0.65, 1.0],
+              stops: const [0.0, 0.38, 0.78, 1.0],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: isDarkTheme
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : Colors.white.withValues(alpha: 0.20),
             ),
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: _shade.withValues(alpha: 0.45),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
+                color: isDarkTheme
+                    ? Colors.black.withValues(alpha: 0.42)
+                    : _shade.withValues(alpha: 0.45),
+                blurRadius: isDarkTheme ? 18 : 16,
+                offset: const Offset(0, 7),
               ),
               BoxShadow(
-                color: widget.color.withValues(alpha: 0.18),
-                blurRadius: 4,
+                color: widget.color
+                    .withValues(alpha: isDarkTheme ? 0.28 : 0.18),
+                blurRadius: isDarkTheme ? 12 : 4,
                 offset: const Offset(0, 1),
               ),
             ],
           ),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
             children: [
-              if (widget.icon != null) ...[
-                Icon(widget.icon, color: Colors.white, size: 17),
-                const SizedBox(width: 7),
-              ],
-              Text(
-                widget.label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3,
+              if (isDarkTheme)
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.white.withValues(alpha: 0.10),
+                          Colors.transparent,
+                        ],
+                        begin: Alignment.topCenter,
+                        end: Alignment.center,
+                      ),
+                    ),
+                  ),
+                ),
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (widget.icon != null) ...[
+                      Icon(widget.icon, color: Colors.white, size: 17),
+                      const SizedBox(width: 7),
+                    ],
+                    Text(
+                      widget.label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -5452,9 +5475,9 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
             scale: _press,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFEEF2FF)),
+                border: Border.all(color: lineCol),
                 boxShadow: [
                   BoxShadow(
                     color: color.withValues(alpha: 0.08),
@@ -5584,7 +5607,7 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                               ),
                               shape: BoxShape.circle,
                               border:
-                                  Border.all(color: Colors.white, width: 1.5),
+                                  Border.all(color: cardBg, width: 1.5),
                               boxShadow: [
                                 BoxShadow(
                                   color: stripColor.withValues(alpha: 0.45),
@@ -5612,10 +5635,10 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                             Text(desc,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 13,
-                                    color: homeNavy,
+                                    color: textMain,
                                     letterSpacing: -0.2)),
                             const SizedBox(height: 5),
                             Row(children: [

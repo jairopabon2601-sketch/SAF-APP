@@ -1,3 +1,4 @@
+import '../../screens/home/home_constants.dart';
 import 'package:flutter/material.dart';
 
 // ─── Base animated wrapper ───────────────────────────────────────────────────
@@ -117,7 +118,7 @@ class _AppConfirmDialogState extends State<AppConfirmDialog>
           insetPadding: const EdgeInsets.symmetric(horizontal: 28),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -172,10 +173,10 @@ class _AppConfirmDialogState extends State<AppConfirmDialog>
                   ],
                   Text(widget.message,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 13.5,
                           height: 1.55,
-                          color: Color(0xFF64748B))),
+                          color: textSoft)),
                   if (widget.infoText != null) ...[
                     const SizedBox(height: 10),
                     Container(
@@ -204,9 +205,9 @@ class _AppConfirmDialogState extends State<AppConfirmDialog>
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF64748B),
-                          side: const BorderSide(
-                              color: Color(0xFFE2E8F0), width: 1.5),
+                          foregroundColor: textSoft,
+                          side: BorderSide(
+                              color: lineCol, width: 1.5),
                           padding:
                               const EdgeInsets.symmetric(vertical: 13),
                           shape: RoundedRectangleBorder(
@@ -340,7 +341,7 @@ class _AppResultDialogState extends State<AppResultDialog>
           insetPadding: const EdgeInsets.symmetric(horizontal: 36),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
@@ -387,16 +388,16 @@ class _AppResultDialogState extends State<AppResultDialog>
                 child: Column(children: [
                   Text(heading,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFF0D1B4B))),
+                          color: textMain)),
                   const SizedBox(height: 8),
                   Text(widget.message,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                           fontSize: 13,
-                          color: Color(0xFF6B7280),
+                          color: textSoft,
                           height: 1.5)),
                   const SizedBox(height: 24),
                   DecoratedBox(
@@ -499,7 +500,7 @@ class _AppPickerDialogState<T> extends State<AppPickerDialog<T>>
               const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cardBg,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -552,7 +553,7 @@ class _AppPickerDialogState<T> extends State<AppPickerDialog<T>>
                   shrinkWrap: true,
                   itemCount: widget.items.length,
                   separatorBuilder: (_, __) =>
-                      const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                      Divider(height: 1, color: lineCol),
                   itemBuilder: (_, i) {
                     final item = widget.items[i];
                     final label = widget.labelBuilder(item);
@@ -580,18 +581,18 @@ class _AppPickerDialogState<T> extends State<AppPickerDialog<T>>
                                               ? FontWeight.w700
                                               : FontWeight.w500,
                                           color: isSelected
-                                              ? const Color(0xFF0D1B4B)
-                                              : const Color(0xFF374151))),
+                                              ? textMain
+                                              : textMid)),
                                   if (subtitle != null)
                                     Text(subtitle,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             fontSize: 11.5,
-                                            color: Color(0xFF9CA3AF))),
+                                            color: textSoft)),
                                 ]),
                           ),
                           if (isSelected)
-                            const Icon(Icons.check_rounded,
-                                color: Color(0xFF0D1B4B), size: 18),
+                            Icon(Icons.check_rounded,
+                                color: textMain, size: 18),
                         ]),
                       ),
                     );
@@ -601,19 +602,7 @@ class _AppPickerDialogState<T> extends State<AppPickerDialog<T>>
               // ── Cancel ───────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF64748B),
-                    minimumSize: const Size(double.infinity, 42),
-                    side: const BorderSide(color: Color(0xFFE2E8F0)),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 13)),
-                ),
+                child: appCancelButton('Cancelar', () => Navigator.pop(context), height: 46),
               ),
             ]),
           ),

@@ -84,6 +84,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // Cargar opciones de menú según perfil (no bloquea el resto)
     unawaited(fetchMenuOptions());
 
+    // Tema sincronizado con la web: la preferencia guardada en el servidor
+    // (por usuario) manda sobre la copia local del dispositivo.
+    unawaited(syncThemeFromServer());
+
     // Show cached data immediately so the screen isn't blank
     final cachedCuentas = await repository.loadLocalData('cuentas');
     final cachedMovs = await repository.loadLocalData('movimientos');
@@ -356,13 +360,16 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     final usuario = (repository.user?['codigo_usuario'] ?? '').toString();
     if (usuario.isEmpty) return;
     String pad2(int n) => n.toString().padLeft(2, '0');
-    final desde =
-        filterFrom ?? DateTime.now().subtract(const Duration(days: 31));
-    final hasta = filterTo ?? DateTime.now();
-    final dStr = '${desde.year}-${pad2(desde.month)}-${pad2(desde.day)}';
-    final hStr = '${hasta.year}-${pad2(hasta.month)}-${pad2(hasta.day)}';
-    String filtro =
-        'm.usuario="$usuario" and m.fecha between "$dStr" and "$hStr"';
+    String fmt(DateTime d) => '${d.year}-${pad2(d.month)}-${pad2(d.day)}';
+    // Igual que la web: solo condiciona por fecha si el usuario eligió fechas
+    String filtro = 'm.usuario="$usuario"';
+    if (filterFrom != null && filterTo != null) {
+      filtro += ' and m.fecha between "${fmt(filterFrom!)}" and "${fmt(filterTo!)}"';
+    } else if (filterFrom != null) {
+      filtro += ' and m.fecha >= "${fmt(filterFrom!)}"';
+    } else if (filterTo != null) {
+      filtro += ' and m.fecha <= "${fmt(filterTo!)}"';
+    }
     if (movementTypeFilter.isNotEmpty) {
       // tipo '1' (loan transfers) is also Ingreso, same as '3'
       filtro += movementTypeFilter == '3'
@@ -410,12 +417,9 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   }
 
   Future<void> _fetchTotalesResumen(String usuario) async {
-    final now = DateTime.now();
-    final desde = now.subtract(const Duration(days: 31));
-    String pad2(int n) => n.toString().padLeft(2, '0');
-    final dStr = '${desde.year}-${pad2(desde.month)}-${pad2(desde.day)}';
-    final hStr = '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
-    final filtro = 'm.usuario="$usuario" and m.fecha between "$dStr" and "$hStr"';
+    // Sin rango de fechas: totales históricos, igual que la web.
+    // Para acotar por período están los filtros de fecha de Movimientos.
+    final filtro = 'm.usuario="$usuario"';
     try {
       final r = await repository.post('/ajax/listado_json_campos.php', {
         'codigo_consulta': 'json_total_gastos_ingresos',
@@ -1103,6 +1107,45 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       }
     } finally {
       if (isMounted) refresh(() => pendingLoading = false);
+    }
+  }
+
+  /// Lee la preferencia de tema del servidor (compartida con SAF-WEB) y la
+  /// aplica. Silencioso: si no hay red o el endpoint no existe, se conserva
+  /// la copia local (SharedPreferences).
+  Future<void> syncThemeFromServer() async {
+    final usuario = (repository.user?['codigo_usuario'] ?? '').toString();
+    if (usuario.isEmpty) return;
+    try {
+      final r = await repository.post('/ajax/preferencia_tema.php', {
+        'accion': 'get',
+        'usuario': usuario,
+      }).timeout(const Duration(seconds: 8));
+      if (r.statusCode != 200) return;
+      final d = decodeJsonMap(r.body);
+      if (d['success'] != true) return;
+      final dark = d['tema_oscuro'] == 1 || d['tema_oscuro'] == '1';
+      if (dark != isDarkTheme) {
+        await setThemeDark(dark);
+        if (isMounted) refresh(() {});
+      }
+    } catch (e) {
+      debugPrint('[SAF] preferencia tema: $e');
+    }
+  }
+
+  /// Guarda la preferencia en el servidor para que la web la cargue igual.
+  Future<void> saveThemeToServer(bool dark) async {
+    final usuario = (repository.user?['codigo_usuario'] ?? '').toString();
+    if (usuario.isEmpty) return;
+    try {
+      await repository.post('/ajax/preferencia_tema.php', {
+        'accion': 'set',
+        'usuario': usuario,
+        'tema_oscuro': dark ? '1' : '0',
+      }).timeout(const Duration(seconds: 8));
+    } catch (e) {
+      debugPrint('[SAF] guardar tema: $e');
     }
   }
 
