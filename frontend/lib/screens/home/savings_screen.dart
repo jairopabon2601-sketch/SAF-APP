@@ -2427,11 +2427,10 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         return false;
       }
       if (movementTypeFilter.isNotEmpty) {
-        final t = (m['tipo_movimiento'] ?? '').toString();
-        // tipo '1' (loan transfers) is also Ingreso, same as '3'
-        final matchIngreso =
-            movementTypeFilter == '3' && (t == '3' || t == '1');
-        if (!matchIngreso && t != movementTypeFilter) return false;
+        // '3' = Ingresos (incluye tipo 1, préstamos), '2' = Gastos
+        final isIn = movementIsIncome(m);
+        if (movementTypeFilter == '3' && !isIn) return false;
+        if (movementTypeFilter == '2' && isIn) return false;
       }
       final rawFecha = (m['fecha'] ?? '').toString();
       if (rawFecha.length >= 10) {

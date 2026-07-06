@@ -1853,8 +1853,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     final cuenta = (m['cuenta_nombre'] ?? '').toString();
     final hexColor = (m['cuenta_color'] ?? '#4361EE').toString();
     final accentColor = parseHexColor(hexColor);
-    final tipo = (m['tipo_movimiento'] ?? '2').toString();
-    final isIngreso = tipo == '3' || tipo == '1';
+    final isIngreso = movementIsIncome(m);
     final valor = numberValue(m['valor'] ?? 0);
     final rawFecha = (m['fecha'] ?? '').toString();
     final fecha = rawFecha.length >= 10 ? rawFecha.substring(0, 10) : rawFecha;

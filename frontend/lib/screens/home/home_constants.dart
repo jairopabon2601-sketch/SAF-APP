@@ -162,6 +162,23 @@ double numberValue(dynamic value) => value == null
         ? value.toDouble()
         : double.tryParse(value.toString()) ?? 0;
 
+/// Espejo de getMovIsIncome de SAF-WEB (utils/formatters.ts).
+/// tipo_movimiento: 1=ingreso préstamo, 2=gasto, 3=ingreso normal.
+/// Algunos endpoints devuelven el tipo en `tipo` en vez de `tipo_movimiento`.
+bool movementIsIncome(Map<String, dynamic> m) {
+  final tipo = (m['tipo_movimiento'] ?? m['tipo'] ?? '').toString().trim();
+  if (tipo == '1' || tipo == '3') return true;
+  if (tipo == '2') return false;
+  // El endpoint puede devolver el tipo como texto ("Ingreso", "Gasto")
+  // en `tipo` o en `tipo_nombre`, igual que contempla la web.
+  final texto = '$tipo ${m['tipo_nombre'] ?? ''}'.toLowerCase();
+  if (texto.contains('ingreso')) return true;
+  if (texto.contains('gasto')) return false;
+  if (numberValue(m['ingreso']) > 0) return true;
+  if (numberValue(m['gasto']) > 0) return false;
+  return false;
+}
+
 Map<String, dynamic> decodeJsonMap(String body) {
   try {
     final decoded = jsonDecode(body);

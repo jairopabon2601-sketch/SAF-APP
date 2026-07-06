@@ -109,17 +109,16 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
 
   double get totalIncome {
     if (serverTotalsLoaded) return serverIncome;
-    cachedIncomeTotal ??= movements.where((m) {
-      final t = (m['tipo_movimiento'] ?? '').toString();
-      return t == '3' || t == '1';
-    }).fold<double>(0.0, (s, m) => s + numberValue(m['valor'] ?? 0));
+    cachedIncomeTotal ??= movements
+        .where(movementIsIncome)
+        .fold<double>(0.0, (s, m) => s + numberValue(m['valor'] ?? 0));
     return cachedIncomeTotal!;
   }
 
   double get totalExpenses {
     if (serverTotalsLoaded) return serverExpenses;
     cachedExpenseTotal ??= movements
-        .where((m) => (m['tipo_movimiento'] ?? '').toString() == '2')
+        .where((m) => !movementIsIncome(m))
         .fold<double>(0.0, (s, m) => s + numberValue(m['valor'] ?? 0));
     return cachedExpenseTotal!;
   }

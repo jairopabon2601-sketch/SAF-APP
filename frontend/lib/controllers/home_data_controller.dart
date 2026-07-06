@@ -278,6 +278,9 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       pagina++;
     } while (pagina <= totalPaginas);
 
+    if (resultado.isNotEmpty) {
+      debugPrint('[SAF] mov cuenta $codigoCuenta sample: ${resultado.first}');
+    }
     return resultado;
   }
 

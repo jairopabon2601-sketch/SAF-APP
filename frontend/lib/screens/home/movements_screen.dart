@@ -25,16 +25,15 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         ? (filteredTotalsLoaded
             ? filteredExpenses
             : filtrados
-                .where((m) => (m['tipo_movimiento'] ?? '').toString() == '2')
+                .where((m) => !movementIsIncome(m))
                 .fold(0.0, (s, m) => s + numberValue(m['valor'] ?? 0)))
         : (serverTotalsLoaded ? serverExpenses : 0.0);
     final ingresos = hasUserFilter
         ? (filteredTotalsLoaded
             ? filteredIncome
-            : filtrados.where((m) {
-                final t = (m['tipo_movimiento'] ?? '').toString();
-                return t == '3' || t == '1';
-              }).fold(0.0, (s, m) => s + numberValue(m['valor'] ?? 0)))
+            : filtrados
+                .where(movementIsIncome)
+                .fold(0.0, (s, m) => s + numberValue(m['valor'] ?? 0)))
         : (serverTotalsLoaded ? serverIncome : 0.0);
     final balance = ingresos - gastos;
 
@@ -3924,16 +3923,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                 Builder(builder: (_) {
                                   double totalIn = 0, totalOut = 0;
                                   for (final m in movsList) {
-                                    final tipoNum =
-                                        (m['tipo_movimiento'] ?? '').toString();
-                                    final tipoNom = (m['tipo_nombre'] ?? '')
-                                        .toString()
-                                        .toLowerCase();
                                     final v = numberValue(
                                         m['valor'] ?? m['monto'] ?? 0);
-                                    final isIn = tipoNom.contains('ingreso') ||
-                                        tipoNum == '3' ||
-                                        tipoNum == '1';
+                                    final isIn = movementIsIncome(m);
                                     if (isIn) {
                                       totalIn += v.abs();
                                     } else {
@@ -4011,7 +4003,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                                         FontWeight.w600)),
                                           ),
                                         ]),
-                                        const SizedBox(height: 12),
+                                        const SizedBox(height: 14),
                                         Row(children: [
                                           Expanded(
                                               child: Column(
@@ -4019,23 +4011,38 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                                 CrossAxisAlignment.start,
                                             children: [
                                               Row(children: [
-                                                Icon(Icons.south_rounded,
-                                                    size: 11,
+                                                Container(
+                                                  width: 18,
+                                                  height: 18,
+                                                  decoration: BoxDecoration(
                                                     color: const Color(
-                                                        0xFF4ADE80)),
-                                                const SizedBox(width: 3),
+                                                            0xFF4ADE80)
+                                                        .withValues(
+                                                            alpha: 0.18),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: const Icon(
+                                                      Icons.north_rounded,
+                                                      size: 11,
+                                                      color:
+                                                          Color(0xFF4ADE80)),
+                                                ),
+                                                const SizedBox(width: 6),
                                                 const Text('Ingresos',
                                                     style: TextStyle(
                                                         color: Colors.white54,
-                                                        fontSize: 10)),
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.w600)),
                                               ]),
-                                              const SizedBox(height: 3),
+                                              const SizedBox(height: 4),
                                               Text(formatCop(totalIn),
                                                   style: const TextStyle(
                                                       color: Color(0xFF4ADE80),
                                                       fontWeight:
-                                                          FontWeight.w700,
-                                                      fontSize: 13)),
+                                                          FontWeight.w800,
+                                                      letterSpacing: -0.3,
+                                                      fontSize: 14)),
                                             ],
                                           )),
                                           Container(
@@ -4046,37 +4053,55 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                           Expanded(
                                               child: Column(
                                             crossAxisAlignment:
-                                                CrossAxisAlignment.center,
+                                                CrossAxisAlignment.end,
                                             children: [
                                               Row(
                                                   mainAxisAlignment:
-                                                      MainAxisAlignment.center,
+                                                      MainAxisAlignment.end,
                                                   children: [
-                                                    Icon(Icons.north_rounded,
-                                                        size: 11,
-                                                        color: const Color(
-                                                            0xFFF87171)),
-                                                    const SizedBox(width: 3),
                                                     const Text('Gastos',
                                                         style: TextStyle(
                                                             color:
                                                                 Colors.white54,
-                                                            fontSize: 10)),
+                                                            fontSize: 10,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w600)),
+                                                    const SizedBox(width: 6),
+                                                    Container(
+                                                      width: 18,
+                                                      height: 18,
+                                                      decoration:
+                                                          BoxDecoration(
+                                                        color: const Color(
+                                                                0xFFF87171)
+                                                            .withValues(
+                                                                alpha: 0.18),
+                                                        shape:
+                                                            BoxShape.circle,
+                                                      ),
+                                                      child: const Icon(
+                                                          Icons.south_rounded,
+                                                          size: 11,
+                                                          color: Color(
+                                                              0xFFF87171)),
+                                                    ),
                                                   ]),
-                                              const SizedBox(height: 3),
+                                              const SizedBox(height: 4),
                                               Text(formatCop(totalOut),
                                                   style: const TextStyle(
                                                       color: Color(0xFFF87171),
                                                       fontWeight:
-                                                          FontWeight.w700,
-                                                      fontSize: 13)),
+                                                          FontWeight.w800,
+                                                      letterSpacing: -0.3,
+                                                      fontSize: 14)),
                                             ],
                                           )),
                                         ]),
-                                        const SizedBox(height: 10),
+                                        const SizedBox(height: 12),
                                         ClipRRect(
                                           borderRadius:
-                                              BorderRadius.circular(4),
+                                              BorderRadius.circular(5),
                                           child: TweenAnimationBuilder<double>(
                                             tween: Tween(
                                                 begin: 0,
@@ -4084,17 +4109,37 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                             duration: const Duration(
                                                 milliseconds: 800),
                                             curve: Curves.easeOut,
-                                            builder: (_, v, __) =>
-                                                LinearProgressIndicator(
-                                              value: v,
-                                              minHeight: 5,
-                                              backgroundColor:
-                                                  const Color(0xFFF87171)
-                                                      .withValues(alpha: 0.5),
-                                              valueColor:
-                                                  const AlwaysStoppedAnimation<
-                                                      Color>(Color(0xFF4ADE80)),
-                                            ),
+                                            builder: (_, v, __) {
+                                              if (total <= 0) {
+                                                return Container(
+                                                  height: 6,
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.12),
+                                                );
+                                              }
+                                              final inFlex = (v * 1000)
+                                                  .round()
+                                                  .clamp(0, 1000);
+                                              final outFlex = 1000 - inFlex;
+                                              return Row(children: [
+                                                if (inFlex > 0)
+                                                  Expanded(
+                                                    flex: inFlex,
+                                                    child: Container(
+                                                        height: 6,
+                                                        color: const Color(
+                                                            0xFF4ADE80)),
+                                                  ),
+                                                if (outFlex > 0)
+                                                  Expanded(
+                                                    flex: outFlex,
+                                                    child: Container(
+                                                        height: 6,
+                                                        color: const Color(
+                                                            0xFFF87171)),
+                                                  ),
+                                              ]);
+                                            },
                                           ),
                                         ),
                                       ]),
@@ -4126,9 +4171,6 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                               .toString()
                                               .split(' ')
                                               .first;
-                                          final tipoNum =
-                                              (m['tipo_movimiento'] ?? '')
-                                                  .toString();
                                           final tipoNom =
                                               (m['tipo_nombre'] ?? '')
                                                   .toString();
@@ -4138,11 +4180,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                                   m['descripción'] ??
                                                   '')
                                               .toString();
-                                          final isIngreso = tipoNom
-                                                  .toLowerCase()
-                                                  .contains('ingreso') ||
-                                              tipoNum == '3' ||
-                                              tipoNum == '1';
+                                          final isIngreso =
+                                              movementIsIncome(m);
                                           final color = isIngreso
                                               ? const Color(0xFF16A34A)
                                               : const Color(0xFFDC2626);
@@ -4340,10 +4379,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                                   height: 34,
                                                   decoration: BoxDecoration(
                                                     color: movsPage > 1
-                                                        ? const Color(
-                                                            0xFFEEF2FF)
-                                                        : const Color(
-                                                            0xFFF3F4F6),
+                                                        ? (isDarkTheme
+                                                            ? homeAccent
+                                                                .withValues(
+                                                                    alpha: 0.18)
+                                                            : const Color(
+                                                                0xFFEEF2FF))
+                                                        : inputFill,
                                                     shape: BoxShape.circle,
                                                   ),
                                                   child: Icon(
@@ -4352,8 +4394,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                                       size: 20,
                                                       color: movsPage > 1
                                                           ? homeAccent
-                                                          : const Color(
-                                                              0xFFCBD5E1)),
+                                                          : textSoft),
                                                 ),
                                               ),
                                               const SizedBox(width: 14),
@@ -4374,10 +4415,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                                   height: 34,
                                                   decoration: BoxDecoration(
                                                     color: movsPage < totalPags
-                                                        ? const Color(
-                                                            0xFFEEF2FF)
-                                                        : const Color(
-                                                            0xFFF3F4F6),
+                                                        ? (isDarkTheme
+                                                            ? homeAccent
+                                                                .withValues(
+                                                                    alpha: 0.18)
+                                                            : const Color(
+                                                                0xFFEEF2FF))
+                                                        : inputFill,
                                                     shape: BoxShape.circle,
                                                   ),
                                                   child: Icon(
@@ -4387,8 +4431,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                                       color:
                                                           movsPage < totalPags
                                                               ? homeAccent
-                                                              : const Color(
-                                                                  0xFFCBD5E1)),
+                                                              : textSoft),
                                                 ),
                                               ),
                                             ]),
@@ -4672,8 +4715,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     final cuentaNom = (m['cuenta_nombre'] ?? '').toString();
     final hexColor = (m['cuenta_color'] ?? '#4361EE').toString();
     final color = parseHexColor(hexColor);
-    final tipo = (m['tipo_movimiento'] ?? '2').toString();
-    final isIngreso = tipo == '3' || tipo == '1';
+    final isIngreso = movementIsIncome(m);
     final valor = numberValue(m['valor'] ?? 0);
     final rawFecha = (m['fecha'] ?? '').toString();
     final fecha = rawFecha.length >= 10 ? rawFecha.substring(0, 10) : rawFecha;
@@ -4976,7 +5018,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       final ok = r.statusCode == 200 && d['success'] == true;
       if (isMounted) {
         if (ok) {
-          final tipoMov = (m['tipo_movimiento'] ?? '').toString();
+          final esIngreso = movementIsIncome(m);
           final valorMov = numberValue(m['valor'] ?? 0);
           refresh(() {
             bool matchCod(Map<String, dynamic> x) =>
@@ -4986,12 +5028,12 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 cod;
             movements.removeWhere(matchCod);
             selectedAccountMovements.removeWhere(matchCod);
-            if (tipoMov == '2') {
-              serverExpenses =
-                  (serverExpenses - valorMov).clamp(0, double.infinity);
-            } else if (tipoMov == '1' || tipoMov == '3') {
+            if (esIngreso) {
               serverIncome =
                   (serverIncome - valorMov).clamp(0, double.infinity);
+            } else {
+              serverExpenses =
+                  (serverExpenses - valorMov).clamp(0, double.infinity);
             }
           });
           showResult(true, 'Movimiento eliminado correctamente');
@@ -5462,8 +5504,7 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
     final cuentaNom = (m['cuenta_nombre'] ?? '').toString();
     final hexColor = (m['cuenta_color'] ?? '#4361EE').toString();
     final color = parseHexColor(hexColor);
-    final tipo = (m['tipo_movimiento'] ?? '2').toString();
-    final isIngreso = tipo == '3' || tipo == '1';
+    final isIngreso = movementIsIncome(m);
     final valor = numberValue(m['valor'] ?? 0);
     final rawFecha = (m['fecha'] ?? '').toString();
     final fecha = rawFecha.length >= 10 ? rawFecha.substring(0, 10) : rawFecha;
