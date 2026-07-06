@@ -6,6 +6,11 @@ import 'dashboard_screen.dart';
 import 'home_dependencies.dart';
 import 'savings_screen.dart';
 
+/// Fecha/hora actual en Colombia (UTC-5 fijo, sin horario de verano),
+/// independiente de la zona horaria configurada en el dispositivo.
+DateTime nowBogota() =>
+    DateTime.now().toUtc().subtract(const Duration(hours: 5));
+
 extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   Widget buildMovementsScreen() {
     if (loadingData) return _movementsSkeleton();
@@ -3453,7 +3458,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           loadingMovs = true;
           Future.microtask(() async {
             try {
-              final now = DateTime.now();
+              final now = nowBogota();
               String pad(int n) => n.toString().padLeft(2, '0');
               final mesInicio = '${now.year}-${pad(now.month)}-01';
               final ultimoDia = DateTime(now.year, now.month + 1, 0).day;
@@ -3932,7 +3937,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                       totalOut += v.abs();
                                     }
                                   }
-                                  final now = DateTime.now();
+                                  final now = nowBogota();
                                   final meses = [
                                     'Enero',
                                     'Febrero',
