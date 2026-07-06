@@ -4905,18 +4905,29 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         width: 28,
                         height: 28,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFEE2E2), Color(0xFFFECDD3)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          gradient: isDarkTheme
+                              ? null
+                              : const LinearGradient(
+                                  colors: [
+                                    Color(0xFFFEE2E2),
+                                    Color(0xFFFECDD3)
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                          color: isDarkTheme
+                              ? const Color(0xFFDC2626).withValues(alpha: 0.18)
+                              : null,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                               color: const Color(0xFFDC2626)
-                                  .withValues(alpha: 0.25)),
+                                  .withValues(alpha: isDarkTheme ? 0.35 : 0.25)),
                         ),
-                        child: const Icon(Icons.delete_outline_rounded,
-                            size: 14, color: Color(0xFFDC2626)),
+                        child: Icon(Icons.delete_outline_rounded,
+                            size: 14,
+                            color: isDarkTheme
+                                ? const Color(0xFFFCA5A5)
+                                : const Color(0xFFDC2626)),
                       ),
                     ),
                   ]),
@@ -5737,18 +5748,25 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                                   width: 30,
                                   height: 30,
                                   decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [
-                                        Color(0xFFFEE2E2),
-                                        Color(0xFFFECDD3)
-                                      ],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
+                                    gradient: isDarkTheme
+                                        ? null
+                                        : const LinearGradient(
+                                            colors: [
+                                              Color(0xFFFEE2E2),
+                                              Color(0xFFFECDD3)
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                    color: isDarkTheme
+                                        ? const Color(0xFFDC2626)
+                                            .withValues(alpha: 0.18)
+                                        : null,
                                     borderRadius: BorderRadius.circular(9),
                                     border: Border.all(
                                         color: const Color(0xFFDC2626)
-                                            .withValues(alpha: 0.25)),
+                                            .withValues(
+                                                alpha: isDarkTheme ? 0.35 : 0.25)),
                                     boxShadow: [
                                       BoxShadow(
                                         color: const Color(0xFFDC2626)
@@ -5758,10 +5776,11 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                                       ),
                                     ],
                                   ),
-                                  child: const Icon(
-                                      Icons.delete_outline_rounded,
+                                  child: Icon(Icons.delete_outline_rounded,
                                       size: 15,
-                                      color: Color(0xFFDC2626)),
+                                      color: isDarkTheme
+                                          ? const Color(0xFFFCA5A5)
+                                          : const Color(0xFFDC2626)),
                                 ),
                               ),
                             ],

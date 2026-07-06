@@ -1418,15 +1418,23 @@ class _AdminUserTileState extends State<_AdminUserTile>
                       height: 36,
                       margin: const EdgeInsets.only(right: 12),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        gradient: isDarkTheme
+                            ? null
+                            : const LinearGradient(
+                                colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                        color: isDarkTheme
+                            ? homeAccent.withValues(alpha: 0.18)
+                            : null,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: homeAccent.withValues(alpha: 0.20)),
+                        border: Border.all(
+                            color: homeAccent.withValues(alpha: isDarkTheme ? 0.35 : 0.20)),
                       ),
-                      child: const Icon(Icons.edit_rounded, color: homeAccent, size: 17),
+                      child: Icon(Icons.edit_rounded,
+                          color: isDarkTheme ? const Color(0xFFA5B4FC) : homeAccent,
+                          size: 17),
                     ),
                   ),
                 ]),
