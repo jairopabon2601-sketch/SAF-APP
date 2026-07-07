@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/responsive.dart';
+import '../widgets/home/app_dialogs.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -169,88 +170,34 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
     showDialog(context: context, builder: (_) => _resultDialog(msg, ok));
   }
 
-  Widget _resultDialog(String msg, bool ok) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            gradient: LinearGradient(
-              colors: [
-                const Color(0xFF6C63FF).withValues(alpha: 0.5),
-                const Color(0xFF00C6FF).withValues(alpha: 0.3),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+  Widget _resultDialog(String msg, bool ok) => AppAnimatedDialog(
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF6C63FF).withValues(alpha: 0.5),
+                  const Color(0xFF00C6FF).withValues(alpha: 0.3),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
             ),
-          ),
-          padding: const EdgeInsets.all(1.5),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20.5),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                color: const Color(0xFF07102A).withValues(alpha: 0.92),
-                padding: const EdgeInsets.all(28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: ok
-                              ? [
-                                  const Color(0xFF059669),
-                                  const Color(0xFF34D399)
-                                ]
-                              : [
-                                  const Color(0xFFDC2626),
-                                  const Color(0xFFEF4444)
-                                ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: (ok
-                                    ? const Color(0xFF059669)
-                                    : const Color(0xFFDC2626))
-                                .withValues(alpha: 0.45),
-                            blurRadius: 20,
-                            spreadRadius: 2,
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        ok ? Icons.check_rounded : Icons.error_outline_rounded,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Text(
-                      ok ? '¡Operación exitosa!' : 'Algo salió mal',
-                      style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(msg,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.white.withValues(alpha: 0.65))),
-                    const SizedBox(height: 24),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pop(context);
-                        if (ok) Navigator.pop(context);
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        height: 46,
+            padding: const EdgeInsets.all(1.5),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20.5),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: Container(
+                  color: const Color(0xFF07102A).withValues(alpha: 0.92),
+                  padding: const EdgeInsets.all(28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
                             colors: ok
@@ -262,29 +209,87 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                                     const Color(0xFFDC2626),
                                     const Color(0xFFEF4444)
                                   ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(14),
+                          shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
                               color: (ok
                                       ? const Color(0xFF059669)
                                       : const Color(0xFFDC2626))
-                                  .withValues(alpha: 0.40),
-                              blurRadius: 14,
-                              offset: const Offset(0, 5),
+                                  .withValues(alpha: 0.45),
+                              blurRadius: 20,
+                              spreadRadius: 2,
                             ),
                           ],
                         ),
-                        child: const Center(
-                          child: Text('Aceptar',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15)),
+                        child: Icon(
+                          ok
+                              ? Icons.check_rounded
+                              : Icons.error_outline_rounded,
+                          color: Colors.white,
+                          size: 28,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 18),
+                      Text(
+                        ok ? '¡Operación exitosa!' : 'Algo salió mal',
+                        style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(msg,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.white.withValues(alpha: 0.65))),
+                      const SizedBox(height: 24),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context);
+                          if (ok) Navigator.pop(context);
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: ok
+                                  ? [
+                                      const Color(0xFF059669),
+                                      const Color(0xFF34D399)
+                                    ]
+                                  : [
+                                      const Color(0xFFDC2626),
+                                      const Color(0xFFEF4444)
+                                    ],
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: (ok
+                                        ? const Color(0xFF059669)
+                                        : const Color(0xFFDC2626))
+                                    .withValues(alpha: 0.40),
+                                blurRadius: 14,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Text('Aceptar',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 15)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -369,16 +374,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                           final logoH = context.h(0.200);
                           final logoBox = context.w(0.853);
                           final outerR = context.w(0.400);
-                          final haloR  = context.w(0.347);
+                          final haloR = context.w(0.347);
                           final glassR = context.w(0.320);
                           return SizedBox(
                             height: logoH,
                             child: OverflowBox(
                               maxWidth: logoBox,
                               maxHeight: logoBox,
-                              child: Stack(alignment: Alignment.center, children: [
+                              child:
+                                  Stack(alignment: Alignment.center, children: [
                                 Container(
-                                  width: outerR, height: outerR,
+                                  width: outerR,
+                                  height: outerR,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     gradient: RadialGradient(colors: [
@@ -387,53 +394,78 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen>
                                       const Color(0xFF6C63FF).withValues(
                                           alpha: 0.18 + 0.08 * _pulse.value),
                                       Colors.transparent,
-                                    ], stops: const [0.0, 0.42, 1.0]),
+                                    ], stops: const [
+                                      0.0,
+                                      0.42,
+                                      1.0
+                                    ]),
                                   ),
                                 ),
                                 SizedBox(
-                                  width: logoH, height: logoH,
-                                  child: Stack(alignment: Alignment.center, children: [
-                                    Container(
-                                      width: haloR, height: haloR,
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFF6C63FF)
-                                                .withValues(alpha: 0.24 + 0.34 * _pulse.value),
-                                            blurRadius: 44 + 28 * _pulse.value,
-                                            spreadRadius: -1 + 5 * _pulse.value,
-                                          ),
-                                          BoxShadow(
-                                            color: const Color(0xFF00D2FF)
-                                                .withValues(alpha: 0.10 + 0.16 * _pulse.value),
-                                            blurRadius: 58 + 20 * _pulse.value,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    ClipOval(
-                                      child: BackdropFilter(
-                                        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-                                        child: Container(
-                                          width: glassR, height: glassR,
+                                  width: logoH,
+                                  height: logoH,
+                                  child: Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        Container(
+                                          width: haloR,
+                                          height: haloR,
                                           decoration: BoxDecoration(
                                             shape: BoxShape.circle,
-                                            gradient: RadialGradient(colors: [
-                                              Colors.white.withValues(alpha: 0.14),
-                                              Colors.white.withValues(alpha: 0.05),
-                                            ]),
-                                            border: Border.all(
-                                                color: Colors.white.withValues(alpha: 0.22),
-                                                width: 1.2),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: const Color(0xFF6C63FF)
+                                                    .withValues(
+                                                        alpha: 0.24 +
+                                                            0.34 *
+                                                                _pulse.value),
+                                                blurRadius:
+                                                    44 + 28 * _pulse.value,
+                                                spreadRadius:
+                                                    -1 + 5 * _pulse.value,
+                                              ),
+                                              BoxShadow(
+                                                color: const Color(0xFF00D2FF)
+                                                    .withValues(
+                                                        alpha: 0.10 +
+                                                            0.16 *
+                                                                _pulse.value),
+                                                blurRadius:
+                                                    58 + 20 * _pulse.value,
+                                              ),
+                                            ],
                                           ),
-                                          child: Icon(Icons.lock_reset_rounded,
-                                              color: Colors.white,
-                                              size: context.sp(58)),
                                         ),
-                                      ),
-                                    ),
-                                  ]),
+                                        ClipOval(
+                                          child: BackdropFilter(
+                                            filter: ImageFilter.blur(
+                                                sigmaX: 18, sigmaY: 18),
+                                            child: Container(
+                                              width: glassR,
+                                              height: glassR,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                gradient:
+                                                    RadialGradient(colors: [
+                                                  Colors.white
+                                                      .withValues(alpha: 0.14),
+                                                  Colors.white
+                                                      .withValues(alpha: 0.05),
+                                                ]),
+                                                border: Border.all(
+                                                    color: Colors.white
+                                                        .withValues(
+                                                            alpha: 0.22),
+                                                    width: 1.2),
+                                              ),
+                                              child: Icon(
+                                                  Icons.lock_reset_rounded,
+                                                  color: Colors.white,
+                                                  size: context.sp(58)),
+                                            ),
+                                          ),
+                                        ),
+                                      ]),
                                 ),
                               ]),
                             ),

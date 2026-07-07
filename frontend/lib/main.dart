@@ -7,6 +7,7 @@ import 'screens/home/home_constants.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/api_service.dart';
+import 'widgets/home/app_dialogs.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -76,78 +77,82 @@ class _SafAppState extends State<SafApp> with WidgetsBindingObserver {
     showDialog(
       context: ctx,
       barrierDismissible: false,
-      builder: (_) => Dialog(
-        backgroundColor: dialogBg,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 68,
-                height: 68,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF8B2FC9)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Text('💤', style: TextStyle(fontSize: 30)),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Sesión cerrada por inactividad',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: textMain,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Estuviste más de 5 minutos inactivo. Por favor inicia sesión nuevamente.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: textSoft),
-              ),
-              const SizedBox(height: 22),
-              GestureDetector(
-                onTap: () => Navigator.pop(ctx),
-                child: Container(
-                  width: double.infinity,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+      builder: (_) => AppAnimatedDialog(
+        child: Dialog(
+          backgroundColor: dialogBg,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 68,
+                  height: 68,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
                       colors: [Color(0xFF6C63FF), Color(0xFF8B2FC9)],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF6C63FF).withValues(alpha: 0.40),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    shape: BoxShape.circle,
                   ),
                   child: const Center(
-                    child: Text(
-                      'Entendido',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15),
+                    child: Text('💤', style: TextStyle(fontSize: 30)),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Sesión cerrada por inactividad',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: textMain,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Estuviste más de 5 minutos inactivo. Por favor inicia sesión nuevamente.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: textSoft),
+                ),
+                const SizedBox(height: 22),
+                GestureDetector(
+                  onTap: () => Navigator.pop(ctx),
+                  child: Container(
+                    width: double.infinity,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6C63FF), Color(0xFF8B2FC9)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              const Color(0xFF6C63FF).withValues(alpha: 0.40),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Text(
+                        'Entendido',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -449,7 +449,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           ),
                         ),
                         const SizedBox(width: 7),
-                        Text(hasUserFilter ? 'Balance del período' : 'Balance total',
+                        Text(
+                            hasUserFilter
+                                ? 'Balance del período'
+                                : 'Balance total',
                             style: const TextStyle(
                                 color: Colors.white60,
                                 fontSize: 11,
@@ -1030,8 +1033,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         child: Center(
                           child: Text(
                             'Pág $pag de $totalPags  ·  ${filtrados.length} registros',
-                            style: TextStyle(
-                                fontSize: 12, color: textSoft),
+                            style: TextStyle(fontSize: 12, color: textSoft),
                           ),
                         ),
                       ),
@@ -1080,9 +1082,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
             style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: textSoft)),
+                fontSize: 11, fontWeight: FontWeight.w600, color: textSoft)),
         const SizedBox(height: 4),
         Container(
           height: 36,
@@ -1099,9 +1099,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               onChanged: onChanged,
               dropdownColor: dialogBg,
               style: TextStyle(
-                  fontSize: 12,
-                  color: textMain,
-                  fontFamily: 'sans-serif'),
+                  fontSize: 12, color: textMain, fontFamily: 'sans-serif'),
               icon: Icon(Icons.keyboard_arrow_down_rounded,
                   size: 18, color: textSoft),
             ),
@@ -1117,9 +1115,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(label,
             style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: textSoft)),
+                fontSize: 11, fontWeight: FontWeight.w600, color: textSoft)),
         const SizedBox(height: 4),
         GestureDetector(
           onTap: () async {
@@ -1139,8 +1135,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(children: [
-              Icon(Icons.calendar_today_rounded,
-                  size: 14, color: textSoft),
+              Icon(Icons.calendar_today_rounded, size: 14, color: textSoft),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -1150,10 +1145,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           '${value.year}'
                       : 'Seleccione',
                   style: TextStyle(
-                      fontSize: 12,
-                      color: value != null
-                          ? textMain
-                          : textSoft),
+                      fontSize: 12, color: value != null ? textMain : textSoft),
                 ),
               ),
             ]),
@@ -1174,8 +1166,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   decoration: BoxDecoration(
-                      color: lineCol,
-                      borderRadius: BorderRadius.circular(6)),
+                      color: lineCol, borderRadius: BorderRadius.circular(6)),
                   child: Text(label,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -1209,8 +1200,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         dropdownColor: dialogBg,
         style: dialogTextStyle,
         hint: Text(hint ?? '[Seleccione]', style: dialogHintStyle),
-        icon: Icon(Icons.keyboard_arrow_down_rounded,
-            size: 18, color: textSoft),
+        icon:
+            Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: textSoft),
         items: items,
         onChanged: onChanged,
         validator: validator,
@@ -1471,435 +1462,443 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               ]),
             );
 
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 18, vertical: 32),
-          child: Container(
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(26),
-              boxShadow: [
-                BoxShadow(
-                  color: accentColor.withValues(alpha: 0.20),
-                  blurRadius: 40,
-                  offset: const Offset(0, 16),
-                ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.14),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // ── Header ─────────────────────────────────────
-                  ClipRRect(
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(26)),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(18, 20, 14, 20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            const Color(0xFF0F0A3C),
-                            const Color(0xFF1E1265),
-                            accentColor.withValues(alpha: 0.85),
-                            accentColor,
-                          ],
-                          stops: const [0.0, 0.3, 0.7, 1.0],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+        return AppAnimatedDialog(
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 18, vertical: 32),
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(26),
+                boxShadow: [
+                  BoxShadow(
+                    color: accentColor.withValues(alpha: 0.20),
+                    blurRadius: 40,
+                    offset: const Offset(0, 16),
+                  ),
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.14),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ── Header ─────────────────────────────────────
+                    ClipRRect(
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(26)),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(18, 20, 14, 20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFF0F0A3C),
+                              const Color(0xFF1E1265),
+                              accentColor.withValues(alpha: 0.85),
+                              accentColor,
+                            ],
+                            stops: const [0.0, 0.3, 0.7, 1.0],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                         ),
-                      ),
-                      child: Stack(children: [
-                        Positioned(
-                            right: -20,
-                            top: -20,
-                            child: Container(
-                                width: 90,
-                                height: 90,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: RadialGradient(colors: [
-                                    cLight.withValues(alpha: 0.28),
-                                    Colors.transparent,
-                                  ]),
-                                ))),
-                        Positioned(
-                            left: -15,
-                            bottom: -15,
-                            child: Container(
-                                width: 60,
-                                height: 60,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white.withValues(alpha: 0.08),
-                                ))),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 50,
-                              height: 50,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [cLight, accentColor, cDark],
-                                  stops: const [0.0, 0.5, 1.0],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.25),
-                                    width: 1.5),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: accentColor.withValues(alpha: 0.50),
-                                    blurRadius: 14,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Text(initials,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w900)),
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Ajustar Saldo',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.w900,
-                                          letterSpacing: -0.3)),
-                                  const SizedBox(height: 5),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.25)),
-                                    ),
-                                    child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                              Icons.account_balance_rounded,
-                                              size: 10,
-                                              color: Colors.white70),
-                                          const SizedBox(width: 4),
-                                          Flexible(
-                                            child: Text(nombreCuenta,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                    color: Colors.white
-                                                        .withValues(
-                                                            alpha: 0.90),
-                                                    fontSize: 11,
-                                                    fontWeight:
-                                                        FontWeight.w600)),
-                                          ),
-                                        ]),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: () => Navigator.pop(ctx),
+                        child: Stack(children: [
+                          Positioned(
+                              right: -20,
+                              top: -20,
                               child: Container(
-                                width: 34,
-                                height: 34,
+                                  width: 90,
+                                  height: 90,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: RadialGradient(colors: [
+                                      cLight.withValues(alpha: 0.28),
+                                      Colors.transparent,
+                                    ]),
+                                  ))),
+                          Positioned(
+                              left: -15,
+                              bottom: -15,
+                              child: Container(
+                                  width: 60,
+                                  height: 60,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white.withValues(alpha: 0.08),
+                                  ))),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [cLight, accentColor, cDark],
+                                    stops: const [0.0, 0.5, 1.0],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.25),
+                                      width: 1.5),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color:
+                                          accentColor.withValues(alpha: 0.50),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Text(initials,
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w900)),
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Ajustar Saldo',
+                                        style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: -0.3)),
+                                    const SizedBox(height: 5),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white
+                                            .withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.25)),
+                                      ),
+                                      child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(
+                                                Icons.account_balance_rounded,
+                                                size: 10,
+                                                color: Colors.white70),
+                                            const SizedBox(width: 4),
+                                            Flexible(
+                                              child: Text(nombreCuenta,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                      color: Colors.white
+                                                          .withValues(
+                                                              alpha: 0.90),
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w600)),
+                                            ),
+                                          ]),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              GestureDetector(
+                                onTap: () => Navigator.pop(ctx),
+                                child: Container(
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF991B1B),
+                                        Color(0xFFDC2626),
+                                        Color(0xFFF43F5E)
+                                      ],
+                                      stops: [0.0, 0.5, 1.0],
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFFDC2626)
+                                            .withValues(alpha: 0.45),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(Icons.close_rounded,
+                                      color: Colors.white, size: 18),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ]),
+                      ),
+                    ),
+                    // ── Form ───────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 18, 18, 4),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          infoRow(Icons.account_balance_rounded, 'Cuenta',
+                              nombreCuenta),
+                          infoRow(Icons.savings_rounded, 'Saldo Actual',
+                              formatCop(saldoActual)),
+                          // Nuevo saldo input
+                          Text('Nuevo Saldo',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: textMid)),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: nuevoSaldoCtrl,
+                            keyboardType: TextInputType.number,
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                color: textMain),
+                            decoration: InputDecoration(
+                              hintText: '0',
+                              hintStyle:
+                                  const TextStyle(color: Color(0xFFB0BCCF)),
+                              prefixIcon: Container(
+                                margin: const EdgeInsets.all(10),
+                                width: 32,
+                                height: 32,
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
                                     colors: [
-                                      Color(0xFF991B1B),
-                                      Color(0xFFDC2626),
-                                      Color(0xFFF43F5E)
+                                      Color(0xFF3730A3),
+                                      Color(0xFF4F46E5)
                                     ],
-                                    stops: [0.0, 0.5, 1.0],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
                                   ),
-                                  borderRadius: BorderRadius.circular(10),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFDC2626)
-                                          .withValues(alpha: 0.45),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Icon(Icons.close_rounded,
-                                    color: Colors.white, size: 18),
+                                child: const Icon(Icons.attach_money_rounded,
+                                    size: 16, color: Colors.white),
                               ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 14),
+                              border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                      color: _dialogFieldBorderColor(
+                                          const Color(0xFF4F46E5)))),
+                              enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                      color: _dialogFieldBorderColor(
+                                          const Color(0xFF4F46E5)))),
+                              focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: Color(0xFF4F46E5), width: 2)),
+                              errorBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: Color(0xFFDC2626))),
+                              filled: true,
+                              fillColor: inputFill,
                             ),
-                          ],
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Ingresa el nuevo saldo'
+                                : null,
+                          ),
+                          const SizedBox(height: 10),
+                          ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: nuevoSaldoCtrl,
+                            builder: (_, val, __) {
+                              final text = val.text.trim();
+                              if (text.isEmpty) return const SizedBox.shrink();
+                              final nuevo = double.tryParse(text
+                                      .replaceAll('.', '')
+                                      .replaceAll(',', '.')) ??
+                                  0.0;
+                              final diff = nuevo - saldoActual;
+                              final isPos = diff >= 0;
+                              final color = isPos
+                                  ? const Color(0xFF059669)
+                                  : const Color(0xFFDC2626);
+                              final sign = isPos ? '+' : '';
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: color.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: color.withValues(alpha: 0.30)),
+                                ),
+                                child: Row(children: [
+                                  Icon(
+                                    isPos
+                                        ? Icons.arrow_upward_rounded
+                                        : Icons.arrow_downward_rounded,
+                                    size: 15,
+                                    color: color,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Ajuste: $sign${formatCop(diff)}',
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: color),
+                                  ),
+                                ]),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    // ── Buttons ────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
+                      child: Row(children: [
+                        Expanded(
+                          child: premBtn(
+                            colors: const [
+                              Color(0xFF7F1D1D),
+                              Color(0xFFDC2626),
+                              Color(0xFFF43F5E)
+                            ],
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.close_rounded,
+                                    color: Colors.white, size: 16),
+                                SizedBox(width: 6),
+                                Text('Cancelar',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 13)),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: premBtn(
+                            colors: saving
+                                ? [
+                                    const Color(0xFF9CA3AF),
+                                    const Color(0xFF6B7280)
+                                  ]
+                                : const [
+                                    Color(0xFF065F46),
+                                    Color(0xFF059669),
+                                    Color(0xFF10B981)
+                                  ],
+                            onPressed: saving
+                                ? null
+                                : () async {
+                                    if (!formKey.currentState!.validate())
+                                      return;
+                                    setS(() => saving = true);
+                                    try {
+                                      final nuevoSaldo = double.tryParse(
+                                              nuevoSaldoCtrl.text
+                                                  .trim()
+                                                  .replaceAll('.', '')
+                                                  .replaceAll(',', '.')) ??
+                                          0.0;
+                                      final diferencia =
+                                          nuevoSaldo - saldoActual;
+                                      final now = DateTime.now();
+                                      String pad2(int n) =>
+                                          n.toString().padLeft(2, '0');
+                                      final fecha =
+                                          '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
+                                      final r = await repository.post(
+                                          '/ajax/ajustar_saldo_cuenta.php', {
+                                        'codigo_cuenta': codigoCuenta,
+                                        'saldo_actual':
+                                            saldoActual.toStringAsFixed(2),
+                                        'nuevo_saldo':
+                                            nuevoSaldo.toStringAsFixed(2),
+                                        'diferencia':
+                                            diferencia.toStringAsFixed(2),
+                                        'fecha': fecha,
+                                        'usuario': codigoUsuario,
+                                      });
+                                      if (r.statusCode == 200) {
+                                        final d = decodeJsonMap(r.body);
+                                        final ok = d['success'] == true ||
+                                            d['resultado'] == 1;
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                        final sign = diferencia >= 0 ? '+' : '';
+                                        showResult(
+                                            ok,
+                                            ok
+                                                ? 'Ajuste de $sign${formatCop(diferencia)} aplicado correctamente.'
+                                                : friendlyError(d['msg'] ??
+                                                    d['mensaje'] ??
+                                                    'No se pudo ajustar el saldo'));
+                                        if (ok) {
+                                          repository.invalidateCache(
+                                              '/ajax/listar_cuentas_gasto.php');
+                                          repository.invalidateCache(
+                                              '/ajax/listar_movimientos_usuario.php');
+                                          unawaited(loadData());
+                                        }
+                                      }
+                                    } catch (e) {
+                                      debugPrint('[SAF] ajustar saldo: $e');
+                                    } finally {
+                                      if (ctx.mounted)
+                                        setS(() => saving = false);
+                                    }
+                                  },
+                            child: saving
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2.5, color: Colors.white))
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.check_rounded,
+                                          color: Colors.white, size: 16),
+                                      SizedBox(width: 6),
+                                      Text('Guardar Ajuste',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 13)),
+                                    ],
+                                  ),
+                          ),
                         ),
                       ]),
                     ),
-                  ),
-                  // ── Form ───────────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        infoRow(Icons.account_balance_rounded, 'Cuenta',
-                            nombreCuenta),
-                        infoRow(Icons.savings_rounded, 'Saldo Actual',
-                            formatCop(saldoActual)),
-                        // Nuevo saldo input
-                        Text('Nuevo Saldo',
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: textMid)),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: nuevoSaldoCtrl,
-                          keyboardType: TextInputType.number,
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                              color: textMain),
-                          decoration: InputDecoration(
-                            hintText: '0',
-                            hintStyle:
-                                const TextStyle(color: Color(0xFFB0BCCF)),
-                            prefixIcon: Container(
-                              margin: const EdgeInsets.all(10),
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF3730A3),
-                                    Color(0xFF4F46E5)
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.attach_money_rounded,
-                                  size: 16, color: Colors.white),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 14),
-                            border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                    color: _dialogFieldBorderColor(
-                                        const Color(0xFF4F46E5)))),
-                            enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                    color: _dialogFieldBorderColor(
-                                        const Color(0xFF4F46E5)))),
-                            focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                    color: Color(0xFF4F46E5), width: 2)),
-                            errorBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide:
-                                    const BorderSide(color: Color(0xFFDC2626))),
-                            filled: true,
-                            fillColor: inputFill,
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Ingresa el nuevo saldo'
-                              : null,
-                        ),
-                        const SizedBox(height: 10),
-                        ValueListenableBuilder<TextEditingValue>(
-                          valueListenable: nuevoSaldoCtrl,
-                          builder: (_, val, __) {
-                            final text = val.text.trim();
-                            if (text.isEmpty) return const SizedBox.shrink();
-                            final nuevo = double.tryParse(text
-                                    .replaceAll('.', '')
-                                    .replaceAll(',', '.')) ??
-                                0.0;
-                            final diff = nuevo - saldoActual;
-                            final isPos = diff >= 0;
-                            final color = isPos
-                                ? const Color(0xFF059669)
-                                : const Color(0xFFDC2626);
-                            final sign = isPos ? '+' : '';
-                            return Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                    color: color.withValues(alpha: 0.30)),
-                              ),
-                              child: Row(children: [
-                                Icon(
-                                  isPos
-                                      ? Icons.arrow_upward_rounded
-                                      : Icons.arrow_downward_rounded,
-                                  size: 15,
-                                  color: color,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Ajuste: $sign${formatCop(diff)}',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: color),
-                                ),
-                              ]),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  // ── Buttons ────────────────────────────────────
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 20),
-                    child: Row(children: [
-                      Expanded(
-                        child: premBtn(
-                          colors: const [
-                            Color(0xFF7F1D1D),
-                            Color(0xFFDC2626),
-                            Color(0xFFF43F5E)
-                          ],
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.close_rounded,
-                                  color: Colors.white, size: 16),
-                              SizedBox(width: 6),
-                              Text('Cancelar',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13)),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: premBtn(
-                          colors: saving
-                              ? [
-                                  const Color(0xFF9CA3AF),
-                                  const Color(0xFF6B7280)
-                                ]
-                              : const [
-                                  Color(0xFF065F46),
-                                  Color(0xFF059669),
-                                  Color(0xFF10B981)
-                                ],
-                          onPressed: saving
-                              ? null
-                              : () async {
-                                  if (!formKey.currentState!.validate()) return;
-                                  setS(() => saving = true);
-                                  try {
-                                    final nuevoSaldo = double.tryParse(
-                                            nuevoSaldoCtrl.text
-                                                .trim()
-                                                .replaceAll('.', '')
-                                                .replaceAll(',', '.')) ??
-                                        0.0;
-                                    final diferencia = nuevoSaldo - saldoActual;
-                                    final now = DateTime.now();
-                                    String pad2(int n) =>
-                                        n.toString().padLeft(2, '0');
-                                    final fecha =
-                                        '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
-                                    final r = await repository.post(
-                                        '/ajax/ajustar_saldo_cuenta.php', {
-                                      'codigo_cuenta': codigoCuenta,
-                                      'saldo_actual':
-                                          saldoActual.toStringAsFixed(2),
-                                      'nuevo_saldo':
-                                          nuevoSaldo.toStringAsFixed(2),
-                                      'diferencia':
-                                          diferencia.toStringAsFixed(2),
-                                      'fecha': fecha,
-                                      'usuario': codigoUsuario,
-                                    });
-                                    if (r.statusCode == 200) {
-                                      final d = decodeJsonMap(r.body);
-                                      final ok = d['success'] == true ||
-                                          d['resultado'] == 1;
-                                      if (ctx.mounted) Navigator.pop(ctx);
-                                      final sign = diferencia >= 0 ? '+' : '';
-                                      showResult(
-                                          ok,
-                                          ok
-                                              ? 'Ajuste de $sign${formatCop(diferencia)} aplicado correctamente.'
-                                              : friendlyError(d['msg'] ??
-                                                  d['mensaje'] ??
-                                                  'No se pudo ajustar el saldo'));
-                                      if (ok) {
-                                        repository.invalidateCache(
-                                            '/ajax/listar_cuentas_gasto.php');
-                                        repository.invalidateCache(
-                                            '/ajax/listar_movimientos_usuario.php');
-                                        unawaited(loadData());
-                                      }
-                                    }
-                                  } catch (e) {
-                                    debugPrint('[SAF] ajustar saldo: $e');
-                                  } finally {
-                                    if (ctx.mounted) setS(() => saving = false);
-                                  }
-                                },
-                          child: saving
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2.5, color: Colors.white))
-                              : const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.check_rounded,
-                                        color: Colors.white, size: 16),
-                                    SizedBox(width: 6),
-                                    Text('Guardar Ajuste',
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 13)),
-                                  ],
-                                ),
-                        ),
-                      ),
-                    ]),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -1968,13 +1967,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
-                      color:
-                          _dialogFieldBorderColor(const Color(0xFFF59E0B)))),
+                      color: _dialogFieldBorderColor(const Color(0xFFF59E0B)))),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
-                      color:
-                          _dialogFieldBorderColor(const Color(0xFFF59E0B)))),
+                      color: _dialogFieldBorderColor(const Color(0xFFF59E0B)))),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide:
@@ -2026,9 +2023,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 child: Row(children: [
                   Icon(icon,
                       size: 18,
-                      color: value != null
-                          ? const Color(0xFFF59E0B)
-                          : textSoft),
+                      color:
+                          value != null ? const Color(0xFFF59E0B) : textSoft),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(value ?? hint,
@@ -2036,369 +2032,371 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                             fontSize: 14,
-                            color: value != null
-                                ? textMain
-                                : textSoft)),
+                            color: value != null ? textMain : textSoft)),
                   ),
                   Icon(Icons.keyboard_arrow_down_rounded,
                       size: 20,
-                      color: value != null
-                          ? const Color(0xFFF59E0B)
-                          : textSoft),
+                      color:
+                          value != null ? const Color(0xFFF59E0B) : textSoft),
                 ]),
               ),
             );
 
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: Container(
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                    color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
-                    blurRadius: 32,
-                    offset: const Offset(0, 12)),
-                BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.10),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6)),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ── Header ──────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xFF78350F),
-                        Color(0xFFB45309),
-                        Color(0xFFF59E0B),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: Row(children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(11),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.25)),
+        return AppAnimatedDialog(
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: Container(
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12)),
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6)),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Header ──────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFF78350F),
+                          Color(0xFFB45309),
+                          Color(0xFFF59E0B),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      child: const Icon(Icons.compare_arrows_rounded,
-                          color: Colors.white, size: 22),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
                     ),
-                    const SizedBox(width: 13),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Transferir entre Cuentas',
+                    child: Row(children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(11),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.25)),
+                        ),
+                        child: const Icon(Icons.compare_arrows_rounded,
+                            color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 13),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Transferir entre Cuentas',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800)),
+                            SizedBox(height: 2),
+                            Text('Mover saldo de una cuenta a otra',
+                                style: TextStyle(
+                                    color: Colors.white60, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      appCloseX(() => Navigator.pop(ctx)),
+                    ]),
+                  ),
+
+                  // ── Form body ────────────────────────────────
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Cuenta Origen
+                            fieldLabel('Cuenta Origen'),
+                            pickerField(
+                              value: origenNom,
+                              hint: 'Selecciona cuenta de origen',
+                              icon: Icons.logout_rounded,
+                              onTap: () async {
+                                if (cuentasOpts.isEmpty) return;
+                                final picked =
+                                    await showDialog<Map<String, dynamic>>(
+                                  context: ctx,
+                                  builder: (dCtx) =>
+                                      AppPickerDialog<Map<String, dynamic>>(
+                                    title: 'Cuenta Origen',
+                                    titleIcon: Icons.logout_rounded,
+                                    items: cuentasOpts,
+                                    labelBuilder: (c) =>
+                                        (c['nombre'] ?? '').toString(),
+                                    colorBuilder: (c) => parseHexColor(
+                                        (c['color'] ?? '#4361EE').toString()),
+                                  ),
+                                );
+                                if (picked != null) {
+                                  setS(() {
+                                    origenCod =
+                                        (picked['codigo'] ?? '').toString();
+                                    origenNom =
+                                        (picked['nombre'] ?? '').toString();
+                                  });
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Cuenta Destino
+                            fieldLabel('Cuenta Destino'),
+                            pickerField(
+                              value: destinoNom,
+                              hint: 'Selecciona cuenta de destino',
+                              icon: Icons.login_rounded,
+                              onTap: () async {
+                                if (cuentasOpts.isEmpty) return;
+                                final picked =
+                                    await showDialog<Map<String, dynamic>>(
+                                  context: ctx,
+                                  builder: (dCtx) =>
+                                      AppPickerDialog<Map<String, dynamic>>(
+                                    title: 'Cuenta Destino',
+                                    titleIcon: Icons.login_rounded,
+                                    items: cuentasOpts,
+                                    labelBuilder: (c) =>
+                                        (c['nombre'] ?? '').toString(),
+                                    colorBuilder: (c) => parseHexColor(
+                                        (c['color'] ?? '#4361EE').toString()),
+                                  ),
+                                );
+                                if (picked != null) {
+                                  setS(() {
+                                    destinoCod =
+                                        (picked['codigo'] ?? '').toString();
+                                    destinoNom =
+                                        (picked['nombre'] ?? '').toString();
+                                  });
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Valor
+                            fieldLabel('Valor a Transferir'),
+                            TextFormField(
+                              controller: valorCtrl,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(
+                                  color: textMain, fontWeight: FontWeight.w600),
+                              decoration: fieldDeco(
+                                  hint: '0', icon: Icons.attach_money_rounded),
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Ingresa el valor'
+                                  : null,
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Fecha
+                            fieldLabel('Fecha de Transferencia'),
+                            pickerField(
+                              value: () {
+                                final p = selectedFecha.split('-');
+                                return p.length == 3
+                                    ? '${p[2]}/${p[1]}/${p[0]}'
+                                    : selectedFecha;
+                              }(),
+                              hint: 'DD/MM/AAAA',
+                              icon: Icons.calendar_today_rounded,
+                              onTap: () async {
+                                final picked = await showLightDatePicker(
+                                  ctx,
+                                  initialDate:
+                                      DateTime.tryParse(selectedFecha) ?? now,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2030),
+                                );
+                                if (picked != null) {
+                                  setS(() {
+                                    selectedFecha =
+                                        '${picked.year}-${pad2(picked.month)}-${pad2(picked.day)}';
+                                  });
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Descripción
+                            fieldLabel('Descripción (opcional)'),
+                            TextFormField(
+                              controller: descCtrl,
+                              maxLines: 3,
+                              style: TextStyle(color: textMain, fontSize: 14),
+                              decoration: fieldDeco(
+                                hint: 'Ej: Transferencia para gastos...',
+                                icon: Icons.notes_rounded,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // ── Botones ──────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                    child: Row(children: [
+                      Expanded(
+                        child: gradBtn(
+                          colors: const [
+                            Color(0xFF991B1B),
+                            Color(0xFFDC2626),
+                            Color(0xFFEF4444)
+                          ],
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancelar',
                               style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800)),
-                          SizedBox(height: 2),
-                          Text('Mover saldo de una cuenta a otra',
-                              style: TextStyle(
-                                  color: Colors.white60, fontSize: 11)),
-                        ],
+                                  fontWeight: FontWeight.w700)),
+                        ),
                       ),
-                    ),
-                    appCloseX(() => Navigator.pop(ctx)),
-                  ]),
-                ),
-
-                // ── Form body ────────────────────────────────
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                    child: Form(
-                      key: formKey,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Cuenta Origen
-                          fieldLabel('Cuenta Origen'),
-                          pickerField(
-                            value: origenNom,
-                            hint: 'Selecciona cuenta de origen',
-                            icon: Icons.logout_rounded,
-                            onTap: () async {
-                              if (cuentasOpts.isEmpty) return;
-                              final picked =
-                                  await showDialog<Map<String, dynamic>>(
-                                context: ctx,
-                                builder: (dCtx) =>
-                                    AppPickerDialog<Map<String, dynamic>>(
-                                  title: 'Cuenta Origen',
-                                  titleIcon: Icons.logout_rounded,
-                                  items: cuentasOpts,
-                                  labelBuilder: (c) =>
-                                      (c['nombre'] ?? '').toString(),
-                                ),
-                              );
-                              if (picked != null) {
-                                setS(() {
-                                  origenCod =
-                                      (picked['codigo'] ?? '').toString();
-                                  origenNom =
-                                      (picked['nombre'] ?? '').toString();
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Cuenta Destino
-                          fieldLabel('Cuenta Destino'),
-                          pickerField(
-                            value: destinoNom,
-                            hint: 'Selecciona cuenta de destino',
-                            icon: Icons.login_rounded,
-                            onTap: () async {
-                              if (cuentasOpts.isEmpty) return;
-                              final picked =
-                                  await showDialog<Map<String, dynamic>>(
-                                context: ctx,
-                                builder: (dCtx) =>
-                                    AppPickerDialog<Map<String, dynamic>>(
-                                  title: 'Cuenta Destino',
-                                  titleIcon: Icons.login_rounded,
-                                  items: cuentasOpts,
-                                  labelBuilder: (c) =>
-                                      (c['nombre'] ?? '').toString(),
-                                ),
-                              );
-                              if (picked != null) {
-                                setS(() {
-                                  destinoCod =
-                                      (picked['codigo'] ?? '').toString();
-                                  destinoNom =
-                                      (picked['nombre'] ?? '').toString();
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Valor
-                          fieldLabel('Valor a Transferir'),
-                          TextFormField(
-                            controller: valorCtrl,
-                            keyboardType: TextInputType.number,
-                            style: TextStyle(
-                                color: textMain,
-                                fontWeight: FontWeight.w600),
-                            decoration: fieldDeco(
-                                hint: '0', icon: Icons.attach_money_rounded),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Ingresa el valor'
-                                : null,
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Fecha
-                          fieldLabel('Fecha de Transferencia'),
-                          pickerField(
-                            value: () {
-                              final p = selectedFecha.split('-');
-                              return p.length == 3
-                                  ? '${p[2]}/${p[1]}/${p[0]}'
-                                  : selectedFecha;
-                            }(),
-                            hint: 'DD/MM/AAAA',
-                            icon: Icons.calendar_today_rounded,
-                            onTap: () async {
-                              final picked = await showLightDatePicker(
-                                ctx,
-                                initialDate:
-                                    DateTime.tryParse(selectedFecha) ?? now,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2030),
-                              );
-                              if (picked != null) {
-                                setS(() {
-                                  selectedFecha =
-                                      '${picked.year}-${pad2(picked.month)}-${pad2(picked.day)}';
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Descripción
-                          fieldLabel('Descripción (opcional)'),
-                          TextFormField(
-                            controller: descCtrl,
-                            maxLines: 3,
-                            style: TextStyle(
-                                color: textMain, fontSize: 14),
-                            decoration: fieldDeco(
-                              hint: 'Ej: Transferencia para gastos...',
-                              icon: Icons.notes_rounded,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-
-                // ── Botones ──────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                  child: Row(children: [
-                    Expanded(
-                      child: gradBtn(
-                        colors: const [
-                          Color(0xFF991B1B),
-                          Color(0xFFDC2626),
-                          Color(0xFFEF4444)
-                        ],
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancelar',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: gradBtn(
-                        colors: saving
-                            ? [Colors.grey, Colors.grey]
-                            : const [Color(0xFF059669), Color(0xFF34D399)],
-                        onPressed: saving
-                            ? null
-                            : () async {
-                                if (origenCod == null) {
-                                  showResult(
-                                      false, 'Seleccione la cuenta de origen');
-                                  return;
-                                }
-                                if (destinoCod == null) {
-                                  showResult(
-                                      false, 'Seleccione la cuenta de destino');
-                                  return;
-                                }
-                                if (origenCod == destinoCod) {
-                                  showResult(false,
-                                      'La cuenta de origen y destino no pueden ser la misma');
-                                  return;
-                                }
-                                if (!formKey.currentState!.validate()) return;
-                                final valor = numberValue(valorCtrl.text
-                                    .replaceAll(RegExp(r'[^\d]'), ''));
-                                if (valor <= 0) {
-                                  showResult(false,
-                                      'Ingrese un valor válido para transferir');
-                                  return;
-                                }
-                                final cuentaOrigen = cuentasOpts.firstWhere(
-                                  (cuenta) =>
-                                      (cuenta['codigo'] ?? '').toString() ==
-                                      origenCod,
-                                  orElse: () => <String, dynamic>{},
-                                );
-                                final saldoOrigen = numberValue(
-                                    cuentaOrigen['saldo_actual'] ??
-                                        cuentaOrigen['saldo'] ??
-                                        cuentaOrigen['balance'] ??
-                                        0);
-                                if (saldoOrigen < valor) {
-                                  showResult(false,
-                                      'La cuenta de origen no tiene saldo suficiente');
-                                  return;
-                                }
-                                setS(() => saving = true);
-                                try {
-                                  final r = await repository
-                                      .post('/ajax/transferir_cuentas.php', {
-                                    'cuenta_origen': origenCod!,
-                                    'cuenta_destino': destinoCod!,
-                                    'valor': valorCtrl.text.trim(),
-                                    'fecha': selectedFecha,
-                                    'descripcion': descCtrl.text.trim(),
-                                    'usuario': codigoUsuario,
-                                  });
-                                  final raw = r.body.trim();
-                                  final lower = raw.toLowerCase();
-                                  final isHtml = lower.contains('<!doctype') ||
-                                      lower.contains('<html') ||
-                                      lower.contains('fatal error') ||
-                                      lower.contains('warning:') ||
-                                      lower.contains('require_once');
-                                  final d = isHtml
-                                      ? <String, dynamic>{}
-                                      : decodeJsonMap(raw);
-                                  final ok = r.statusCode == 200 &&
-                                      !isHtml &&
-                                      (d['success'] == true ||
-                                          d['resultado'] == 1);
-                                  if (!ok) {
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: gradBtn(
+                          colors: saving
+                              ? [Colors.grey, Colors.grey]
+                              : const [Color(0xFF059669), Color(0xFF34D399)],
+                          onPressed: saving
+                              ? null
+                              : () async {
+                                  if (origenCod == null) {
+                                    showResult(false,
+                                        'Seleccione la cuenta de origen');
+                                    return;
+                                  }
+                                  if (destinoCod == null) {
+                                    showResult(false,
+                                        'Seleccione la cuenta de destino');
+                                    return;
+                                  }
+                                  if (origenCod == destinoCod) {
+                                    showResult(false,
+                                        'La cuenta de origen y destino no pueden ser la misma');
+                                    return;
+                                  }
+                                  if (!formKey.currentState!.validate()) return;
+                                  final valor = numberValue(valorCtrl.text
+                                      .replaceAll(RegExp(r'[^\d]'), ''));
+                                  if (valor <= 0) {
+                                    showResult(false,
+                                        'Ingrese un valor válido para transferir');
+                                    return;
+                                  }
+                                  final cuentaOrigen = cuentasOpts.firstWhere(
+                                    (cuenta) =>
+                                        (cuenta['codigo'] ?? '').toString() ==
+                                        origenCod,
+                                    orElse: () => <String, dynamic>{},
+                                  );
+                                  final saldoOrigen = numberValue(
+                                      cuentaOrigen['saldo_actual'] ??
+                                          cuentaOrigen['saldo'] ??
+                                          cuentaOrigen['balance'] ??
+                                          0);
+                                  if (saldoOrigen < valor) {
+                                    showResult(false,
+                                        'La cuenta de origen no tiene saldo suficiente');
+                                    return;
+                                  }
+                                  setS(() => saving = true);
+                                  try {
+                                    final r = await repository
+                                        .post('/ajax/transferir_cuentas.php', {
+                                      'cuenta_origen': origenCod!,
+                                      'cuenta_destino': destinoCod!,
+                                      'valor': valorCtrl.text.trim(),
+                                      'fecha': selectedFecha,
+                                      'descripcion': descCtrl.text.trim(),
+                                      'usuario': codigoUsuario,
+                                    });
+                                    final raw = r.body.trim();
+                                    final lower = raw.toLowerCase();
+                                    final isHtml =
+                                        lower.contains('<!doctype') ||
+                                            lower.contains('<html') ||
+                                            lower.contains('fatal error') ||
+                                            lower.contains('warning:') ||
+                                            lower.contains('require_once');
+                                    final d = isHtml
+                                        ? <String, dynamic>{}
+                                        : decodeJsonMap(raw);
+                                    final ok = r.statusCode == 200 &&
+                                        !isHtml &&
+                                        (d['success'] == true ||
+                                            d['resultado'] == 1);
+                                    if (!ok) {
+                                      if (ctx.mounted) {
+                                        setS(() => saving = false);
+                                      }
+                                      showResult(
+                                        false,
+                                        isHtml
+                                            ? 'El servidor no pudo procesar la transferencia.'
+                                            : friendlyError(d['msg'] ??
+                                                d['mensaje'] ??
+                                                'No se pudo completar la transferencia'),
+                                      );
+                                      return;
+                                    }
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                    repository.invalidateCache(
+                                        '/ajax/listar_cuentas_gasto.php');
+                                    repository.invalidateCache(
+                                        '/ajax/listar_movimientos_usuario.php');
+                                    await loadData();
+                                    showResult(true,
+                                        'Transferencia realizada correctamente.');
+                                  } catch (e) {
+                                    debugPrint('[SAF] transferir: $e');
                                     if (ctx.mounted) {
                                       setS(() => saving = false);
                                     }
-                                    showResult(
-                                      false,
-                                      isHtml
-                                          ? 'El servidor no pudo procesar la transferencia.'
-                                          : friendlyError(d['msg'] ??
-                                              d['mensaje'] ??
-                                              'No se pudo completar la transferencia'),
-                                    );
-                                    return;
+                                    showResult(false,
+                                        'No fue posible completar la transferencia: ${friendlyError(e)}');
+                                  } finally {
+                                    if (ctx.mounted) setS(() => saving = false);
                                   }
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  repository.invalidateCache(
-                                      '/ajax/listar_cuentas_gasto.php');
-                                  repository.invalidateCache(
-                                      '/ajax/listar_movimientos_usuario.php');
-                                  await loadData();
-                                  showResult(true,
-                                      'Transferencia realizada correctamente.');
-                                } catch (e) {
-                                  debugPrint('[SAF] transferir: $e');
-                                  if (ctx.mounted) {
-                                    setS(() => saving = false);
-                                  }
-                                  showResult(false,
-                                      'No fue posible completar la transferencia: ${friendlyError(e)}');
-                                } finally {
-                                  if (ctx.mounted) setS(() => saving = false);
-                                }
-                              },
-                        child: saving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white))
-                            : const Text('Realizar Transferencia',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w700)),
+                                },
+                          child: saving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Text('Realizar Transferencia',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700)),
+                        ),
                       ),
-                    ),
-                  ]),
-                ),
-              ],
+                    ]),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -2406,7 +2404,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     );
   }
 
-  Future<void> _showRegistrarMovimientoDialog() async {
+  Future<void> _showRegistrarMovimientoDialog(
+      {Map<String, dynamic>? cuentaInicial}) async {
     final codigoUsuario = (repository.user?['codigo_usuario'] ?? '').toString();
     final formKey = GlobalKey<FormState>();
     final valorCtrl = TextEditingController();
@@ -2414,10 +2413,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     final now = DateTime.now();
     String pad2(int n) => n.toString().padLeft(2, '0');
     String selectedFecha = '${now.year}-${pad2(now.month)}-${pad2(now.day)}';
-    String? selectedCuenta;
-    String? selectedCuentaNombre;
+    String? selectedCuenta = cuentaInicial?['codigo']?.toString();
+    String? selectedCuentaNombre = cuentaInicial?['nombre']?.toString();
+    String? selectedCuentaColor = cuentaInicial?['color']?.toString();
     String? selectedTipo;
-    String? selectedTipoNombre;
     bool saving = false;
 
     // Cuentas activas disponibles desde el estado actual
@@ -2453,13 +2452,14 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           String hint = '',
           IconData? icon,
           Widget? suffix,
+          double iconSize = 18,
         }) =>
             InputDecoration(
               hintText: hint,
               hintStyle:
                   const TextStyle(color: Color(0xFFB0BCCF), fontSize: 14),
               prefixIcon: icon != null
-                  ? Icon(icon, size: 18, color: const Color(0xFF4361EE))
+                  ? Icon(icon, size: iconSize, color: const Color(0xFF4361EE))
                   : null,
               suffixIcon: suffix,
               filled: true,
@@ -2469,13 +2469,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
-                      color:
-                          _dialogFieldBorderColor(const Color(0xFF4361EE)))),
+                      color: _dialogFieldBorderColor(const Color(0xFF4361EE)))),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(
-                      color:
-                          _dialogFieldBorderColor(const Color(0xFF4361EE)))),
+                      color: _dialogFieldBorderColor(const Color(0xFF4361EE)))),
               focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide:
@@ -2541,328 +2539,451 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                             fontSize: 14,
-                            color: value != null
-                                ? textMain
-                                : textSoft)),
+                            color: value != null ? textMain : textSoft)),
                   ),
                   Icon(Icons.keyboard_arrow_down_rounded,
                       size: 20,
-                      color: value != null
-                          ? const Color(0xFF4361EE)
-                          : textSoft),
+                      color:
+                          value != null ? const Color(0xFF4361EE) : textSoft),
                 ]),
               ),
             );
 
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: Container(
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                    color: const Color(0xFF4361EE).withValues(alpha: 0.15),
-                    blurRadius: 32,
-                    offset: const Offset(0, 12)),
-                BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.10),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6)),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ── Header ──────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xFF0D1B4B),
-                        Color(0xFF1E3A8A),
-                        Color(0xFF4361EE),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: Row(children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(11),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.25)),
-                      ),
-                      child: const Icon(Icons.swap_vert_rounded,
-                          color: Colors.white, size: 22),
-                    ),
-                    const SizedBox(width: 13),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Registrar Movimiento',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800)),
-                          SizedBox(height: 2),
-                          Text('Nuevo gasto o ingreso',
-                              style: TextStyle(
-                                  color: Colors.white60, fontSize: 11)),
+        // Campo de cuenta: muestra el color/inicial reales de la cuenta
+        // (igual que en la lista de Cuentas) en vez de un icono genérico,
+        // para confirmar de un vistazo cuál quedó seleccionada.
+        Widget cuentaField() {
+          final hasValue =
+              selectedCuentaNombre != null && selectedCuentaNombre!.isNotEmpty;
+          final color = hasValue && selectedCuentaColor != null
+              ? parseHexColor(selectedCuentaColor!)
+              : const Color(0xFF4361EE);
+          final initials = hasValue
+              ? selectedCuentaNombre!
+                  .trim()
+                  .split(' ')
+                  .take(2)
+                  .map((w) => w.isNotEmpty ? w[0] : '')
+                  .join()
+                  .toUpperCase()
+              : '';
+          return GestureDetector(
+            onTap: () async {
+              if (cuentasOpts.isEmpty) return;
+              final picked = await showDialog<Map<String, dynamic>>(
+                context: ctx,
+                builder: (dCtx) => AppPickerDialog<Map<String, dynamic>>(
+                  title: 'Seleccionar Cuenta',
+                  titleIcon: Icons.account_balance_wallet_rounded,
+                  items: cuentasOpts,
+                  labelBuilder: (c) => (c['nombre'] ?? '').toString(),
+                  colorBuilder: (c) =>
+                      parseHexColor((c['color'] ?? '#4361EE').toString()),
+                  selectedValue: cuentasOpts
+                      .cast<Map<String, dynamic>?>()
+                      .firstWhere(
+                          (c) =>
+                              (c?['codigo'] ?? '').toString() == selectedCuenta,
+                          orElse: () => null),
+                ),
+              );
+              if (picked != null) {
+                setS(() {
+                  selectedCuenta = (picked['codigo'] ?? '').toString();
+                  selectedCuentaNombre = (picked['nombre'] ?? '').toString();
+                  selectedCuentaColor = (picked['color'] ?? '').toString();
+                });
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: inputFill,
+                border: Border.all(
+                  color: hasValue
+                      ? color
+                      : _dialogFieldBorderColor(const Color(0xFF4361EE)),
+                  width: hasValue ? 1.5 : 1,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(children: [
+                if (hasValue)
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color.lerp(color, Colors.white, 0.35)!,
+                          color,
                         ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
+                      borderRadius: BorderRadius.circular(9),
+                      boxShadow: [
+                        BoxShadow(
+                            color: color.withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3)),
+                      ],
                     ),
-                    appCloseX(() => Navigator.pop(ctx)),
+                    alignment: Alignment.center,
+                    child: Text(initials,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800)),
+                  )
+                else
+                  Icon(Icons.account_balance_wallet_rounded,
+                      size: 18, color: textSoft),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(selectedCuentaNombre ?? 'Selecciona una cuenta',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: hasValue ? FontWeight.w700 : null,
+                          color: hasValue ? textMain : textSoft)),
+                ),
+                Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 20, color: hasValue ? color : textSoft),
+              ]),
+            ),
+          );
+        }
+
+        // Toggle Gasto/Ingreso: al ser una elección binaria no necesita
+        // abrir un picker modal aparte, un par de chips es más directo.
+        Widget tipoToggle() {
+          Widget chip({
+            required String codigo,
+            required String label,
+            required IconData icon,
+            required Color color,
+          }) {
+            final selected = selectedTipo == codigo;
+            return Expanded(
+              child: GestureDetector(
+                onTap: () => setS(() => selectedTipo = codigo),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  decoration: BoxDecoration(
+                    gradient: selected
+                        ? LinearGradient(colors: [
+                            color,
+                            Color.lerp(color, Colors.black, 0.15)!,
+                          ])
+                        : null,
+                    color: selected ? null : inputFill,
+                    border: Border.all(
+                      color: selected ? color : _dialogFieldBorderColor(color),
+                      width: selected ? 0 : 1,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: selected
+                        ? [
+                            BoxShadow(
+                                color: color.withValues(alpha: 0.35),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4)),
+                          ]
+                        : null,
+                  ),
+                  alignment: Alignment.center,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(icon,
+                        size: 16, color: selected ? Colors.white : color),
+                    const SizedBox(width: 6),
+                    Text(label,
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: selected ? Colors.white : color)),
                   ]),
                 ),
+              ),
+            );
+          }
 
-                // ── Form body ────────────────────────────────
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                    child: Form(
-                      key: formKey,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Cuenta
-                          fieldLabel('Cuenta'),
-                          pickerField(
-                            value: selectedCuentaNombre,
-                            hint: 'Selecciona una cuenta',
-                            icon: Icons.account_balance_wallet_rounded,
-                            onTap: () async {
-                              if (cuentasOpts.isEmpty) return;
-                              final picked =
-                                  await showDialog<Map<String, dynamic>>(
-                                context: ctx,
-                                builder: (dCtx) =>
-                                    AppPickerDialog<Map<String, dynamic>>(
-                                  title: 'Seleccionar Cuenta',
-                                  titleIcon:
-                                      Icons.account_balance_wallet_rounded,
-                                  items: cuentasOpts,
-                                  labelBuilder: (c) =>
-                                      (c['nombre'] ?? '').toString(),
-                                ),
-                              );
-                              if (picked != null) {
-                                setS(() {
-                                  selectedCuenta =
-                                      (picked['codigo'] ?? '').toString();
-                                  selectedCuentaNombre =
-                                      (picked['nombre'] ?? '').toString();
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 14),
+          return Row(children: [
+            chip(
+                codigo: '2',
+                label: 'Gasto',
+                icon: Icons.trending_down_rounded,
+                color: const Color(0xFFDC2626)),
+            const SizedBox(width: 10),
+            chip(
+                codigo: '3',
+                label: 'Ingreso',
+                icon: Icons.trending_up_rounded,
+                color: const Color(0xFF059669)),
+          ]);
+        }
 
-                          // Tipo de movimiento
-                          fieldLabel('Tipo de movimiento'),
-                          pickerField(
-                            value: selectedTipoNombre,
-                            hint: 'Gasto o Ingreso',
-                            icon: selectedTipo == '2'
-                                ? Icons.arrow_upward_rounded
-                                : selectedTipo == '3'
-                                    ? Icons.arrow_downward_rounded
-                                    : Icons.swap_horiz_rounded,
-                            valueColor: selectedTipo == '2'
-                                ? const Color(0xFFDC2626)
-                                : const Color(0xFF059669),
-                            onTap: () async {
-                              final tiposM = [
-                                {'codigo': '2', 'nombre': 'Gasto'},
-                                {'codigo': '3', 'nombre': 'Ingreso'},
-                              ];
-                              final picked =
-                                  await showDialog<Map<String, dynamic>>(
-                                context: ctx,
-                                builder: (dCtx) =>
-                                    AppPickerDialog<Map<String, dynamic>>(
-                                  title: 'Tipo de movimiento',
-                                  titleIcon: Icons.swap_horiz_rounded,
-                                  items: tiposM,
-                                  labelBuilder: (t) =>
-                                      (t['nombre'] ?? '').toString(),
-                                ),
-                              );
-                              if (picked != null) {
-                                setS(() {
-                                  selectedTipo = picked['codigo'];
-                                  selectedTipoNombre = picked['nombre'];
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Valor
-                          fieldLabel('Valor'),
-                          TextFormField(
-                            controller: valorCtrl,
-                            keyboardType: TextInputType.number,
-                            style: TextStyle(
-                                color: textMain,
-                                fontWeight: FontWeight.w600),
-                            decoration: fieldDeco(
-                                hint: '0', icon: Icons.attach_money_rounded),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Ingresa el valor'
-                                : null,
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Fecha
-                          fieldLabel('Fecha'),
-                          pickerField(
-                            value: () {
-                              final p = selectedFecha.split('-');
-                              return p.length == 3
-                                  ? '${p[2]}/${p[1]}/${p[0]}'
-                                  : selectedFecha;
-                            }(),
-                            hint: 'DD/MM/AAAA',
-                            icon: Icons.calendar_today_rounded,
-                            onTap: () async {
-                              final picked = await showLightDatePicker(
-                                ctx,
-                                initialDate:
-                                    DateTime.tryParse(selectedFecha) ?? now,
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2030),
-                              );
-                              if (picked != null) {
-                                setS(() {
-                                  selectedFecha =
-                                      '${picked.year}-${pad2(picked.month)}-${pad2(picked.day)}';
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Descripción
-                          fieldLabel('Descripción'),
-                          TextFormField(
-                            controller: descCtrl,
-                            maxLines: 3,
-                            style: TextStyle(
-                                color: textMain, fontSize: 14),
-                            decoration: fieldDeco(
-                                hint: 'Ej: Pago de servicios...',
-                                icon: Icons.notes_rounded),
-                          ),
-                          const SizedBox(height: 6),
+        return AppAnimatedDialog(
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: Container(
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                      color: const Color(0xFF4361EE).withValues(alpha: 0.15),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12)),
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6)),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Header ──────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFF0D1B4B),
+                          Color(0xFF1E3A8A),
+                          Color(0xFF4361EE),
                         ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
                     ),
-                  ),
-                ),
-
-                // ── Botones ──────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                  child: Row(children: [
-                    Expanded(
-                      child: gradBtn(
-                        colors: const [
-                          Color(0xFF991B1B),
-                          Color(0xFFDC2626),
-                          Color(0xFFEF4444)
-                        ],
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cancelar',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w700)),
+                    child: Row(children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(11),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.25)),
+                        ),
+                        child: const Icon(Icons.swap_vert_rounded,
+                            color: Colors.white, size: 22),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: gradBtn(
-                        colors: saving
-                            ? [Colors.grey, Colors.grey]
-                            : const [Color(0xFF059669), Color(0xFF34D399)],
-                        onPressed: saving
-                            ? null
-                            : () async {
-                                if (selectedCuenta == null) {
-                                  showResult(false,
-                                      'Seleccione una cuenta para continuar');
-                                  return;
-                                }
-                                if (selectedTipo == null) {
-                                  showResult(false,
-                                      'Seleccione el tipo de movimiento');
-                                  return;
-                                }
-                                if (!formKey.currentState!.validate()) return;
-                                setS(() => saving = true);
-                                try {
-                                  final r = await repository
-                                      .post('/ajax/guardar_movimiento.php', {
-                                    'codigo_cuenta': selectedCuenta!,
-                                    'tipo_movimiento': selectedTipo!,
-                                    'valor': valorCtrl.text.trim(),
-                                    'fecha': selectedFecha,
-                                    'descripcion': descCtrl.text.trim(),
-                                    'usuario': codigoUsuario,
-                                  });
-                                  if (r.statusCode == 200) {
-                                    final d = decodeJsonMap(r.body);
-                                    final ok = d['success'] == true ||
-                                        d['resultado'] == 1;
-                                    if (ctx.mounted) Navigator.pop(ctx);
-                                    showResult(
-                                        ok,
-                                        ok
-                                            ? 'Movimiento registrado correctamente.'
-                                            : friendlyError(d['msg'] ??
-                                                d['mensaje'] ??
-                                                'No se pudo guardar el movimiento'));
-                                    if (ok) {
-                                      repository.invalidateCache(
-                                          '/ajax/listar_cuentas_gasto.php');
-                                      repository.invalidateCache(
-                                          '/ajax/listar_movimientos_usuario.php');
-                                      unawaited(loadData());
-                                    }
-                                  }
-                                } catch (e) {
-                                  debugPrint('[SAF] guardar movimiento: $e');
-                                } finally {
-                                  if (ctx.mounted) setS(() => saving = false);
-                                }
-                              },
-                        child: saving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white))
-                            : const Text('Guardar',
+                      const SizedBox(width: 13),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Registrar Movimiento',
                                 style: TextStyle(
                                     color: Colors.white,
-                                    fontWeight: FontWeight.w700)),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800)),
+                            SizedBox(height: 2),
+                            Text('Nuevo gasto o ingreso',
+                                style: TextStyle(
+                                    color: Colors.white60, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      appCloseX(() => Navigator.pop(ctx)),
+                    ]),
+                  ),
+
+                  // ── Form body ────────────────────────────────
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Cuenta
+                            fieldLabel('Cuenta'),
+                            cuentaField(),
+                            const SizedBox(height: 14),
+
+                            // Tipo de movimiento
+                            fieldLabel('Tipo de movimiento'),
+                            tipoToggle(),
+                            const SizedBox(height: 14),
+
+                            // Valor
+                            fieldLabel('Valor'),
+                            TextFormField(
+                              controller: valorCtrl,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(
+                                  color: textMain,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5),
+                              decoration: fieldDeco(
+                                hint: '0',
+                                icon: Icons.attach_money_rounded,
+                                iconSize: 22,
+                              ).copyWith(
+                                prefixIconConstraints: const BoxConstraints(
+                                    minWidth: 40, minHeight: 40),
+                                hintStyle: const TextStyle(
+                                    color: Color(0xFFB0BCCF),
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800),
+                              ),
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Ingresa el valor'
+                                  : null,
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Fecha
+                            fieldLabel('Fecha'),
+                            pickerField(
+                              value: () {
+                                final p = selectedFecha.split('-');
+                                return p.length == 3
+                                    ? '${p[2]}/${p[1]}/${p[0]}'
+                                    : selectedFecha;
+                              }(),
+                              hint: 'DD/MM/AAAA',
+                              icon: Icons.calendar_today_rounded,
+                              onTap: () async {
+                                final picked = await showLightDatePicker(
+                                  ctx,
+                                  initialDate:
+                                      DateTime.tryParse(selectedFecha) ?? now,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2030),
+                                );
+                                if (picked != null) {
+                                  setS(() {
+                                    selectedFecha =
+                                        '${picked.year}-${pad2(picked.month)}-${pad2(picked.day)}';
+                                  });
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Descripción
+                            fieldLabel('Descripción'),
+                            TextFormField(
+                              controller: descCtrl,
+                              maxLines: 3,
+                              style: TextStyle(color: textMain, fontSize: 14),
+                              decoration: fieldDeco(
+                                  hint: 'Ej: Pago de servicios...',
+                                  icon: Icons.notes_rounded),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                        ),
                       ),
                     ),
-                  ]),
-                ),
-              ],
+                  ),
+
+                  // ── Botones ──────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                    child: Row(children: [
+                      Expanded(
+                        child: gradBtn(
+                          colors: const [
+                            Color(0xFF991B1B),
+                            Color(0xFFDC2626),
+                            Color(0xFFEF4444)
+                          ],
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancelar',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: gradBtn(
+                          colors: saving
+                              ? [Colors.grey, Colors.grey]
+                              : const [Color(0xFF059669), Color(0xFF34D399)],
+                          onPressed: saving
+                              ? null
+                              : () async {
+                                  if (selectedCuenta == null) {
+                                    showResult(false,
+                                        'Seleccione una cuenta para continuar');
+                                    return;
+                                  }
+                                  if (selectedTipo == null) {
+                                    showResult(false,
+                                        'Seleccione el tipo de movimiento');
+                                    return;
+                                  }
+                                  if (!formKey.currentState!.validate()) return;
+                                  setS(() => saving = true);
+                                  try {
+                                    final r = await repository
+                                        .post('/ajax/guardar_movimiento.php', {
+                                      'codigo_cuenta': selectedCuenta!,
+                                      'tipo_movimiento': selectedTipo!,
+                                      'valor': valorCtrl.text.trim(),
+                                      'fecha': selectedFecha,
+                                      'descripcion': descCtrl.text.trim(),
+                                      'usuario': codigoUsuario,
+                                    });
+                                    if (r.statusCode == 200) {
+                                      final d = decodeJsonMap(r.body);
+                                      final ok = d['success'] == true ||
+                                          d['resultado'] == 1;
+                                      if (ctx.mounted) Navigator.pop(ctx);
+                                      showResult(
+                                          ok,
+                                          ok
+                                              ? 'Movimiento registrado correctamente.'
+                                              : friendlyError(d['msg'] ??
+                                                  d['mensaje'] ??
+                                                  'No se pudo guardar el movimiento'));
+                                      if (ok) {
+                                        repository.invalidateCache(
+                                            '/ajax/listar_cuentas_gasto.php');
+                                        repository.invalidateCache(
+                                            '/ajax/listar_movimientos_usuario.php');
+                                        unawaited(loadData());
+                                      }
+                                    }
+                                  } catch (e) {
+                                    debugPrint('[SAF] guardar movimiento: $e');
+                                  } finally {
+                                    if (ctx.mounted) setS(() => saving = false);
+                                  }
+                                },
+                          child: saving
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Text('Guardar',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -2948,395 +3069,401 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               ),
             );
 
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: Container(
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                    color: const Color(0xFF4361EE).withValues(alpha: 0.15),
-                    blurRadius: 32,
-                    offset: const Offset(0, 12)),
-                BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.10),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6)),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ── Header ──────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color(0xFF0D1B4B),
-                        Color(0xFF1E3A8A),
-                        Color(0xFF4361EE),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: Row(children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(11),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.25)),
-                      ),
-                      child: const Icon(Icons.account_balance_wallet_rounded,
-                          color: Colors.white, size: 22),
-                    ),
-                    const SizedBox(width: 13),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Nueva Cuenta/Fuente',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800)),
-                          SizedBox(height: 2),
-                          Text('Agrega una cuenta o fuente de fondos',
-                              style: TextStyle(
-                                  color: Colors.white60, fontSize: 11)),
+        return AppAnimatedDialog(
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: Container(
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                      color: const Color(0xFF4361EE).withValues(alpha: 0.15),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12)),
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.10),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6)),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Header ──────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color(0xFF0D1B4B),
+                          Color(0xFF1E3A8A),
+                          Color(0xFF4361EE),
                         ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
                     ),
-                    appCloseX(() => Navigator.pop(ctx)),
-                  ]),
-                ),
+                    child: Row(children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(11),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.25)),
+                        ),
+                        child: const Icon(Icons.account_balance_wallet_rounded,
+                            color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 13),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Nueva Cuenta/Fuente',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800)),
+                            SizedBox(height: 2),
+                            Text('Agrega una cuenta o fuente de fondos',
+                                style: TextStyle(
+                                    color: Colors.white60, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      appCloseX(() => Navigator.pop(ctx)),
+                    ]),
+                  ),
 
-                // ── Form body ────────────────────────────────
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(20),
-                    child: Form(
-                      key: formKey,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
+                  // ── Form body ────────────────────────────────
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 4),
 
-                          // Nombre
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 7),
-                            child: Row(children: [
-                              Container(
-                                width: 3,
-                                height: 13,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              const SizedBox(width: 7),
-                              Text('Nombre de la cuenta/fuente',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: textMain,
-                                      letterSpacing: 0.2)),
-                            ]),
-                          ),
-                          TextFormField(
-                            controller: nombreCtrl,
-                            style: TextStyle(
-                                color: textMain, fontWeight: FontWeight.w600),
-                            decoration: InputDecoration(
-                              hintText: 'Ej. Nequi, Efectivo...',
-                              hintStyle:
-                                  const TextStyle(color: Color(0xFFB0BCCF)),
-                              prefixIcon: const Icon(
-                                  Icons.label_outline_rounded,
-                                  size: 18,
-                                  color: Color(0xFF10B981)),
-                              filled: true,
-                              fillColor: inputFill,
-                              border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(
-                                      color: _dialogFieldBorderColor(
-                                          const Color(0xFF10B981)))),
-                              enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(
-                                      color: _dialogFieldBorderColor(
-                                          const Color(0xFF10B981)))),
-                              focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(
-                                      color: Color(0xFF10B981), width: 1.5)),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 13),
-                            ),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Requerido'
-                                : null,
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Color
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 7),
-                            child: Row(children: [
-                              Container(
-                                width: 3,
-                                height: 13,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              const SizedBox(width: 7),
-                              Text('Color (opcional)',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: textMain,
-                                      letterSpacing: 0.2)),
-                            ]),
-                          ),
-                          Container(
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: parseHex(selectedHex),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _presetColors.map((hex) {
-                              final sel = hex == selectedHex;
-                              return GestureDetector(
-                                onTap: () => setS(() => selectedHex = hex),
-                                child: Container(
-                                  width: 28,
-                                  height: 28,
-                                  decoration: BoxDecoration(
-                                    color: parseHex(hex),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color:
-                                            sel ? homeNavy : Colors.transparent,
-                                        width: 2),
-                                  ),
-                                  child: sel
-                                      ? const Icon(Icons.check,
-                                          color: Colors.white, size: 14)
-                                      : null,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Tipo
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 7),
-                            child: Row(children: [
-                              Container(
-                                width: 3,
-                                height: 13,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                              const SizedBox(width: 7),
-                              Text('Tipo de cuenta',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: textMain,
-                                      letterSpacing: 0.2)),
-                            ]),
-                          ),
-                          GestureDetector(
-                            onTap: () async {
-                              final picked =
-                                  await showDialog<Map<String, dynamic>>(
-                                context: ctx,
-                                builder: (dCtx) =>
-                                    AppPickerDialog<Map<String, dynamic>>(
-                                  title: 'Seleccionar Tipo',
-                                  titleIcon: Icons.category_outlined,
-                                  items: tipos,
-                                  labelBuilder: (t) =>
-                                      (t['nombre'] ?? '').toString(),
-                                ),
-                              );
-                              if (picked != null) {
-                                setS(() {
-                                  selectedTipo =
-                                      (picked['codigo'] ?? '').toString();
-                                  selectedTipoNombre =
-                                      (picked['nombre'] ?? '').toString();
-                                });
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 13),
-                              decoration: BoxDecoration(
-                                color: inputFill,
-                                border: Border.all(
-                                    color: selectedTipo != null
-                                        ? const Color(0xFF10B981)
-                                        : _dialogFieldBorderColor(
-                                            const Color(0xFF10B981)),
-                                    width: selectedTipo != null ? 1.5 : 1),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
+                            // Nombre
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 7),
                               child: Row(children: [
-                                Icon(Icons.category_outlined,
-                                    size: 18,
-                                    color: selectedTipo != null
-                                        ? const Color(0xFF10B981)
-                                        : textSoft),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    selectedTipoNombre ??
-                                        'Selecciona tipo de cuenta',
-                                    style: TextStyle(
-                                        fontSize: 14,
-                                        color: selectedTipo != null
-                                            ? textMain
-                                            : textSoft),
+                                Container(
+                                  width: 3,
+                                  height: 13,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981),
+                                    borderRadius: BorderRadius.circular(2),
                                   ),
                                 ),
-                                Icon(Icons.keyboard_arrow_down_rounded,
-                                    size: 20,
-                                    color: selectedTipo != null
-                                        ? const Color(0xFF10B981)
-                                        : textSoft),
+                                const SizedBox(width: 7),
+                                Text('Nombre de la cuenta/fuente',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: textMain,
+                                        letterSpacing: 0.2)),
                               ]),
                             ),
-                          ),
-                          const SizedBox(height: 22),
+                            TextFormField(
+                              controller: nombreCtrl,
+                              style: TextStyle(
+                                  color: textMain, fontWeight: FontWeight.w600),
+                              decoration: InputDecoration(
+                                hintText: 'Ej. Nequi, Efectivo...',
+                                hintStyle:
+                                    const TextStyle(color: Color(0xFFB0BCCF)),
+                                prefixIcon: const Icon(
+                                    Icons.label_outline_rounded,
+                                    size: 18,
+                                    color: Color(0xFF10B981)),
+                                filled: true,
+                                fillColor: inputFill,
+                                border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide(
+                                        color: _dialogFieldBorderColor(
+                                            const Color(0xFF10B981)))),
+                                enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide(
+                                        color: _dialogFieldBorderColor(
+                                            const Color(0xFF10B981)))),
+                                focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: const BorderSide(
+                                        color: Color(0xFF10B981), width: 1.5)),
+                                contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 13),
+                              ),
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Requerido'
+                                  : null,
+                            ),
+                            const SizedBox(height: 16),
 
-                          // Botones
-                          Row(children: [
-                            Expanded(
-                              child: gradBtn(
-                                colors: const [
-                                  Color(0xFFDC2626),
-                                  Color(0xFFEF4444)
-                                ],
-                                onPressed: () => Navigator.pop(ctx),
-                                child: const Text('Cancelar',
+                            // Color
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 7),
+                              child: Row(children: [
+                                Container(
+                                  width: 3,
+                                  height: 13,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 7),
+                                Text('Color (opcional)',
                                     style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700)),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: textMain,
+                                        letterSpacing: 0.2)),
+                              ]),
+                            ),
+                            Container(
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: parseHex(selectedHex),
+                                borderRadius: BorderRadius.circular(10),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: gradBtn(
-                                colors: saving
-                                    ? [Colors.grey, Colors.grey]
-                                    : [
-                                        const Color(0xFF10B981),
-                                        const Color(0xFF059669)
-                                      ],
-                                onPressed: saving
-                                    ? null
-                                    : () async {
-                                        if (!formKey.currentState!.validate()) {
-                                          return;
-                                        }
-                                        if (selectedTipo == null) {
-                                          showResult(false,
-                                              'Selecciona el tipo de cuenta');
-                                          return;
-                                        }
-                                        setS(() => saving = true);
-                                        try {
-                                          final r = await repository.post(
-                                              '/ajax/guardar_cuenta_gasto.php',
-                                              {
-                                                'nombre':
-                                                    nombreCtrl.text.trim(),
-                                                'color': selectedHex,
-                                                'tipo_cuenta': selectedTipo!,
-                                                'usuario': codigoUsuario,
-                                              });
-                                          final d = decodeJsonMap(r.body);
-                                          final raw = r.body.trim();
-                                          // PHP puede devolver JSON {success:true}, '1',
-                                          // o un string descriptivo — cualquier 200 sin
-                                          // "error" explícito cuenta como éxito.
-                                          final ok = r.statusCode == 200 &&
-                                              (d['success'] == true ||
-                                                  d['resultado'] == 1 ||
-                                                  d['resultado'] == '1' ||
-                                                  raw == '1' ||
-                                                  (d.isEmpty &&
-                                                      !raw
-                                                          .toLowerCase()
-                                                          .contains('error')));
-                                          if (ctx.mounted) Navigator.pop(ctx);
-                                          // Siempre refrescamos si el server respondió 200
-                                          if (r.statusCode == 200) {
-                                            repository.invalidateCache(
-                                                '/ajax/listar_cuentas_gasto.php');
-                                            await fetchAccounts(codigoUsuario);
-                                            if (isMounted) refresh(() {});
-                                          }
-                                          showResult(
-                                              ok,
-                                              ok
-                                                  ? (d['msg']?.toString() ??
-                                                      'Cuenta creada exitosamente')
-                                                  : friendlyError(d['msg'] ??
-                                                          raw.isNotEmpty
-                                                      ? raw
-                                                      : 'No se pudo guardar la cuenta'));
-                                        } catch (e) {
-                                          if (ctx.mounted) {
-                                            setS(() => saving = false);
-                                          }
-                                          showResult(false, friendlyError(e));
-                                        }
-                                      },
-                                child: saving
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2))
-                                    : const Text('Guardar',
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _presetColors.map((hex) {
+                                final sel = hex == selectedHex;
+                                return GestureDetector(
+                                  onTap: () => setS(() => selectedHex = hex),
+                                  child: Container(
+                                    width: 28,
+                                    height: 28,
+                                    decoration: BoxDecoration(
+                                      color: parseHex(hex),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: sel
+                                              ? homeNavy
+                                              : Colors.transparent,
+                                          width: 2),
+                                    ),
+                                    child: sel
+                                        ? const Icon(Icons.check,
+                                            color: Colors.white, size: 14)
+                                        : null,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Tipo
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 7),
+                              child: Row(children: [
+                                Container(
+                                  width: 3,
+                                  height: 13,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981),
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                                const SizedBox(width: 7),
+                                Text('Tipo de cuenta',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: textMain,
+                                        letterSpacing: 0.2)),
+                              ]),
+                            ),
+                            GestureDetector(
+                              onTap: () async {
+                                final picked =
+                                    await showDialog<Map<String, dynamic>>(
+                                  context: ctx,
+                                  builder: (dCtx) =>
+                                      AppPickerDialog<Map<String, dynamic>>(
+                                    title: 'Seleccionar Tipo',
+                                    titleIcon: Icons.category_outlined,
+                                    items: tipos,
+                                    labelBuilder: (t) =>
+                                        (t['nombre'] ?? '').toString(),
+                                  ),
+                                );
+                                if (picked != null) {
+                                  setS(() {
+                                    selectedTipo =
+                                        (picked['codigo'] ?? '').toString();
+                                    selectedTipoNombre =
+                                        (picked['nombre'] ?? '').toString();
+                                  });
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 13),
+                                decoration: BoxDecoration(
+                                  color: inputFill,
+                                  border: Border.all(
+                                      color: selectedTipo != null
+                                          ? const Color(0xFF10B981)
+                                          : _dialogFieldBorderColor(
+                                              const Color(0xFF10B981)),
+                                      width: selectedTipo != null ? 1.5 : 1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(children: [
+                                  Icon(Icons.category_outlined,
+                                      size: 18,
+                                      color: selectedTipo != null
+                                          ? const Color(0xFF10B981)
+                                          : textSoft),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      selectedTipoNombre ??
+                                          'Selecciona tipo de cuenta',
+                                      style: TextStyle(
+                                          fontSize: 14,
+                                          color: selectedTipo != null
+                                              ? textMain
+                                              : textSoft),
+                                    ),
+                                  ),
+                                  Icon(Icons.keyboard_arrow_down_rounded,
+                                      size: 20,
+                                      color: selectedTipo != null
+                                          ? const Color(0xFF10B981)
+                                          : textSoft),
+                                ]),
                               ),
                             ),
-                          ]),
-                        ],
+                            const SizedBox(height: 22),
+
+                            // Botones
+                            Row(children: [
+                              Expanded(
+                                child: gradBtn(
+                                  colors: const [
+                                    Color(0xFFDC2626),
+                                    Color(0xFFEF4444)
+                                  ],
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: const Text('Cancelar',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700)),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: gradBtn(
+                                  colors: saving
+                                      ? [Colors.grey, Colors.grey]
+                                      : [
+                                          const Color(0xFF10B981),
+                                          const Color(0xFF059669)
+                                        ],
+                                  onPressed: saving
+                                      ? null
+                                      : () async {
+                                          if (!formKey.currentState!
+                                              .validate()) {
+                                            return;
+                                          }
+                                          if (selectedTipo == null) {
+                                            showResult(false,
+                                                'Selecciona el tipo de cuenta');
+                                            return;
+                                          }
+                                          setS(() => saving = true);
+                                          try {
+                                            final r = await repository.post(
+                                                '/ajax/guardar_cuenta_gasto.php',
+                                                {
+                                                  'nombre':
+                                                      nombreCtrl.text.trim(),
+                                                  'color': selectedHex,
+                                                  'tipo_cuenta': selectedTipo!,
+                                                  'usuario': codigoUsuario,
+                                                });
+                                            final d = decodeJsonMap(r.body);
+                                            final raw = r.body.trim();
+                                            // PHP puede devolver JSON {success:true}, '1',
+                                            // o un string descriptivo — cualquier 200 sin
+                                            // "error" explícito cuenta como éxito.
+                                            final ok = r.statusCode == 200 &&
+                                                (d['success'] == true ||
+                                                    d['resultado'] == 1 ||
+                                                    d['resultado'] == '1' ||
+                                                    raw == '1' ||
+                                                    (d.isEmpty &&
+                                                        !raw
+                                                            .toLowerCase()
+                                                            .contains(
+                                                                'error')));
+                                            if (ctx.mounted) Navigator.pop(ctx);
+                                            // Siempre refrescamos si el server respondió 200
+                                            if (r.statusCode == 200) {
+                                              repository.invalidateCache(
+                                                  '/ajax/listar_cuentas_gasto.php');
+                                              await fetchAccounts(
+                                                  codigoUsuario);
+                                              if (isMounted) refresh(() {});
+                                            }
+                                            showResult(
+                                                ok,
+                                                ok
+                                                    ? (d['msg']?.toString() ??
+                                                        'Cuenta creada exitosamente')
+                                                    : friendlyError(d['msg'] ??
+                                                            raw.isNotEmpty
+                                                        ? raw
+                                                        : 'No se pudo guardar la cuenta'));
+                                          } catch (e) {
+                                            if (ctx.mounted) {
+                                              setS(() => saving = false);
+                                            }
+                                            showResult(false, friendlyError(e));
+                                          }
+                                        },
+                                  child: saving
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 2))
+                                      : const Text('Guardar',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w700)),
+                                ),
+                              ),
+                            ]),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -3475,310 +3602,379 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
 
         final previewColor = parseHex(colorCtrl.text);
 
-        return Dialog(
-          backgroundColor: dialogBg,
-          surfaceTintColor: Colors.transparent,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
-              maxHeight: MediaQuery.of(ctx).size.height * 0.88,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ── Header ──────────────────────────────────────────
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 16, 0),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: Column(children: [
-                    Row(children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: const Icon(Icons.account_balance_wallet_rounded,
-                            color: Colors.white, size: 20),
+        return AppAnimatedDialog(
+          child: Dialog(
+            backgroundColor: dialogBg,
+            surfaceTintColor: Colors.transparent,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
+                maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Header ──────────────────────────────────────────
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 20, 16, 0),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(width: 12),
-                      const Expanded(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Column(children: [
+                      Row(children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(11),
+                          ),
+                          child: const Icon(
+                              Icons.account_balance_wallet_rounded,
+                              color: Colors.white,
+                              size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Editar Cuenta/Fuente',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800)),
+                              Text('Modifica los datos de la cuenta',
+                                  style: TextStyle(
+                                      color: Colors.white70, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        appCloseX(saving ? null : () => Navigator.pop(ctx)),
+                      ]),
+                      const SizedBox(height: 12),
+                      // Tabs dentro del header
+                      Row(children: [
+                        _editTab('Editar', 0, activeTab,
+                            () => setS(() => activeTab = 0)),
+                        _editTab('Movimientos', 1, activeTab,
+                            () => setS(() => activeTab = 1)),
+                      ]),
+                    ]),
+                  ),
+
+                  // ── Contenido del tab ────────────────────────────────
+                  if (activeTab == 0) ...[
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Editar Cuenta/Fuente',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800)),
-                            Text('Modifica los datos de la cuenta',
-                                style: TextStyle(
-                                    color: Colors.white70, fontSize: 11)),
+                            buildSavingsField(
+                              ctrl: nombreCtrl,
+                              label: 'Nombre',
+                              icon: Icons.label_outline_rounded,
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Ingrese el nombre'
+                                  : null,
+                            ),
+                            const SizedBox(height: 16),
+                            buildSavingsFieldLabel('Color'),
+                            const SizedBox(height: 6),
+                            Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: previewColor,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: lineCol),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: previewColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: lineCol),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: colorCtrl,
+                                  style:
+                                      TextStyle(color: textMain, fontSize: 14),
+                                  decoration: InputDecoration(
+                                    prefixText: '#',
+                                    prefixStyle: const TextStyle(
+                                        color: homeAccent,
+                                        fontWeight: FontWeight.bold),
+                                    hintText: 'RRGGBB',
+                                    hintStyle: TextStyle(
+                                        color: textSoft, fontSize: 13),
+                                    filled: true,
+                                    fillColor: inputFill,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 10),
+                                    border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(color: lineCol)),
+                                    enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(color: lineCol)),
+                                    focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: const BorderSide(
+                                            color: homeAccent, width: 1.5)),
+                                  ),
+                                  maxLength: 6,
+                                  buildCounter: (_,
+                                          {required currentLength,
+                                          required isFocused,
+                                          maxLength}) =>
+                                      const SizedBox.shrink(),
+                                  onChanged: (v) => setS(() => selectedHex = v),
+                                ),
+                              ),
+                            ]),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: _presetColors.map((hex) {
+                                final col = parseHex(hex);
+                                final hx =
+                                    hex.replaceAll('#', '').toUpperCase();
+                                final active =
+                                    colorCtrl.text.toUpperCase() == hx;
+                                return GestureDetector(
+                                  onTap: () {
+                                    colorCtrl.text = hx;
+                                    setS(() => selectedHex = hx);
+                                  },
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: col,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: active
+                                            ? homeNavy
+                                            : Colors.transparent,
+                                        width: 2.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                            color: col.withValues(alpha: 0.4),
+                                            blurRadius: 4)
+                                      ],
+                                    ),
+                                    child: active
+                                        ? const Icon(Icons.check,
+                                            color: Colors.white, size: 16)
+                                        : null,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 16),
+                            buildSavingsFieldLabel('Tipo'),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: !tiposLoaded
+                                  ? null
+                                  : () async {
+                                      final picked = await showDialog<
+                                          Map<String, dynamic>>(
+                                        context: ctx,
+                                        builder: (dCtx) => AppPickerDialog<
+                                            Map<String, dynamic>>(
+                                          title: 'Seleccionar Tipo',
+                                          titleIcon: Icons.category_outlined,
+                                          items: tiposOpts,
+                                          labelBuilder: (t) =>
+                                              (t.values.last ?? '').toString(),
+                                        ),
+                                      );
+                                      if (picked != null) {
+                                        setS(() {
+                                          selectedTipoCod =
+                                              picked.values.first.toString();
+                                          selectedTipoNombre =
+                                              picked.values.last.toString();
+                                        });
+                                      }
+                                    },
+                              child: buildDateContainer(
+                                  selectedTipoNombre.isNotEmpty
+                                      ? selectedTipoNombre
+                                      : null,
+                                  '[Seleccione una Opción]'),
+                            ),
+                            const SizedBox(height: 16),
+                            buildSavingsFieldLabel('Estado'),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () async {
+                                final picked = await showDialog<String>(
+                                  context: ctx,
+                                  builder: (dCtx) => AppPickerDialog<String>(
+                                    title: 'Estado',
+                                    titleIcon: Icons.toggle_on_rounded,
+                                    items: const ['1', '0'],
+                                    labelBuilder: (s) =>
+                                        s == '1' ? 'Activa' : 'Inactiva',
+                                  ),
+                                );
+                                if (picked != null) {
+                                  setS(() => selectedEstado = picked);
+                                }
+                              },
+                              child: buildDateContainer(
+                                  selectedEstado == '1' ? 'Activa' : 'Inactiva',
+                                  'Activa'),
+                            ),
+                            const SizedBox(height: 8),
                           ],
                         ),
                       ),
-                      appCloseX(saving ? null : () => Navigator.pop(ctx)),
-                    ]),
-                    const SizedBox(height: 12),
-                    // Tabs dentro del header
-                    Row(children: [
-                      _editTab('Editar', 0, activeTab,
-                          () => setS(() => activeTab = 0)),
-                      _editTab('Movimientos', 1, activeTab,
-                          () => setS(() => activeTab = 1)),
-                    ]),
-                  ]),
-                ),
-
-                // ── Contenido del tab ────────────────────────────────
-                if (activeTab == 0) ...[
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          buildSavingsField(
-                            ctrl: nombreCtrl,
-                            label: 'Nombre',
-                            icon: Icons.label_outline_rounded,
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Ingrese el nombre'
-                                : null,
-                          ),
-                          const SizedBox(height: 16),
-                          buildSavingsFieldLabel('Color'),
-                          const SizedBox(height: 6),
-                          Container(
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: previewColor,
-                              borderRadius: BorderRadius.circular(10),
-                              border:
-                                  Border.all(color: lineCol),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(children: [
-                            Container(
-                              width: 34,
-                              height: 34,
-                              decoration: BoxDecoration(
-                                color: previewColor,
-                                borderRadius: BorderRadius.circular(8),
-                                border:
-                                    Border.all(color: lineCol),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextFormField(
-                                controller: colorCtrl,
-                                style: TextStyle(
-                                    color: textMain, fontSize: 14),
-                                decoration: InputDecoration(
-                                  prefixText: '#',
-                                  prefixStyle: const TextStyle(
-                                      color: homeAccent,
-                                      fontWeight: FontWeight.bold),
-                                  hintText: 'RRGGBB',
-                                  hintStyle: TextStyle(
-                                      color: textSoft, fontSize: 13),
-                                  filled: true,
-                                  fillColor: inputFill,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
-                                  border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide(
-                                          color: lineCol)),
-                                  enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: BorderSide(
-                                          color: lineCol)),
-                                  focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                      borderSide: const BorderSide(
-                                          color: homeAccent, width: 1.5)),
-                                ),
-                                maxLength: 6,
-                                buildCounter: (_,
-                                        {required currentLength,
-                                        required isFocused,
-                                        maxLength}) =>
-                                    const SizedBox.shrink(),
-                                onChanged: (v) => setS(() => selectedHex = v),
-                              ),
-                            ),
-                          ]),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _presetColors.map((hex) {
-                              final col = parseHex(hex);
-                              final hx = hex.replaceAll('#', '').toUpperCase();
-                              final active = colorCtrl.text.toUpperCase() == hx;
-                              return GestureDetector(
-                                onTap: () {
-                                  colorCtrl.text = hx;
-                                  setS(() => selectedHex = hx);
-                                },
-                                child: Container(
-                                  width: 32,
-                                  height: 32,
-                                  decoration: BoxDecoration(
-                                    color: col,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: active
-                                          ? homeNavy
-                                          : Colors.transparent,
-                                      width: 2.5,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                          color: col.withValues(alpha: 0.4),
-                                          blurRadius: 4)
-                                    ],
-                                  ),
-                                  child: active
-                                      ? const Icon(Icons.check,
-                                          color: Colors.white, size: 16)
-                                      : null,
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 16),
-                          buildSavingsFieldLabel('Tipo'),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: !tiposLoaded
-                                ? null
-                                : () async {
-                                    final picked =
-                                        await showDialog<Map<String, dynamic>>(
-                                      context: ctx,
-                                      builder: (dCtx) =>
-                                          AppPickerDialog<Map<String, dynamic>>(
-                                        title: 'Seleccionar Tipo',
-                                        titleIcon: Icons.category_outlined,
-                                        items: tiposOpts,
-                                        labelBuilder: (t) =>
-                                            (t.values.last ?? '').toString(),
-                                      ),
-                                    );
-                                    if (picked != null) {
-                                      setS(() {
-                                        selectedTipoCod =
-                                            picked.values.first.toString();
-                                        selectedTipoNombre =
-                                            picked.values.last.toString();
-                                      });
-                                    }
-                                  },
-                            child: buildDateContainer(
-                                selectedTipoNombre.isNotEmpty
-                                    ? selectedTipoNombre
-                                    : null,
-                                '[Seleccione una Opción]'),
-                          ),
-                          const SizedBox(height: 16),
-                          buildSavingsFieldLabel('Estado'),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: () async {
-                              final picked = await showDialog<String>(
-                                context: ctx,
-                                builder: (dCtx) => AppPickerDialog<String>(
-                                  title: 'Estado',
-                                  titleIcon: Icons.toggle_on_rounded,
-                                  items: const ['1', '0'],
-                                  labelBuilder: (s) =>
-                                      s == '1' ? 'Activa' : 'Inactiva',
-                                ),
-                              );
-                              if (picked != null) {
-                                setS(() => selectedEstado = picked);
-                              }
-                            },
-                            child: buildDateContainer(
-                                selectedEstado == '1' ? 'Activa' : 'Inactiva',
-                                'Activa'),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
                     ),
-                  ),
-                  // Botones tab Editar
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                    child: Row(children: [
-                      gradBtn(
-                        colors: const [Color(0xFFDC2626), Color(0xFFB91C1C)],
-                        onPressed: saving
-                            ? null
-                            : () async {
-                                final confirm = await showDialog<bool>(
-                                  context: ctx,
-                                  builder: (c2) => AppConfirmDialog(
-                                    title: '¿Desactivar cuenta?',
-                                    message:
-                                        'La cuenta quedará inactiva y no podrás registrar movimientos en ella.',
-                                    icon: Icons.block_rounded,
-                                    confirmLabel: 'Desactivar',
-                                    infoText: 'Esta acción es reversible',
-                                    gradientColors: const [
-                                      Color(0xFF92400E),
-                                      Color(0xFFF59E0B),
-                                    ],
-                                  ),
-                                );
-                                if (confirm == true) {
-                                  setS(() => saving = true);
-                                  final r = await repository.post(
-                                    '/ajax/editar_cuenta_gasto.php',
-                                    {
-                                      'codigo': codigo,
-                                      'nombre': nombreCtrl.text.trim(),
-                                      'color':
-                                          '#${colorCtrl.text.trim().toUpperCase()}',
-                                      'tipo': selectedTipoCod ?? '',
-                                      'estado': '0',
-                                    },
+                    // Botones tab Editar
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                      child: Row(children: [
+                        gradBtn(
+                          colors: const [Color(0xFFDC2626), Color(0xFFB91C1C)],
+                          onPressed: saving
+                              ? null
+                              : () async {
+                                  final confirm = await showDialog<bool>(
+                                    context: ctx,
+                                    builder: (c2) => AppConfirmDialog(
+                                      title: '¿Desactivar cuenta?',
+                                      message:
+                                          'La cuenta quedará inactiva y no podrás registrar movimientos en ella.',
+                                      icon: Icons.block_rounded,
+                                      confirmLabel: 'Desactivar',
+                                      infoText: 'Esta acción es reversible',
+                                      gradientColors: const [
+                                        Color(0xFF92400E),
+                                        Color(0xFFF59E0B),
+                                      ],
+                                    ),
                                   );
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  if (isMounted) {
-                                    bool ok = false;
-                                    try {
-                                      ok =
-                                          jsonDecode(r.body)['success'] == true;
-                                    } catch (_) {}
-                                    showDialog(
-                                      context: screenContext,
-                                      builder: (_) => buildResultDialog(
-                                          ok
-                                              ? 'Cuenta desactivada'
-                                              : 'No se pudo desactivar',
-                                          ok),
+                                  if (confirm == true) {
+                                    setS(() => saving = true);
+                                    final r = await repository.post(
+                                      '/ajax/editar_cuenta_gasto.php',
+                                      {
+                                        'codigo': codigo,
+                                        'nombre': nombreCtrl.text.trim(),
+                                        'color':
+                                            '#${colorCtrl.text.trim().toUpperCase()}',
+                                        'tipo': selectedTipoCod ?? '',
+                                        'estado': '0',
+                                      },
                                     );
-                                    if (ok) {
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                    if (isMounted) {
+                                      bool ok = false;
+                                      try {
+                                        ok = jsonDecode(r.body)['success'] ==
+                                            true;
+                                      } catch (_) {}
+                                      showDialog(
+                                        context: screenContext,
+                                        builder: (_) => buildResultDialog(
+                                            ok
+                                                ? 'Cuenta desactivada'
+                                                : 'No se pudo desactivar',
+                                            ok),
+                                      );
+                                      if (ok) {
+                                        repository.invalidateCache(
+                                            '/ajax/listar_cuentas_gasto.php');
+                                        unawaited(fetchAccounts(codigoUsuario)
+                                            .then((_) {
+                                          if (isMounted) refresh(() {});
+                                        }));
+                                      }
+                                    }
+                                  }
+                                },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.delete_outline_rounded, size: 16),
+                              SizedBox(width: 6),
+                              Text('Eliminar (Desactivar)',
+                                  style: TextStyle(fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        gradBtn(
+                          colors: const [Color(0xFF16A34A), Color(0xFF15803D)],
+                          onPressed: saving
+                              ? null
+                              : () async {
+                                  if (nombreCtrl.text.trim().isEmpty) {
+                                    showResult(false,
+                                        'Ingrese el nombre de la cuenta');
+                                    return;
+                                  }
+                                  setS(() => saving = true);
+                                  try {
+                                    final r = await repository.post(
+                                      '/ajax/editar_cuenta_gasto.php',
+                                      {
+                                        'codigo': codigo,
+                                        'nombre': nombreCtrl.text.trim(),
+                                        'color':
+                                            '#${colorCtrl.text.trim().toUpperCase()}',
+                                        'tipo': selectedTipoCod ?? '',
+                                        'estado': selectedEstado,
+                                      },
+                                    );
+                                    final rawBody = r.body.trim();
+                                    final j = decodeJsonMap(r.body);
+                                    final ok = r.statusCode == 200 &&
+                                        (j['success'] == true ||
+                                            j['resultado'] == 1 ||
+                                            j['resultado'] == '1' ||
+                                            rawBody == '1' ||
+                                            (j.isEmpty &&
+                                                !rawBody
+                                                    .toLowerCase()
+                                                    .contains('error')));
+                                    final msg = j['msg']?.toString() ??
+                                        (ok
+                                            ? 'Cambios guardados exitosamente'
+                                            : rawBody.isNotEmpty
+                                                ? rawBody
+                                                : 'No se pudo guardar');
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                    showResult(
+                                        ok,
+                                        ok
+                                            ? 'Cambios guardados exitosamente'
+                                            : friendlyError(msg));
+                                    if (r.statusCode == 200) {
                                       repository.invalidateCache(
                                           '/ajax/listar_cuentas_gasto.php');
                                       unawaited(fetchAccounts(codigoUsuario)
@@ -3786,680 +3982,630 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                         if (isMounted) refresh(() {});
                                       }));
                                     }
+                                  } catch (e) {
+                                    if (ctx.mounted) setS(() => saving = false);
+                                    showResult(false, friendlyError(e));
                                   }
-                                }
-                              },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.delete_outline_rounded, size: 16),
-                            SizedBox(width: 6),
-                            Text('Eliminar (Desactivar)',
-                                style: TextStyle(fontSize: 12)),
-                          ],
+                                },
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (saving)
+                                const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white))
+                              else
+                                const Icon(Icons.save_rounded, size: 16),
+                              const SizedBox(width: 6),
+                              Text(saving ? 'Guardando...' : 'Guardar Cambios'),
+                            ],
+                          ),
                         ),
-                      ),
-                      const Spacer(),
-                      gradBtn(
-                        colors: const [Color(0xFF16A34A), Color(0xFF15803D)],
-                        onPressed: saving
-                            ? null
-                            : () async {
-                                if (nombreCtrl.text.trim().isEmpty) {
-                                  showResult(
-                                      false, 'Ingrese el nombre de la cuenta');
-                                  return;
-                                }
-                                setS(() => saving = true);
-                                try {
-                                  final r = await repository.post(
-                                    '/ajax/editar_cuenta_gasto.php',
-                                    {
-                                      'codigo': codigo,
-                                      'nombre': nombreCtrl.text.trim(),
-                                      'color':
-                                          '#${colorCtrl.text.trim().toUpperCase()}',
-                                      'tipo': selectedTipoCod ?? '',
-                                      'estado': selectedEstado,
-                                    },
-                                  );
-                                  final rawBody = r.body.trim();
-                                  final j = decodeJsonMap(r.body);
-                                  final ok = r.statusCode == 200 &&
-                                      (j['success'] == true ||
-                                          j['resultado'] == 1 ||
-                                          j['resultado'] == '1' ||
-                                          rawBody == '1' ||
-                                          (j.isEmpty &&
-                                              !rawBody
-                                                  .toLowerCase()
-                                                  .contains('error')));
-                                  final msg = j['msg']?.toString() ??
-                                      (ok
-                                          ? 'Cambios guardados exitosamente'
-                                          : rawBody.isNotEmpty
-                                              ? rawBody
-                                              : 'No se pudo guardar');
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  showResult(
-                                      ok,
-                                      ok
-                                          ? 'Cambios guardados exitosamente'
-                                          : friendlyError(msg));
-                                  if (r.statusCode == 200) {
-                                    repository.invalidateCache(
-                                        '/ajax/listar_cuentas_gasto.php');
-                                    unawaited(
-                                        fetchAccounts(codigoUsuario).then((_) {
-                                      if (isMounted) refresh(() {});
-                                    }));
-                                  }
-                                } catch (e) {
-                                  if (ctx.mounted) setS(() => saving = false);
-                                  showResult(false, friendlyError(e));
-                                }
-                              },
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (saving)
-                              const SizedBox(
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                            else
-                              const Icon(Icons.save_rounded, size: 16),
-                            const SizedBox(width: 6),
-                            Text(saving ? 'Guardando...' : 'Guardar Cambios'),
-                          ],
-                        ),
-                      ),
-                    ]),
-                  ),
-                ] else ...[
-                  // ── Tab Movimientos ────────────────────────────────
-                  Flexible(
-                    child: loadingMovs
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(32),
-                              child: CircularProgressIndicator(
-                                  color: homeAccent, strokeWidth: 2.5),
-                            ),
-                          )
-                        : movsList.isEmpty
-                            ? Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(32),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 56,
-                                        height: 56,
-                                        decoration: BoxDecoration(
-                                          color: inputFill,
-                                          shape: BoxShape.circle,
+                      ]),
+                    ),
+                  ] else ...[
+                    // ── Tab Movimientos ────────────────────────────────
+                    Flexible(
+                      child: loadingMovs
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(32),
+                                child: CircularProgressIndicator(
+                                    color: homeAccent, strokeWidth: 2.5),
+                              ),
+                            )
+                          : movsList.isEmpty
+                              ? Center(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(32),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 56,
+                                          height: 56,
+                                          decoration: BoxDecoration(
+                                            color: inputFill,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                              Icons.receipt_long_rounded,
+                                              color: homeAccent,
+                                              size: 28),
                                         ),
-                                        child: const Icon(
-                                            Icons.receipt_long_rounded,
-                                            color: homeAccent,
-                                            size: 28),
-                                      ),
-                                      const SizedBox(height: 12),
-                                      Text('Sin movimientos',
-                                          style: TextStyle(
-                                              color: textMain,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 15)),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                          'No hay registros en esta cuenta',
-                                          style: TextStyle(
-                                              color: textSoft,
-                                              fontSize: 12)),
-                                    ],
-                                  ),
-                                ),
-                              )
-                            : Column(children: [
-                                // ── Resumen del mes ─────────────────
-                                Builder(builder: (_) {
-                                  double totalIn = 0, totalOut = 0;
-                                  for (final m in movsList) {
-                                    final v = numberValue(
-                                        m['valor'] ?? m['monto'] ?? 0);
-                                    final isIn = movementIsIncome(m);
-                                    if (isIn) {
-                                      totalIn += v.abs();
-                                    } else {
-                                      totalOut += v.abs();
-                                    }
-                                  }
-                                  final now = nowBogota();
-                                  final meses = [
-                                    'Enero',
-                                    'Febrero',
-                                    'Marzo',
-                                    'Abril',
-                                    'Mayo',
-                                    'Junio',
-                                    'Julio',
-                                    'Agosto',
-                                    'Septiembre',
-                                    'Octubre',
-                                    'Noviembre',
-                                    'Diciembre'
-                                  ];
-                                  final total = totalIn + totalOut;
-                                  final ratioIn =
-                                      total > 0 ? totalIn / total : 0.0;
-                                  return Container(
-                                    margin:
-                                        const EdgeInsets.fromLTRB(12, 8, 12, 6),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF0D1B4B),
-                                          Color(0xFF1E3A8A)
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                            color: const Color(0xFF1E3A8A)
-                                                .withValues(alpha: 0.35),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 4))
+                                        const SizedBox(height: 12),
+                                        Text('Sin movimientos',
+                                            style: TextStyle(
+                                                color: textMain,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 15)),
+                                        const SizedBox(height: 4),
+                                        Text('No hay registros en esta cuenta',
+                                            style: TextStyle(
+                                                color: textSoft, fontSize: 12)),
                                       ],
                                     ),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(14),
-                                      child: Column(children: [
-                                        Row(children: [
-                                          const Icon(
-                                              Icons.calendar_month_rounded,
-                                              color: Colors.white38,
-                                              size: 13),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                              '${meses[now.month - 1]} ${now.year}',
-                                              style: const TextStyle(
-                                                  color: Colors.white38,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w500)),
-                                          const Spacer(),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 3),
-                                            decoration: BoxDecoration(
-                                                color: Colors.white12,
-                                                borderRadius:
-                                                    BorderRadius.circular(20)),
-                                            child: Text(
-                                                '${movsList.length} registros',
-                                                style: const TextStyle(
-                                                    color: Colors.white70,
-                                                    fontSize: 10,
-                                                    fontWeight:
-                                                        FontWeight.w600)),
-                                          ),
-                                        ]),
-                                        const SizedBox(height: 14),
-                                        Row(children: [
-                                          Expanded(
-                                              child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Row(children: [
-                                                Container(
-                                                  width: 18,
-                                                  height: 18,
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(
-                                                            0xFF4ADE80)
-                                                        .withValues(
-                                                            alpha: 0.18),
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: const Icon(
-                                                      Icons.north_rounded,
-                                                      size: 11,
-                                                      color:
-                                                          Color(0xFF4ADE80)),
-                                                ),
-                                                const SizedBox(width: 6),
-                                                const Text('Ingresos',
-                                                    style: TextStyle(
-                                                        color: Colors.white54,
-                                                        fontSize: 10,
-                                                        fontWeight:
-                                                            FontWeight.w600)),
-                                              ]),
-                                              const SizedBox(height: 4),
-                                              Text(formatCop(totalIn),
-                                                  style: const TextStyle(
-                                                      color: Color(0xFF4ADE80),
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      letterSpacing: -0.3,
-                                                      fontSize: 14)),
-                                            ],
-                                          )),
-                                          Container(
-                                              width: 1,
-                                              height: 36,
-                                              color: Colors.white
-                                                  .withValues(alpha: 0.15)),
-                                          Expanded(
-                                              child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.end,
-                                            children: [
-                                              Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.end,
-                                                  children: [
-                                                    const Text('Gastos',
-                                                        style: TextStyle(
-                                                            color:
-                                                                Colors.white54,
-                                                            fontSize: 10,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600)),
-                                                    const SizedBox(width: 6),
-                                                    Container(
-                                                      width: 18,
-                                                      height: 18,
-                                                      decoration:
-                                                          BoxDecoration(
-                                                        color: const Color(
-                                                                0xFFF87171)
-                                                            .withValues(
-                                                                alpha: 0.18),
-                                                        shape:
-                                                            BoxShape.circle,
-                                                      ),
-                                                      child: const Icon(
-                                                          Icons.south_rounded,
-                                                          size: 11,
-                                                          color: Color(
-                                                              0xFFF87171)),
-                                                    ),
-                                                  ]),
-                                              const SizedBox(height: 4),
-                                              Text(formatCop(totalOut),
-                                                  style: const TextStyle(
-                                                      color: Color(0xFFF87171),
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      letterSpacing: -0.3,
-                                                      fontSize: 14)),
-                                            ],
-                                          )),
-                                        ]),
-                                        const SizedBox(height: 12),
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(5),
-                                          child: TweenAnimationBuilder<double>(
-                                            tween: Tween(
-                                                begin: 0,
-                                                end: ratioIn.toDouble()),
-                                            duration: const Duration(
-                                                milliseconds: 800),
-                                            curve: Curves.easeOut,
-                                            builder: (_, v, __) {
-                                              if (total <= 0) {
-                                                return Container(
-                                                  height: 6,
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.12),
-                                                );
-                                              }
-                                              final inFlex = (v * 1000)
-                                                  .round()
-                                                  .clamp(0, 1000);
-                                              final outFlex = 1000 - inFlex;
-                                              return Row(children: [
-                                                if (inFlex > 0)
-                                                  Expanded(
-                                                    flex: inFlex,
-                                                    child: Container(
-                                                        height: 6,
-                                                        color: const Color(
-                                                            0xFF4ADE80)),
-                                                  ),
-                                                if (outFlex > 0)
-                                                  Expanded(
-                                                    flex: outFlex,
-                                                    child: Container(
-                                                        height: 6,
-                                                        color: const Color(
-                                                            0xFFF87171)),
-                                                  ),
-                                              ]);
-                                            },
-                                          ),
+                                  ),
+                                )
+                              : Column(children: [
+                                  // ── Resumen del mes ─────────────────
+                                  Builder(builder: (_) {
+                                    double totalIn = 0, totalOut = 0;
+                                    for (final m in movsList) {
+                                      final v = numberValue(
+                                          m['valor'] ?? m['monto'] ?? 0);
+                                      final isIn = movementIsIncome(m);
+                                      if (isIn) {
+                                        totalIn += v.abs();
+                                      } else {
+                                        totalOut += v.abs();
+                                      }
+                                    }
+                                    final now = nowBogota();
+                                    final meses = [
+                                      'Enero',
+                                      'Febrero',
+                                      'Marzo',
+                                      'Abril',
+                                      'Mayo',
+                                      'Junio',
+                                      'Julio',
+                                      'Agosto',
+                                      'Septiembre',
+                                      'Octubre',
+                                      'Noviembre',
+                                      'Diciembre'
+                                    ];
+                                    final total = totalIn + totalOut;
+                                    final ratioIn =
+                                        total > 0 ? totalIn / total : 0.0;
+                                    return Container(
+                                      margin: const EdgeInsets.fromLTRB(
+                                          12, 8, 12, 6),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFF0D1B4B),
+                                            Color(0xFF1E3A8A)
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
                                         ),
-                                      ]),
-                                    ),
-                                  );
-                                }),
-                                // ── Lista de movimientos ────────────
-                                Builder(builder: (_) {
-                                  final totalPags =
-                                      (movsList.length / movsPerPage)
-                                          .ceil()
-                                          .clamp(1, 9999);
-                                  final pageItems = movsList
-                                      .skip((movsPage - 1) * movsPerPage)
-                                      .take(movsPerPage)
-                                      .toList();
-                                  return Expanded(
-                                      child: Column(children: [
-                                    Expanded(
-                                      child: ListView.builder(
-                                        padding: const EdgeInsets.fromLTRB(
-                                            12, 2, 12, 4),
-                                        itemCount: pageItems.length,
-                                        itemBuilder: (_, i) {
-                                          final m = pageItems[i];
-                                          final fecha = (m['fecha'] ??
-                                                  m['fecha_movimiento'] ??
-                                                  '')
-                                              .toString()
-                                              .split(' ')
-                                              .first;
-                                          final tipoNom =
-                                              (m['tipo_nombre'] ?? '')
-                                                  .toString();
-                                          final valor = numberValue(
-                                              m['valor'] ?? m['monto'] ?? 0);
-                                          final desc = (m['descripcion'] ??
-                                                  m['descripción'] ??
-                                                  '')
-                                              .toString();
-                                          final isIngreso =
-                                              movementIsIncome(m);
-                                          final color = isIngreso
-                                              ? const Color(0xFF16A34A)
-                                              : const Color(0xFFDC2626);
-                                          final label =
-                                              isIngreso ? 'Ingreso' : 'Gasto';
-                                          return TweenAnimationBuilder<double>(
-                                            tween: Tween(begin: 0.0, end: 1.0),
-                                            duration: Duration(
-                                                milliseconds: 220 +
-                                                    (i.clamp(0, 12) * 30)),
-                                            curve: Curves.easeOut,
-                                            builder: (_, val, child) => Opacity(
-                                              opacity: val,
-                                              child: Transform.translate(
-                                                  offset:
-                                                      Offset(0, 14 * (1 - val)),
-                                                  child: child),
-                                            ),
-                                            child: Container(
-                                              margin: const EdgeInsets.only(
-                                                  bottom: 7),
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                              color: const Color(0xFF1E3A8A)
+                                                  .withValues(alpha: 0.35),
+                                              blurRadius: 12,
+                                              offset: const Offset(0, 4))
+                                        ],
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(14),
+                                        child: Column(children: [
+                                          Row(children: [
+                                            const Icon(
+                                                Icons.calendar_month_rounded,
+                                                color: Colors.white38,
+                                                size: 13),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                                '${meses[now.month - 1]} ${now.year}',
+                                                style: const TextStyle(
+                                                    color: Colors.white38,
+                                                    fontSize: 11,
+                                                    fontWeight:
+                                                        FontWeight.w500)),
+                                            const Spacer(),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 3),
                                               decoration: BoxDecoration(
-                                                color: cardBg,
-                                                borderRadius:
-                                                    BorderRadius.circular(13),
-                                                border: Border(
-                                                    left: BorderSide(
-                                                        color: color,
-                                                        width: 3.5)),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                      color: Colors.black
-                                                          .withValues(
-                                                              alpha: 0.05),
-                                                      blurRadius: 8,
-                                                      offset:
-                                                          const Offset(0, 2))
-                                                ],
-                                              ),
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 11,
-                                                        vertical: 10),
-                                                child: Row(children: [
+                                                  color: Colors.white12,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          20)),
+                                              child: Text(
+                                                  '${movsList.length} registros',
+                                                  style: const TextStyle(
+                                                      color: Colors.white70,
+                                                      fontSize: 10,
+                                                      fontWeight:
+                                                          FontWeight.w600)),
+                                            ),
+                                          ]),
+                                          const SizedBox(height: 14),
+                                          Row(children: [
+                                            Expanded(
+                                                child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Row(children: [
                                                   Container(
-                                                    width: 38,
-                                                    height: 38,
+                                                    width: 18,
+                                                    height: 18,
                                                     decoration: BoxDecoration(
-                                                      gradient: LinearGradient(
-                                                        colors: isIngreso
-                                                            ? [
-                                                                const Color(
-                                                                    0xFF16A34A),
-                                                                const Color(
-                                                                    0xFF4ADE80)
-                                                              ]
-                                                            : [
-                                                                const Color(
-                                                                    0xFFDC2626),
-                                                                const Color(
-                                                                    0xFFF87171)
-                                                              ],
-                                                        begin:
-                                                            Alignment.topLeft,
-                                                        end: Alignment
-                                                            .bottomRight,
-                                                      ),
+                                                      color: const Color(
+                                                              0xFF4ADE80)
+                                                          .withValues(
+                                                              alpha: 0.18),
                                                       shape: BoxShape.circle,
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                            color: color
-                                                                .withValues(
-                                                                    alpha:
-                                                                        0.35),
-                                                            blurRadius: 6,
-                                                            offset:
-                                                                const Offset(
-                                                                    0, 2))
-                                                      ],
                                                     ),
-                                                    child: Icon(
-                                                      isIngreso
-                                                          ? Icons
-                                                              .arrow_downward_rounded
-                                                          : Icons
-                                                              .arrow_upward_rounded,
-                                                      color: Colors.white,
-                                                      size: 17,
-                                                    ),
+                                                    child: const Icon(
+                                                        Icons.north_rounded,
+                                                        size: 11,
+                                                        color:
+                                                            Color(0xFF4ADE80)),
                                                   ),
-                                                  const SizedBox(width: 10),
-                                                  Expanded(
-                                                      child: Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        desc.isNotEmpty
-                                                            ? desc
-                                                            : tipoNom,
-                                                        style: TextStyle(
-                                                            fontSize: 12.5,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                            color: textMain),
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                      ),
-                                                      const SizedBox(height: 4),
-                                                      Row(children: [
-                                                        const Icon(
-                                                            Icons
-                                                                .calendar_today_rounded,
-                                                            size: 9,
-                                                            color: Color(
-                                                                0xFF8899BB)),
-                                                        const SizedBox(
-                                                            width: 3),
-                                                        Text(fecha,
-                                                            style: const TextStyle(
-                                                                fontSize: 10,
-                                                                color: Color(
-                                                                    0xFF8899BB))),
-                                                        const SizedBox(
-                                                            width: 7),
-                                                        Container(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                                  horizontal: 6,
-                                                                  vertical:
-                                                                      1.5),
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            color: color
-                                                                .withValues(
-                                                                    alpha: 0.1),
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        20),
-                                                          ),
-                                                          child: Text(label,
-                                                              style: TextStyle(
-                                                                  fontSize: 9,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w700,
-                                                                  color:
-                                                                      color)),
-                                                        ),
-                                                      ]),
-                                                    ],
-                                                  )),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    '${isIngreso ? '+' : '-'} ${formatCop(valor.abs())}',
-                                                    style: TextStyle(
-                                                        fontSize: 12.5,
+                                                  const SizedBox(width: 6),
+                                                  const Text('Ingresos',
+                                                      style: TextStyle(
+                                                          color: Colors.white54,
+                                                          fontSize: 10,
+                                                          fontWeight:
+                                                              FontWeight.w600)),
+                                                ]),
+                                                const SizedBox(height: 4),
+                                                Text(formatCop(totalIn),
+                                                    style: const TextStyle(
+                                                        color:
+                                                            Color(0xFF4ADE80),
                                                         fontWeight:
                                                             FontWeight.w800,
-                                                        color: color),
-                                                  ),
-                                                ]),
-                                              ),
+                                                        letterSpacing: -0.3,
+                                                        fontSize: 14)),
+                                              ],
+                                            )),
+                                            Container(
+                                                width: 1,
+                                                height: 36,
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.15)),
+                                            Expanded(
+                                                child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.end,
+                                              children: [
+                                                Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment.end,
+                                                    children: [
+                                                      const Text('Gastos',
+                                                          style: TextStyle(
+                                                              color: Colors
+                                                                  .white54,
+                                                              fontSize: 10,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600)),
+                                                      const SizedBox(width: 6),
+                                                      Container(
+                                                        width: 18,
+                                                        height: 18,
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: const Color(
+                                                                  0xFFF87171)
+                                                              .withValues(
+                                                                  alpha: 0.18),
+                                                          shape:
+                                                              BoxShape.circle,
+                                                        ),
+                                                        child: const Icon(
+                                                            Icons.south_rounded,
+                                                            size: 11,
+                                                            color: Color(
+                                                                0xFFF87171)),
+                                                      ),
+                                                    ]),
+                                                const SizedBox(height: 4),
+                                                Text(formatCop(totalOut),
+                                                    style: const TextStyle(
+                                                        color:
+                                                            Color(0xFFF87171),
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        letterSpacing: -0.3,
+                                                        fontSize: 14)),
+                                              ],
+                                            )),
+                                          ]),
+                                          const SizedBox(height: 12),
+                                          ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(5),
+                                            child:
+                                                TweenAnimationBuilder<double>(
+                                              tween: Tween(
+                                                  begin: 0,
+                                                  end: ratioIn.toDouble()),
+                                              duration: const Duration(
+                                                  milliseconds: 800),
+                                              curve: Curves.easeOut,
+                                              builder: (_, v, __) {
+                                                if (total <= 0) {
+                                                  return Container(
+                                                    height: 6,
+                                                    color: Colors.white
+                                                        .withValues(
+                                                            alpha: 0.12),
+                                                  );
+                                                }
+                                                final inFlex = (v * 1000)
+                                                    .round()
+                                                    .clamp(0, 1000);
+                                                final outFlex = 1000 - inFlex;
+                                                return Row(children: [
+                                                  if (inFlex > 0)
+                                                    Expanded(
+                                                      flex: inFlex,
+                                                      child: Container(
+                                                          height: 6,
+                                                          color: const Color(
+                                                              0xFF4ADE80)),
+                                                    ),
+                                                  if (outFlex > 0)
+                                                    Expanded(
+                                                      flex: outFlex,
+                                                      child: Container(
+                                                          height: 6,
+                                                          color: const Color(
+                                                              0xFFF87171)),
+                                                    ),
+                                                ]);
+                                              },
                                             ),
-                                          );
-                                        },
+                                          ),
+                                        ]),
                                       ),
-                                    ),
-                                    // ── Paginación ──────────────────────
-                                    if (totalPags > 1)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          border: Border(
-                                              top: BorderSide(
-                                                  color: lineCol)),
+                                    );
+                                  }),
+                                  // ── Lista de movimientos ────────────
+                                  Builder(builder: (_) {
+                                    final totalPags =
+                                        (movsList.length / movsPerPage)
+                                            .ceil()
+                                            .clamp(1, 9999);
+                                    final pageItems = movsList
+                                        .skip((movsPage - 1) * movsPerPage)
+                                        .take(movsPerPage)
+                                        .toList();
+                                    return Expanded(
+                                        child: Column(children: [
+                                      Expanded(
+                                        child: ListView.builder(
+                                          padding: const EdgeInsets.fromLTRB(
+                                              12, 2, 12, 4),
+                                          itemCount: pageItems.length,
+                                          itemBuilder: (_, i) {
+                                            final m = pageItems[i];
+                                            final fecha = (m['fecha'] ??
+                                                    m['fecha_movimiento'] ??
+                                                    '')
+                                                .toString()
+                                                .split(' ')
+                                                .first;
+                                            final tipoNom =
+                                                (m['tipo_nombre'] ?? '')
+                                                    .toString();
+                                            final valor = numberValue(
+                                                m['valor'] ?? m['monto'] ?? 0);
+                                            final desc = (m['descripcion'] ??
+                                                    m['descripción'] ??
+                                                    '')
+                                                .toString();
+                                            final isIngreso =
+                                                movementIsIncome(m);
+                                            final color = isIngreso
+                                                ? const Color(0xFF16A34A)
+                                                : const Color(0xFFDC2626);
+                                            final label =
+                                                isIngreso ? 'Ingreso' : 'Gasto';
+                                            return TweenAnimationBuilder<
+                                                double>(
+                                              tween:
+                                                  Tween(begin: 0.0, end: 1.0),
+                                              duration: Duration(
+                                                  milliseconds: 220 +
+                                                      (i.clamp(0, 12) * 30)),
+                                              curve: Curves.easeOut,
+                                              builder: (_, val, child) =>
+                                                  Opacity(
+                                                opacity: val,
+                                                child: Transform.translate(
+                                                    offset: Offset(
+                                                        0, 14 * (1 - val)),
+                                                    child: child),
+                                              ),
+                                              child: Container(
+                                                margin: const EdgeInsets.only(
+                                                    bottom: 7),
+                                                decoration: BoxDecoration(
+                                                  color: cardBg,
+                                                  borderRadius:
+                                                      BorderRadius.circular(13),
+                                                  border: Border(
+                                                      left: BorderSide(
+                                                          color: color,
+                                                          width: 3.5)),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                        color: Colors.black
+                                                            .withValues(
+                                                                alpha: 0.05),
+                                                        blurRadius: 8,
+                                                        offset:
+                                                            const Offset(0, 2))
+                                                  ],
+                                                ),
+                                                child: Padding(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 11,
+                                                      vertical: 10),
+                                                  child: Row(children: [
+                                                    Container(
+                                                      width: 38,
+                                                      height: 38,
+                                                      decoration: BoxDecoration(
+                                                        gradient:
+                                                            LinearGradient(
+                                                          colors: isIngreso
+                                                              ? [
+                                                                  const Color(
+                                                                      0xFF16A34A),
+                                                                  const Color(
+                                                                      0xFF4ADE80)
+                                                                ]
+                                                              : [
+                                                                  const Color(
+                                                                      0xFFDC2626),
+                                                                  const Color(
+                                                                      0xFFF87171)
+                                                                ],
+                                                          begin:
+                                                              Alignment.topLeft,
+                                                          end: Alignment
+                                                              .bottomRight,
+                                                        ),
+                                                        shape: BoxShape.circle,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                              color: color
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.35),
+                                                              blurRadius: 6,
+                                                              offset:
+                                                                  const Offset(
+                                                                      0, 2))
+                                                        ],
+                                                      ),
+                                                      child: Icon(
+                                                        isIngreso
+                                                            ? Icons
+                                                                .arrow_downward_rounded
+                                                            : Icons
+                                                                .arrow_upward_rounded,
+                                                        color: Colors.white,
+                                                        size: 17,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 10),
+                                                    Expanded(
+                                                        child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      children: [
+                                                        Text(
+                                                          desc.isNotEmpty
+                                                              ? desc
+                                                              : tipoNom,
+                                                          style: TextStyle(
+                                                              fontSize: 12.5,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                              color: textMain),
+                                                          maxLines: 1,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                        ),
+                                                        const SizedBox(
+                                                            height: 4),
+                                                        Row(children: [
+                                                          const Icon(
+                                                              Icons
+                                                                  .calendar_today_rounded,
+                                                              size: 9,
+                                                              color: Color(
+                                                                  0xFF8899BB)),
+                                                          const SizedBox(
+                                                              width: 3),
+                                                          Text(fecha,
+                                                              style: const TextStyle(
+                                                                  fontSize: 10,
+                                                                  color: Color(
+                                                                      0xFF8899BB))),
+                                                          const SizedBox(
+                                                              width: 7),
+                                                          Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                                    horizontal:
+                                                                        6,
+                                                                    vertical:
+                                                                        1.5),
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              color: color
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.1),
+                                                              borderRadius:
+                                                                  BorderRadius
+                                                                      .circular(
+                                                                          20),
+                                                            ),
+                                                            child: Text(label,
+                                                                style: TextStyle(
+                                                                    fontSize: 9,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w700,
+                                                                    color:
+                                                                        color)),
+                                                          ),
+                                                        ]),
+                                                      ],
+                                                    )),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      '${isIngreso ? '+' : '-'} ${formatCop(valor.abs())}',
+                                                      style: TextStyle(
+                                                          fontSize: 12.5,
+                                                          fontWeight:
+                                                              FontWeight.w800,
+                                                          color: color),
+                                                    ),
+                                                  ]),
+                                                ),
+                                              ),
+                                            );
+                                          },
                                         ),
-                                        child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              GestureDetector(
-                                                onTap: movsPage > 1
-                                                    ? () =>
-                                                        setS(() => movsPage--)
-                                                    : null,
-                                                child: Container(
-                                                  width: 34,
-                                                  height: 34,
-                                                  decoration: BoxDecoration(
-                                                    color: movsPage > 1
-                                                        ? (isDarkTheme
-                                                            ? homeAccent
-                                                                .withValues(
-                                                                    alpha: 0.18)
-                                                            : const Color(
-                                                                0xFFEEF2FF))
-                                                        : inputFill,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: Icon(
-                                                      Icons
-                                                          .chevron_left_rounded,
-                                                      size: 20,
-                                                      color: movsPage > 1
-                                                          ? homeAccent
-                                                          : textSoft),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 14),
-                                              Text('$movsPage / $totalPags',
-                                                  style: TextStyle(
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: textMain)),
-                                              const SizedBox(width: 14),
-                                              GestureDetector(
-                                                onTap: movsPage < totalPags
-                                                    ? () =>
-                                                        setS(() => movsPage++)
-                                                    : null,
-                                                child: Container(
-                                                  width: 34,
-                                                  height: 34,
-                                                  decoration: BoxDecoration(
-                                                    color: movsPage < totalPags
-                                                        ? (isDarkTheme
-                                                            ? homeAccent
-                                                                .withValues(
-                                                                    alpha: 0.18)
-                                                            : const Color(
-                                                                0xFFEEF2FF))
-                                                        : inputFill,
-                                                    shape: BoxShape.circle,
-                                                  ),
-                                                  child: Icon(
-                                                      Icons
-                                                          .chevron_right_rounded,
-                                                      size: 20,
-                                                      color:
-                                                          movsPage < totalPags
-                                                              ? homeAccent
-                                                              : textSoft),
-                                                ),
-                                              ),
-                                            ]),
                                       ),
-                                  ]));
-                                }),
-                              ]),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: gradBtn(
-                        colors: closeRedGradient,
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('Cerrar',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 14)),
+                                      // ── Paginación ──────────────────────
+                                      if (totalPags > 1)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                                top:
+                                                    BorderSide(color: lineCol)),
+                                          ),
+                                          child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: [
+                                                GestureDetector(
+                                                  onTap: movsPage > 1
+                                                      ? () =>
+                                                          setS(() => movsPage--)
+                                                      : null,
+                                                  child: Container(
+                                                    width: 34,
+                                                    height: 34,
+                                                    decoration: BoxDecoration(
+                                                      color: movsPage > 1
+                                                          ? (isDarkTheme
+                                                              ? homeAccent
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.18)
+                                                              : const Color(
+                                                                  0xFFEEF2FF))
+                                                          : inputFill,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: Icon(
+                                                        Icons
+                                                            .chevron_left_rounded,
+                                                        size: 20,
+                                                        color: movsPage > 1
+                                                            ? homeAccent
+                                                            : textSoft),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 14),
+                                                Text('$movsPage / $totalPags',
+                                                    style: TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: textMain)),
+                                                const SizedBox(width: 14),
+                                                GestureDetector(
+                                                  onTap: movsPage < totalPags
+                                                      ? () =>
+                                                          setS(() => movsPage++)
+                                                      : null,
+                                                  child: Container(
+                                                    width: 34,
+                                                    height: 34,
+                                                    decoration: BoxDecoration(
+                                                      color: movsPage <
+                                                              totalPags
+                                                          ? (isDarkTheme
+                                                              ? homeAccent
+                                                                  .withValues(
+                                                                      alpha:
+                                                                          0.18)
+                                                              : const Color(
+                                                                  0xFFEEF2FF))
+                                                          : inputFill,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: Icon(
+                                                        Icons
+                                                            .chevron_right_rounded,
+                                                        size: 20,
+                                                        color:
+                                                            movsPage < totalPags
+                                                                ? homeAccent
+                                                                : textSoft),
+                                                  ),
+                                                ),
+                                              ]),
+                                        ),
+                                    ]));
+                                  }),
+                                ]),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: gradBtn(
+                          colors: closeRedGradient,
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cerrar',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 14)),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         );
@@ -4512,177 +4658,183 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     final cLight = Color.lerp(color, Colors.white, 0.40)!;
     final cDark = Color.lerp(color, Colors.black, 0.20)!;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.14)),
-        boxShadow: [
-          BoxShadow(
-              color: color.withValues(alpha: 0.08),
-              blurRadius: 14,
-              offset: const Offset(0, 4)),
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 6,
-              offset: const Offset(0, 2)),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(children: [
-          // Left accent bar
-          Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              child: Container(
-                width: 4,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [cLight, color, cDark],
-                    stops: const [0.0, 0.5, 1.0],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _showRegistrarMovimientoDialog(cuentaInicial: c),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.14)),
+          boxShadow: [
+            BoxShadow(
+                color: color.withValues(alpha: 0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 4)),
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2)),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(children: [
+            // Left accent bar
+            Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 4,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [cLight, color, cDark],
+                      stops: const [0.0, 0.5, 1.0],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                )),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+              child: Row(children: [
+                // Avatar
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [cLight, color, cDark],
+                      stops: const [0.0, 0.5, 1.0],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                          color: color.withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(initials,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800)),
                   ),
                 ),
-              )),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-            child: Row(children: [
-              // Avatar
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [cLight, color, cDark],
-                    stops: const [0.0, 0.5, 1.0],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                        color: color.withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4)),
-                  ],
-                ),
-                child: Center(
-                  child: Text(initials,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Name + badges
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(nombre,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                            color: textMain)),
-                    const SizedBox(height: 5),
-                    Row(children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                              color: color.withValues(alpha: 0.25), width: 0.8),
+                const SizedBox(width: 12),
+                // Name + badges
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(nombre,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                              color: textMain)),
+                      const SizedBox(height: 5),
+                      Row(children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: color.withValues(alpha: 0.25),
+                                width: 0.8),
+                          ),
+                          child: Text(tipo,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  color: color,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700)),
                         ),
-                        child: Text(tipo,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                color: color,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: estado
+                                ? (isDarkTheme
+                                    ? const Color(0xFF16A34A)
+                                        .withValues(alpha: 0.20)
+                                    : const Color(0xFFDCFCE7))
+                                : (isDarkTheme
+                                    ? Colors.white.withValues(alpha: 0.08)
+                                    : const Color(0xFFF1F5F9)),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Container(
+                              width: 5,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: estado
+                                    ? const Color(0xFF16A34A)
+                                    : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(estado ? 'Activa' : 'Inactiva',
+                                style: TextStyle(
+                                    color: estado
+                                        ? (isDarkTheme
+                                            ? const Color(0xFF6EE7A0)
+                                            : const Color(0xFF15803D))
+                                        : textSoft,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                      ]),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Balance + actions
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(formatCop(saldo),
+                        style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                            letterSpacing: -0.4,
+                            color: saldo >= 0
+                                ? textMain
+                                : const Color(0xFFDC2626))),
+                    const SizedBox(height: 8),
+                    Row(children: [
+                      _iconActionBtn(
+                        icon: Icons.edit_rounded,
+                        colors: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+                        onTap: () => _showEditarCuentaDialog(c),
                       ),
                       const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: estado
-                              ? (isDarkTheme
-                                  ? const Color(0xFF16A34A)
-                                      .withValues(alpha: 0.20)
-                                  : const Color(0xFFDCFCE7))
-                              : (isDarkTheme
-                                  ? Colors.white.withValues(alpha: 0.08)
-                                  : const Color(0xFFF1F5F9)),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Container(
-                            width: 5,
-                            height: 5,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: estado
-                                  ? const Color(0xFF16A34A)
-                                  : const Color(0xFF94A3B8),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(estado ? 'Activa' : 'Inactiva',
-                              style: TextStyle(
-                                  color: estado
-                                      ? (isDarkTheme
-                                          ? const Color(0xFF6EE7A0)
-                                          : const Color(0xFF15803D))
-                                      : textSoft,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600)),
-                        ]),
+                      _iconActionBtn(
+                        icon: Icons.balance_rounded,
+                        colors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
+                        onTap: () => _showAjustarSaldoDialog(c),
                       ),
                     ]),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              // Balance + actions
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(formatCop(saldo),
-                      style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 15,
-                          letterSpacing: -0.4,
-                          color:
-                              saldo >= 0 ? textMain : const Color(0xFFDC2626))),
-                  const SizedBox(height: 8),
-                  Row(children: [
-                    _iconActionBtn(
-                      icon: Icons.edit_rounded,
-                      colors: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
-                      onTap: () => _showEditarCuentaDialog(c),
-                    ),
-                    const SizedBox(width: 6),
-                    _iconActionBtn(
-                      icon: Icons.balance_rounded,
-                      colors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
-                      onTap: () => _showAjustarSaldoDialog(c),
-                    ),
-                  ]),
-                ],
-              ),
-            ]),
-          ),
-        ]),
+              ]),
+            ),
+          ]),
+        ),
       ),
     );
   }
@@ -4967,8 +5119,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                               : null,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                              color: const Color(0xFFDC2626)
-                                  .withValues(alpha: isDarkTheme ? 0.35 : 0.25)),
+                              color: const Color(0xFFDC2626).withValues(
+                                  alpha: isDarkTheme ? 0.35 : 0.25)),
                         ),
                         child: Icon(Icons.delete_outline_rounded,
                             size: 14,
@@ -5119,11 +5271,10 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
     upperBound: 1.0,
   )..value = 1.0;
 
-  Color get _light =>
-      isDarkTheme
-          ? (Color.lerp(widget.color, const Color(0xFF243258), 0.52) ??
-              widget.color)
-          : (Color.lerp(widget.color, Colors.white, 0.18) ?? widget.color);
+  Color get _light => isDarkTheme
+      ? (Color.lerp(widget.color, const Color(0xFF243258), 0.52) ??
+          widget.color)
+      : (Color.lerp(widget.color, Colors.white, 0.18) ?? widget.color);
   Color get _mid => isDarkTheme
       ? (Color.lerp(widget.color, const Color(0xFF0B1731), 0.74) ??
           widget.color)
@@ -5178,8 +5329,8 @@ class _AnimatedActionButtonState extends State<_AnimatedActionButton>
                 offset: const Offset(0, 7),
               ),
               BoxShadow(
-                color: widget.color
-                    .withValues(alpha: isDarkTheme ? 0.28 : 0.18),
+                color:
+                    widget.color.withValues(alpha: isDarkTheme ? 0.28 : 0.18),
                 blurRadius: isDarkTheme ? 12 : 4,
                 offset: const Offset(0, 1),
               ),
@@ -5663,8 +5814,7 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                                 end: Alignment.bottomRight,
                               ),
                               shape: BoxShape.circle,
-                              border:
-                                  Border.all(color: cardBg, width: 1.5),
+                              border: Border.all(color: cardBg, width: 1.5),
                               boxShadow: [
                                 BoxShadow(
                                   color: stripColor.withValues(alpha: 0.45),
@@ -5812,7 +5962,8 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                                     border: Border.all(
                                         color: const Color(0xFFDC2626)
                                             .withValues(
-                                                alpha: isDarkTheme ? 0.35 : 0.25)),
+                                                alpha:
+                                                    isDarkTheme ? 0.35 : 0.25)),
                                     boxShadow: [
                                       BoxShadow(
                                         color: const Color(0xFFDC2626)

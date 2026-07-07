@@ -29,379 +29,386 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       context: screenContext,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
-        return Dialog(
-          backgroundColor: dialogBg,
-          surfaceTintColor: Colors.transparent,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
-              maxHeight: MediaQuery.of(ctx).size.height * 0.85,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.settings_rounded,
-                            color: Colors.white, size: 22),
+        return AppAnimatedDialog(
+          child: Dialog(
+            backgroundColor: dialogBg,
+            surfaceTintColor: Colors.transparent,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
+                maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Header
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(width: 12),
-                      const Expanded(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.settings_rounded,
+                              color: Colors.white, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Configurar Ahorro',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800)),
+                              Text('Nuevo período de ahorro',
+                                  style: TextStyle(
+                                      color: Colors.white70, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        appCloseX(saving ? null : () => Navigator.pop(ctx)),
+                      ],
+                    ),
+                  ),
+
+                  // Campos
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                      child: Form(
+                        key: formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Configurar Ahorro',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800)),
-                            Text('Nuevo período de ahorro',
-                                style: TextStyle(
-                                    color: Colors.white70, fontSize: 11)),
+                            // Año
+                            buildSavingsField(
+                              ctrl: anioCtrl,
+                              label: 'Año',
+                              icon: Icons.calendar_today_outlined,
+                              keyboard: TextInputType.number,
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Ingrese el año'
+                                  : null,
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Fecha Inicio
+                            buildSavingsFieldLabel('Fecha Inicio'),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () async {
+                                final d = await showLightDatePicker(
+                                  ctx,
+                                  initialDate: fechaInicio ?? DateTime.now(),
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2035),
+                                );
+                                if (d != null) setS(() => fechaInicio = d);
+                              },
+                              child: buildDateContainer(
+                                  fechaInicio != null
+                                      ? fmtDisplay(fechaInicio!)
+                                      : null,
+                                  'dd/mm/aaaa'),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Fecha Final
+                            buildSavingsFieldLabel('Fecha Final'),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () async {
+                                final d = await showLightDatePicker(
+                                  ctx,
+                                  initialDate: fechaFinal ??
+                                      fechaInicio ??
+                                      DateTime.now(),
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2035),
+                                );
+                                if (d != null) setS(() => fechaFinal = d);
+                              },
+                              child: buildDateContainer(
+                                  fechaFinal != null
+                                      ? fmtDisplay(fechaFinal!)
+                                      : null,
+                                  'dd/mm/aaaa'),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Tiempo en Mes
+                            buildSavingsField(
+                              ctrl: tiempoCtrl,
+                              label: 'Tiempo en Mes',
+                              icon: Icons.timelapse_rounded,
+                              keyboard: TextInputType.number,
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Ingrese el tiempo en meses'
+                                  : null,
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Tipo
+                            buildSavingsFieldLabel('Tipo'),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () async {
+                                final picked = await showDialog<String>(
+                                  context: ctx,
+                                  builder: (dCtx) => AppPickerDialog<String>(
+                                    title: 'Seleccionar Tipo',
+                                    titleIcon: Icons.category_rounded,
+                                    items: tipos.keys.toList(),
+                                    labelBuilder: (k) => tipos[k] ?? k,
+                                  ),
+                                );
+                                if (picked != null) {
+                                  setS(() => selectedTipo = picked);
+                                }
+                              },
+                              child: Container(
+                                height: 48,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 14),
+                                decoration: BoxDecoration(
+                                  color: inputFill,
+                                  border: Border.all(
+                                    color: selectedTipo != null
+                                        ? homeAccent.withValues(alpha: 0.6)
+                                        : lineCol,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(children: [
+                                  Icon(Icons.category_outlined,
+                                      size: 18,
+                                      color: selectedTipo != null
+                                          ? homeAccent
+                                          : textSoft),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      selectedTipo == null
+                                          ? '[Seleccione una Opción]'
+                                          : tipos[selectedTipo] ??
+                                              '[Seleccione una Opción]',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: selectedTipo != null
+                                            ? textMain
+                                            : textSoft,
+                                      ),
+                                    ),
+                                  ),
+                                  Icon(Icons.expand_more_rounded,
+                                      color: textSoft, size: 20),
+                                ]),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
                           ],
                         ),
                       ),
-                      appCloseX(saving ? null : () => Navigator.pop(ctx)),
-                    ],
-                  ),
-                ),
-
-                // Campos
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                    child: Form(
-                      key: formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Año
-                          buildSavingsField(
-                            ctrl: anioCtrl,
-                            label: 'Año',
-                            icon: Icons.calendar_today_outlined,
-                            keyboard: TextInputType.number,
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Ingrese el año'
-                                : null,
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Fecha Inicio
-                          buildSavingsFieldLabel('Fecha Inicio'),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: () async {
-                              final d = await showLightDatePicker(
-                                ctx,
-                                initialDate: fechaInicio ?? DateTime.now(),
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2035),
-                              );
-                              if (d != null) setS(() => fechaInicio = d);
-                            },
-                            child: buildDateContainer(
-                                fechaInicio != null
-                                    ? fmtDisplay(fechaInicio!)
-                                    : null,
-                                'dd/mm/aaaa'),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Fecha Final
-                          buildSavingsFieldLabel('Fecha Final'),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: () async {
-                              final d = await showLightDatePicker(
-                                ctx,
-                                initialDate:
-                                    fechaFinal ?? fechaInicio ?? DateTime.now(),
-                                firstDate: DateTime(2020),
-                                lastDate: DateTime(2035),
-                              );
-                              if (d != null) setS(() => fechaFinal = d);
-                            },
-                            child: buildDateContainer(
-                                fechaFinal != null
-                                    ? fmtDisplay(fechaFinal!)
-                                    : null,
-                                'dd/mm/aaaa'),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Tiempo en Mes
-                          buildSavingsField(
-                            ctrl: tiempoCtrl,
-                            label: 'Tiempo en Mes',
-                            icon: Icons.timelapse_rounded,
-                            keyboard: TextInputType.number,
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Ingrese el tiempo en meses'
-                                : null,
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Tipo
-                          buildSavingsFieldLabel('Tipo'),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: () async {
-                              final picked = await showDialog<String>(
-                                context: ctx,
-                                builder: (dCtx) => AppPickerDialog<String>(
-                                  title: 'Seleccionar Tipo',
-                                  titleIcon: Icons.category_rounded,
-                                  items: tipos.keys.toList(),
-                                  labelBuilder: (k) =>
-                                      tipos[k] ?? k,
-                                ),
-                              );
-                              if (picked != null) {
-                                setS(() => selectedTipo = picked);
-                              }
-                            },
-                            child: Container(
-                              height: 48,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 14),
-                              decoration: BoxDecoration(
-                                color: inputFill,
-                                border: Border.all(
-                                  color: selectedTipo != null
-                                      ? homeAccent.withValues(alpha: 0.6)
-                                      : lineCol,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(children: [
-                                Icon(Icons.category_outlined,
-                                    size: 18,
-                                    color: selectedTipo != null
-                                        ? homeAccent
-                                        : textSoft),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    selectedTipo == null
-                                        ? '[Seleccione una Opción]'
-                                        : tipos[selectedTipo] ??
-                                            '[Seleccione una Opción]',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: selectedTipo != null
-                                          ? textMain
-                                          : textSoft,
-                                    ),
-                                  ),
-                                ),
-                                Icon(Icons.expand_more_rounded,
-                                    color: textSoft, size: 20),
-                              ]),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
                     ),
                   ),
-                ),
 
-                // Botones
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: appCancelButton('Cerrar', saving ? null : () => Navigator.pop(ctx), height: 46),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: saving
-                                ? null
-                                : const LinearGradient(
-                                    colors: [
-                                      Color(0xFF0D1B4B),
-                                      Color(0xFF1E3A8A)
+                  // Botones
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: appCancelButton('Cerrar',
+                              saving ? null : () => Navigator.pop(ctx),
+                              height: 46),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: saving
+                                  ? null
+                                  : const LinearGradient(
+                                      colors: [
+                                        Color(0xFF0D1B4B),
+                                        Color(0xFF1E3A8A)
+                                      ],
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                    ),
+                              color: saving ? const Color(0xFFCBD5E1) : null,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: saving
+                                  ? null
+                                  : [
+                                      BoxShadow(
+                                        color: homeNavy.withValues(alpha: 0.3),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      )
                                     ],
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                  ),
-                            color: saving ? const Color(0xFFCBD5E1) : null,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: saving
-                                ? null
-                                : [
-                                    BoxShadow(
-                                      color: homeNavy.withValues(alpha: 0.3),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    )
-                                  ],
-                          ),
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
                             ),
-                            onPressed: saving
-                                ? null
-                                : () async {
-                                    if (fechaInicio == null) {
-                                      showResult(false,
-                                          'Seleccione la fecha de inicio');
-                                      return;
-                                    }
-                                    if (fechaFinal == null) {
-                                      showResult(
-                                          false, 'Seleccione la fecha final');
-                                      return;
-                                    }
-                                    if (fechaFinal!.isBefore(fechaInicio!)) {
-                                      showResult(false,
-                                          'La fecha final no puede ser anterior a la fecha de inicio');
-                                      return;
-                                    }
-                                    if (!formKey.currentState!.validate()) {
-                                      return;
-                                    }
-                                    final anio =
-                                        int.tryParse(anioCtrl.text.trim());
-                                    final tiempo =
-                                        int.tryParse(tiempoCtrl.text.trim());
-                                    if (anio == null || anio < 2020) {
-                                      showResult(
-                                          false, 'Ingrese un año válido');
-                                      return;
-                                    }
-                                    if (tiempo == null || tiempo <= 0) {
-                                      showResult(false,
-                                          'Ingrese un tiempo en meses válido');
-                                      return;
-                                    }
-                                    if (selectedTipo == null) {
-                                      showResult(false,
-                                          'Seleccione el tipo de configuración');
-                                      return;
-                                    }
-                                    setS(() => saving = true);
-                                    try {
-                                      final r = await repository.post(
-                                        '/ajax/registrar_conf_cuota.php',
-                                        {
-                                          'anio': anioCtrl.text.trim(),
-                                          'fecha_inicio': fmtApi(fechaInicio!),
-                                          'fecha_final': fmtApi(fechaFinal!),
-                                          'tiempo_mes': tiempoCtrl.text.trim(),
-                                          'tipo': selectedTipo ?? '',
-                                        },
-                                      );
-                                      final body = r.body.trim();
-                                      final bodyLower = body.toLowerCase();
-                                      final serverScriptError =
-                                          bodyLower.contains('fatal error') ||
-                                              bodyLower.contains('warning:') ||
-                                              bodyLower
-                                                  .contains('require_once') ||
-                                              bodyLower.contains('<!doctype') ||
-                                              bodyLower.contains('<html') ||
-                                              bodyLower.contains('<br') ||
-                                              bodyLower.contains('<b>');
-                                      final ok = r.statusCode == 200 &&
-                                          !serverScriptError &&
-                                          body.contains(
-                                              'Configuración Registrada');
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: saving
+                                  ? null
+                                  : () async {
+                                      if (fechaInicio == null) {
+                                        showResult(false,
+                                            'Seleccione la fecha de inicio');
+                                        return;
+                                      }
+                                      if (fechaFinal == null) {
+                                        showResult(
+                                            false, 'Seleccione la fecha final');
+                                        return;
+                                      }
+                                      if (fechaFinal!.isBefore(fechaInicio!)) {
+                                        showResult(false,
+                                            'La fecha final no puede ser anterior a la fecha de inicio');
+                                        return;
+                                      }
+                                      if (!formKey.currentState!.validate()) {
+                                        return;
+                                      }
+                                      final anio =
+                                          int.tryParse(anioCtrl.text.trim());
+                                      final tiempo =
+                                          int.tryParse(tiempoCtrl.text.trim());
+                                      if (anio == null || anio < 2020) {
+                                        showResult(
+                                            false, 'Ingrese un año válido');
+                                        return;
+                                      }
+                                      if (tiempo == null || tiempo <= 0) {
+                                        showResult(false,
+                                            'Ingrese un tiempo en meses válido');
+                                        return;
+                                      }
+                                      if (selectedTipo == null) {
+                                        showResult(false,
+                                            'Seleccione el tipo de configuración');
+                                        return;
+                                      }
+                                      setS(() => saving = true);
+                                      try {
+                                        final r = await repository.post(
+                                          '/ajax/registrar_conf_cuota.php',
+                                          {
+                                            'anio': anioCtrl.text.trim(),
+                                            'fecha_inicio':
+                                                fmtApi(fechaInicio!),
+                                            'fecha_final': fmtApi(fechaFinal!),
+                                            'tiempo_mes':
+                                                tiempoCtrl.text.trim(),
+                                            'tipo': selectedTipo ?? '',
+                                          },
+                                        );
+                                        final body = r.body.trim();
+                                        final bodyLower = body.toLowerCase();
+                                        final serverScriptError = bodyLower
+                                                .contains('fatal error') ||
+                                            bodyLower.contains('warning:') ||
+                                            bodyLower
+                                                .contains('require_once') ||
+                                            bodyLower.contains('<!doctype') ||
+                                            bodyLower.contains('<html') ||
+                                            bodyLower.contains('<br') ||
+                                            bodyLower.contains('<b>');
+                                        final ok = r.statusCode == 200 &&
+                                            !serverScriptError &&
+                                            body.contains(
+                                                'Configuración Registrada');
 
-                                      if (!ok) {
-                                        if (ctx.mounted) {
-                                          setS(() => saving = false);
-                                          await showDialog<void>(
-                                            context: ctx,
+                                        if (!ok) {
+                                          if (ctx.mounted) {
+                                            setS(() => saving = false);
+                                            await showDialog<void>(
+                                              context: ctx,
+                                              builder: (_) => buildResultDialog(
+                                                serverScriptError
+                                                    ? 'El servidor no pudo guardar la configuración de ahorro.'
+                                                    : friendlyError(body),
+                                                false,
+                                              ),
+                                            );
+                                          }
+                                          return;
+                                        }
+
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                        if (isMounted) {
+                                          repository.invalidateCache(
+                                              '/ajax/listado_select.php');
+                                          repository.invalidateCache(
+                                              '/ajax/listado_ahorros.php');
+                                          await fetchSavers();
+                                          if (isMounted) {
+                                            refresh(() {
+                                              cachedFilteredSavers = null;
+                                              savingsCurrentPage = 1;
+                                            });
+                                          }
+                                          showDialog(
+                                            context: screenContext,
                                             builder: (_) => buildResultDialog(
-                                              serverScriptError
-                                                  ? 'El servidor no pudo guardar la configuración de ahorro.'
-                                                  : friendlyError(body),
-                                              false,
+                                              'Configuración registrada exitosamente',
+                                              true,
                                             ),
                                           );
                                         }
-                                        return;
-                                      }
-
-                                      if (ctx.mounted) Navigator.pop(ctx);
-                                      if (isMounted) {
-                                        repository.invalidateCache(
-                                            '/ajax/listado_select.php');
-                                        repository.invalidateCache(
-                                            '/ajax/listado_ahorros.php');
-                                        await fetchSavers();
-                                        if (isMounted) {
-                                          refresh(() {
-                                            cachedFilteredSavers = null;
-                                            savingsCurrentPage = 1;
-                                          });
+                                      } catch (e) {
+                                        if (ctx.mounted) {
+                                          setS(() => saving = false);
                                         }
-                                        showDialog(
-                                          context: screenContext,
-                                          builder: (_) => buildResultDialog(
-                                            'Configuración registrada exitosamente',
-                                            true,
-                                          ),
-                                        );
+                                        showResult(false, friendlyError(e));
                                       }
-                                    } catch (e) {
-                                      if (ctx.mounted) {
-                                        setS(() => saving = false);
-                                      }
-                                      showResult(false, friendlyError(e));
-                                    }
-                                  },
-                            icon: saving
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white))
-                                : const Icon(Icons.save_rounded, size: 18),
-                            label: Text(saving ? 'Guardando...' : 'Grabar'),
+                                    },
+                              icon: saving
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.save_rounded, size: 18),
+                              label: Text(saving ? 'Guardando...' : 'Grabar'),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -420,17 +427,14 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         decoration: BoxDecoration(
           color: inputFill,
           border: Border.all(
-            color: value != null
-                ? homeAccent.withValues(alpha: 0.6)
-                : lineCol,
+            color: value != null ? homeAccent.withValues(alpha: 0.6) : lineCol,
           ),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
             Icon(Icons.calendar_month_outlined,
-                size: 18,
-                color: value != null ? homeAccent : textSoft),
+                size: 18, color: value != null ? homeAccent : textSoft),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -441,8 +445,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
               ),
             ),
-            Icon(Icons.expand_more_rounded,
-                color: textSoft, size: 20),
+            Icon(Icons.expand_more_rounded, color: textSoft, size: 20),
           ],
         ),
       );
@@ -469,20 +472,17 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       final seen = <String>{};
       final options = <Map<String, dynamic>>[];
       for (final saver in savers) {
-        final id =
-            (saver['codigo_ahorrador'] ?? saver['codigo'] ?? '')
-                .toString()
-                .trim();
+        final id = (saver['codigo_ahorrador'] ?? saver['codigo'] ?? '')
+            .toString()
+            .trim();
         final name =
-            (saver['ahorrador'] ?? saver['nombre'] ?? '')
-                .toString()
-                .trim();
+            (saver['ahorrador'] ?? saver['nombre'] ?? '').toString().trim();
         if (id.isNotEmpty && name.isNotEmpty && seen.add(id)) {
           options.add({'codigo': id, 'nombre': name});
         }
       }
-      options.sort((a, b) =>
-          a['nombre'].toString().compareTo(b['nombre'].toString()));
+      options.sort(
+          (a, b) => a['nombre'].toString().compareTo(b['nombre'].toString()));
       return options;
     }
 
@@ -529,457 +529,462 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
         if (!aniosLoaded && !loadingAnios) loadAnios(setS);
-        return Dialog(
-          backgroundColor: dialogBg,
-          surfaceTintColor: Colors.transparent,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
-              maxHeight: MediaQuery.of(ctx).size.height * 0.85,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ── Header ───────────────────────────────────────
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.savings_rounded,
-                            color: Colors.white, size: 22),
+        return AppAnimatedDialog(
+          child: Dialog(
+            backgroundColor: dialogBg,
+            surfaceTintColor: Colors.transparent,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
+                maxHeight: MediaQuery.of(ctx).size.height * 0.85,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Header ───────────────────────────────────────
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(width: 12),
-                      const Expanded(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.savings_rounded,
+                              color: Colors.white, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Crear Ahorro',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  )),
+                              Text('Registrar nuevo ahorro',
+                                  style: TextStyle(
+                                      color: Colors.white70, fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        appCloseX(saving ? null : () => Navigator.pop(ctx)),
+                      ],
+                    ),
+                  ),
+
+                  // ── Campos ───────────────────────────────────────
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                      child: Form(
+                        key: formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Crear Ahorro',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                )),
-                            Text('Registrar nuevo ahorro',
-                                style: TextStyle(
-                                    color: Colors.white70, fontSize: 11)),
+                            // Ahorrador — buscable
+                            buildSavingsFieldLabel('Ahorrador'),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () async {
+                                final ahorradorOpts = currentAhorradorOptions();
+                                final result = await _showAhorradorPicker(
+                                    ctx, ahorradorOpts);
+                                if (result != null) {
+                                  setS(() {
+                                    selectedAhorrador = result['valor'];
+                                    ahorradorLabel = result['nombre'];
+                                  });
+                                }
+                              },
+                              child: Container(
+                                height: 48,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 14),
+                                decoration: BoxDecoration(
+                                  color: inputFill,
+                                  border: Border.all(
+                                    color: selectedAhorrador != null
+                                        ? homeAccent.withValues(alpha: 0.6)
+                                        : lineCol,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.person_search_rounded,
+                                        size: 18,
+                                        color: selectedAhorrador != null
+                                            ? homeAccent
+                                            : textSoft),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        ahorradorLabel.isNotEmpty
+                                            ? ahorradorLabel
+                                            : 'Seleccione un ahorrador...',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: ahorradorLabel.isNotEmpty
+                                              ? textMain
+                                              : textSoft,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(Icons.keyboard_arrow_down_rounded,
+                                        color: textSoft, size: 20),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Año de Ahorro
+                            buildSavingsFieldLabel('Año de Ahorro'),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: loadingAnios || aniosOpts.isEmpty
+                                  ? null
+                                  : () async {
+                                      final result =
+                                          await _showAnioPicker(ctx, aniosOpts);
+                                      if (result != null) {
+                                        setS(() => selectedAnioCodigo =
+                                            result['codigo']);
+                                      }
+                                    },
+                              child: Container(
+                                height: 48,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 14),
+                                decoration: BoxDecoration(
+                                  color: inputFill,
+                                  border: Border.all(
+                                    color: selectedAnioCodigo != null
+                                        ? homeAccent.withValues(alpha: 0.6)
+                                        : lineCol,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.calendar_today_outlined,
+                                        size: 18,
+                                        color: selectedAnioCodigo != null
+                                            ? homeAccent
+                                            : textSoft),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: loadingAnios
+                                          ? Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                SizedBox(
+                                                  width: 14,
+                                                  height: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Color(
+                                                              0xFF9CA3AF)),
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text('Cargando...',
+                                                    style: TextStyle(
+                                                        color: textSoft,
+                                                        fontSize: 13)),
+                                              ],
+                                            )
+                                          : Builder(builder: (_) {
+                                              String label =
+                                                  'Seleccione un año...';
+                                              if (selectedAnioCodigo != null) {
+                                                final m = aniosOpts.firstWhere(
+                                                  (a) =>
+                                                      (a['codigo_ahorro_anyo'] ??
+                                                              a.values.first)
+                                                          .toString() ==
+                                                      selectedAnioCodigo,
+                                                  orElse: () =>
+                                                      <String, dynamic>{},
+                                                );
+                                                label =
+                                                    m['_label']?.toString() ??
+                                                        selectedAnioCodigo!;
+                                              }
+                                              return Text(
+                                                label,
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color:
+                                                      selectedAnioCodigo != null
+                                                          ? textMain
+                                                          : textSoft,
+                                                ),
+                                              );
+                                            }),
+                                    ),
+                                    Icon(Icons.keyboard_arrow_down_rounded,
+                                        color: textSoft, size: 20),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Fecha de Ingreso
+                            buildSavingsFieldLabel('Fecha de Ingreso'),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () async {
+                                final d = await showLightDatePicker(
+                                  ctx,
+                                  initialDate: fechaIngreso ?? _hoyColombia(),
+                                  firstDate: DateTime(2015),
+                                  lastDate: DateTime(2035),
+                                );
+                                if (d != null) setS(() => fechaIngreso = d);
+                              },
+                              child: Container(
+                                height: 48,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 14),
+                                decoration: BoxDecoration(
+                                  color: inputFill,
+                                  border: Border.all(
+                                    color: fechaIngreso != null
+                                        ? homeAccent.withValues(alpha: 0.6)
+                                        : lineCol,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.calendar_month_outlined,
+                                        size: 18,
+                                        color: fechaIngreso != null
+                                            ? homeAccent
+                                            : textSoft),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        fechaIngreso != null
+                                            ? '${fechaIngreso!.day.toString().padLeft(2, '0')}/${fechaIngreso!.month.toString().padLeft(2, '0')}/${fechaIngreso!.year}'
+                                            : 'dd/mm/aaaa',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: fechaIngreso != null
+                                              ? textMain
+                                              : textSoft,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(Icons.expand_more_rounded,
+                                        color: textSoft, size: 20),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Valor Pactado
+                            buildSavingsField(
+                              ctrl: valorCtrl,
+                              label: 'Valor Pactado',
+                              icon: Icons.attach_money_rounded,
+                              keyboard: TextInputType.number,
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Requerido'
+                                  : null,
+                            ),
+                            const SizedBox(height: 8),
                           ],
                         ),
                       ),
-                      appCloseX(saving ? null : () => Navigator.pop(ctx)),
-                    ],
-                  ),
-                ),
-
-                // ── Campos ───────────────────────────────────────
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                    child: Form(
-                      key: formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Ahorrador — buscable
-                          buildSavingsFieldLabel('Ahorrador'),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: () async {
-                              final ahorradorOpts =
-                                  currentAhorradorOptions();
-                              final result = await _showAhorradorPicker(
-                                  ctx, ahorradorOpts);
-                              if (result != null) {
-                                setS(() {
-                                  selectedAhorrador = result['valor'];
-                                  ahorradorLabel = result['nombre'];
-                                });
-                              }
-                            },
-                            child: Container(
-                              height: 48,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 14),
-                              decoration: BoxDecoration(
-                                color: inputFill,
-                                border: Border.all(
-                                  color: selectedAhorrador != null
-                                      ? homeAccent.withValues(alpha: 0.6)
-                                      : lineCol,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.person_search_rounded,
-                                      size: 18,
-                                      color: selectedAhorrador != null
-                                          ? homeAccent
-                                          : textSoft),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      ahorradorLabel.isNotEmpty
-                                          ? ahorradorLabel
-                                          : 'Seleccione un ahorrador...',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: ahorradorLabel.isNotEmpty
-                                            ? textMain
-                                            : textSoft,
-                                      ),
-                                    ),
-                                  ),
-                                  Icon(Icons.keyboard_arrow_down_rounded,
-                                      color: textSoft, size: 20),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Año de Ahorro
-                          buildSavingsFieldLabel('Año de Ahorro'),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: loadingAnios || aniosOpts.isEmpty
-                                ? null
-                                : () async {
-                                    final result =
-                                        await _showAnioPicker(ctx, aniosOpts);
-                                    if (result != null) {
-                                      setS(() => selectedAnioCodigo =
-                                          result['codigo']);
-                                    }
-                                  },
-                            child: Container(
-                              height: 48,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 14),
-                              decoration: BoxDecoration(
-                                color: inputFill,
-                                border: Border.all(
-                                  color: selectedAnioCodigo != null
-                                      ? homeAccent.withValues(alpha: 0.6)
-                                      : lineCol,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.calendar_today_outlined,
-                                      size: 18,
-                                      color: selectedAnioCodigo != null
-                                          ? homeAccent
-                                          : textSoft),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: loadingAnios
-                                        ? Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              SizedBox(
-                                                width: 14,
-                                                height: 14,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                        color:
-                                                            Color(0xFF9CA3AF)),
-                                              ),
-                                              SizedBox(width: 8),
-                                              Text('Cargando...',
-                                                  style: TextStyle(
-                                                      color: textSoft,
-                                                      fontSize: 13)),
-                                            ],
-                                          )
-                                        : Builder(builder: (_) {
-                                            String label =
-                                                'Seleccione un año...';
-                                            if (selectedAnioCodigo != null) {
-                                              final m = aniosOpts.firstWhere(
-                                                (a) =>
-                                                    (a['codigo_ahorro_anyo'] ??
-                                                            a.values.first)
-                                                        .toString() ==
-                                                    selectedAnioCodigo,
-                                                orElse: () =>
-                                                    <String, dynamic>{},
-                                              );
-                                              label = m['_label']?.toString() ??
-                                                  selectedAnioCodigo!;
-                                            }
-                                            return Text(
-                                              label,
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: selectedAnioCodigo !=
-                                                        null
-                                                    ? textMain
-                                                    : textSoft,
-                                              ),
-                                            );
-                                          }),
-                                  ),
-                                  Icon(Icons.keyboard_arrow_down_rounded,
-                                      color: textSoft, size: 20),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Fecha de Ingreso
-                          buildSavingsFieldLabel('Fecha de Ingreso'),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: () async {
-                              final d = await showLightDatePicker(
-                                ctx,
-                                initialDate: fechaIngreso ?? _hoyColombia(),
-                                firstDate: DateTime(2015),
-                                lastDate: DateTime(2035),
-                              );
-                              if (d != null) setS(() => fechaIngreso = d);
-                            },
-                            child: Container(
-                              height: 48,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 14),
-                              decoration: BoxDecoration(
-                                color: inputFill,
-                                border: Border.all(
-                                  color: fechaIngreso != null
-                                      ? homeAccent.withValues(alpha: 0.6)
-                                      : lineCol,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.calendar_month_outlined,
-                                      size: 18,
-                                      color: fechaIngreso != null
-                                          ? homeAccent
-                                          : textSoft),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      fechaIngreso != null
-                                          ? '${fechaIngreso!.day.toString().padLeft(2, '0')}/${fechaIngreso!.month.toString().padLeft(2, '0')}/${fechaIngreso!.year}'
-                                          : 'dd/mm/aaaa',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: fechaIngreso != null
-                                            ? textMain
-                                            : textSoft,
-                                      ),
-                                    ),
-                                  ),
-                                  Icon(Icons.expand_more_rounded,
-                                      color: textSoft, size: 20),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Valor Pactado
-                          buildSavingsField(
-                            ctrl: valorCtrl,
-                            label: 'Valor Pactado',
-                            icon: Icons.attach_money_rounded,
-                            keyboard: TextInputType.number,
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Requerido'
-                                : null,
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
                     ),
                   ),
-                ),
 
-                // ── Botones ───────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: appCancelButton('Cerrar', saving ? null : () => Navigator.pop(ctx), height: 46),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: saving
-                                ? null
-                                : const LinearGradient(
-                                    colors: [
-                                      Color(0xFF0D1B4B),
-                                      Color(0xFF1E3A8A)
+                  // ── Botones ───────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: appCancelButton('Cerrar',
+                              saving ? null : () => Navigator.pop(ctx),
+                              height: 46),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: saving
+                                  ? null
+                                  : const LinearGradient(
+                                      colors: [
+                                        Color(0xFF0D1B4B),
+                                        Color(0xFF1E3A8A)
+                                      ],
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                    ),
+                              color: saving ? const Color(0xFFCBD5E1) : null,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: saving
+                                  ? null
+                                  : [
+                                      BoxShadow(
+                                        color: homeNavy.withValues(alpha: 0.3),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      )
                                     ],
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                  ),
-                            color: saving ? const Color(0xFFCBD5E1) : null,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: saving
-                                ? null
-                                : [
-                                    BoxShadow(
-                                      color: homeNavy.withValues(alpha: 0.3),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    )
-                                  ],
-                          ),
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
                             ),
-                            onPressed: saving
-                                ? null
-                                : () async {
-                                    if (selectedAhorrador == null) {
-                                      showResult(false,
-                                          'Seleccione un ahorrador para continuar');
-                                      return;
-                                    }
-                                    if (fechaIngreso == null) {
-                                      showResult(false,
-                                          'Seleccione la fecha de ingreso');
-                                      return;
-                                    }
-                                    if (selectedAnioCodigo == null ||
-                                        selectedAnioCodigo!.isEmpty) {
-                                      showResult(false,
-                                          'Seleccione el año de ahorro');
-                                      return;
-                                    }
-                                    if (!formKey.currentState!.validate()) {
-                                      return;
-                                    }
-                                    setS(() => saving = true);
-                                    try {
-                                      final fechaStr =
-                                          '${fechaIngreso!.year}-${fechaIngreso!.month.toString().padLeft(2, '0')}-${fechaIngreso!.day.toString().padLeft(2, '0')}';
-                                      final r = await repository.post(
-                                        '/ajax/registrar_ahorro.php',
-                                        {
-                                          'codigo_ahorrador':
-                                              selectedAhorrador!,
-                                          'codigo_anio_ahorro':
-                                              selectedAnioCodigo ?? '',
-                                          'fecha_ingreso': fechaStr,
-                                          'valor_pactado':
-                                              valorCtrl.text.trim(),
-                                        },
-                                      );
-                                      final bodyLower =
-                                          r.body.toLowerCase().trim();
-                                      final serverScriptError =
-                                          bodyLower.contains('fatal error') ||
-                                              bodyLower.contains('warning:') ||
-                                              bodyLower
-                                                  .contains('require_once') ||
-                                              bodyLower.contains('<!doctype') ||
-                                              bodyLower.contains('<html') ||
-                                              bodyLower.contains('<br') ||
-                                              bodyLower.contains('<b>');
-                                      final ok = r.statusCode == 200 &&
-                                          !serverScriptError &&
-                                          (bodyLower == 'ahorro creado' ||
-                                              r.body
-                                                  .contains('"resultado":1') ||
-                                              r.body
-                                                  .contains('"success":true'));
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: saving
+                                  ? null
+                                  : () async {
+                                      if (selectedAhorrador == null) {
+                                        showResult(false,
+                                            'Seleccione un ahorrador para continuar');
+                                        return;
+                                      }
+                                      if (fechaIngreso == null) {
+                                        showResult(false,
+                                            'Seleccione la fecha de ingreso');
+                                        return;
+                                      }
+                                      if (selectedAnioCodigo == null ||
+                                          selectedAnioCodigo!.isEmpty) {
+                                        showResult(false,
+                                            'Seleccione el año de ahorro');
+                                        return;
+                                      }
+                                      if (!formKey.currentState!.validate()) {
+                                        return;
+                                      }
+                                      setS(() => saving = true);
+                                      try {
+                                        final fechaStr =
+                                            '${fechaIngreso!.year}-${fechaIngreso!.month.toString().padLeft(2, '0')}-${fechaIngreso!.day.toString().padLeft(2, '0')}';
+                                        final r = await repository.post(
+                                          '/ajax/registrar_ahorro.php',
+                                          {
+                                            'codigo_ahorrador':
+                                                selectedAhorrador!,
+                                            'codigo_anio_ahorro':
+                                                selectedAnioCodigo ?? '',
+                                            'fecha_ingreso': fechaStr,
+                                            'valor_pactado':
+                                                valorCtrl.text.trim(),
+                                          },
+                                        );
+                                        final bodyLower =
+                                            r.body.toLowerCase().trim();
+                                        final serverScriptError = bodyLower
+                                                .contains('fatal error') ||
+                                            bodyLower.contains('warning:') ||
+                                            bodyLower
+                                                .contains('require_once') ||
+                                            bodyLower.contains('<!doctype') ||
+                                            bodyLower.contains('<html') ||
+                                            bodyLower.contains('<br') ||
+                                            bodyLower.contains('<b>');
+                                        final ok = r.statusCode == 200 &&
+                                            !serverScriptError &&
+                                            (bodyLower == 'ahorro creado' ||
+                                                r.body.contains(
+                                                    '"resultado":1') ||
+                                                r.body.contains(
+                                                    '"success":true'));
 
-                                      if (!ok) {
-                                        if (ctx.mounted) {
-                                          setS(() => saving = false);
-                                          await showDialog<void>(
-                                            context: ctx,
+                                        if (!ok) {
+                                          if (ctx.mounted) {
+                                            setS(() => saving = false);
+                                            await showDialog<void>(
+                                              context: ctx,
+                                              builder: (_) => buildResultDialog(
+                                                serverScriptError
+                                                    ? 'El servidor no pudo registrar el ahorro. Verifica que registrar_ahorro.php esté actualizado.'
+                                                    : friendlyError(r.body),
+                                                false,
+                                              ),
+                                            );
+                                          }
+                                          return;
+                                        }
+
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                        if (isMounted) {
+                                          repository.invalidateCache(
+                                              '/ajax/listado_ahorros.php');
+                                          await fetchSavers();
+                                          if (isMounted) {
+                                            refresh(() {
+                                              cachedFilteredSavers = null;
+                                              savingsCurrentPage = 1;
+                                            });
+                                          }
+                                          showDialog(
+                                            context: screenContext,
                                             builder: (_) => buildResultDialog(
-                                              serverScriptError
-                                                  ? 'El servidor no pudo registrar el ahorro. Verifica que registrar_ahorro.php esté actualizado.'
-                                                  : friendlyError(r.body),
-                                              false,
+                                              'Ahorro registrado exitosamente',
+                                              true,
                                             ),
                                           );
                                         }
-                                        return;
-                                      }
-
-                                      if (ctx.mounted) Navigator.pop(ctx);
-                                      if (isMounted) {
-                                        repository.invalidateCache(
-                                            '/ajax/listado_ahorros.php');
-                                        await fetchSavers();
-                                        if (isMounted) {
-                                          refresh(() {
-                                            cachedFilteredSavers = null;
-                                            savingsCurrentPage = 1;
-                                          });
+                                      } catch (e) {
+                                        if (ctx.mounted) {
+                                          setS(() => saving = false);
                                         }
-                                        showDialog(
-                                          context: screenContext,
-                                          builder: (_) => buildResultDialog(
-                                            'Ahorro registrado exitosamente',
-                                            true,
-                                          ),
-                                        );
+                                        showResult(false, friendlyError(e));
                                       }
-                                    } catch (e) {
-                                      if (ctx.mounted) {
-                                        setS(() => saving = false);
-                                      }
-                                      showResult(false, friendlyError(e));
-                                    }
-                                  },
-                            icon: saving
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white))
-                                : const Icon(Icons.save_rounded, size: 18),
-                            label: Text(saving ? 'Guardando...' : 'Grabar'),
+                                    },
+                              icon: saving
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.save_rounded, size: 18),
+                              label: Text(saving ? 'Guardando...' : 'Grabar'),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -990,76 +995,23 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
   }
 
   Future<Map<String, dynamic>?> _showAnioPicker(
-      BuildContext ctx, List<Map<String, dynamic>> lista) {
-    return showDialog<Map<String, dynamic>>(
+      BuildContext ctx, List<Map<String, dynamic>> lista) async {
+    String codigoOf(Map<String, dynamic> a) =>
+        (a['codigo_ahorro_anyo'] ?? a.values.first).toString();
+    final picked = await showDialog<Map<String, dynamic>>(
       context: ctx,
-      builder: (aCtx) => Dialog(
-        backgroundColor: dialogBg,
-        surfaceTintColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 120),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
-              decoration: const BoxDecoration(
-                color: homeNavy,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_today_outlined,
-                      color: Colors.white70, size: 18),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text('Año de Ahorro',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700)),
-                  ),
-                  appCloseX(() => Navigator.pop(aCtx)),
-                ],
-              ),
-            ),
-            ...lista.map((a) {
-              final codigo =
-                  (a['codigo_ahorro_anyo'] ?? a.values.first).toString();
-              final label = a['_label']?.toString() ?? codigo;
-              return Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () =>
-                      Navigator.pop(aCtx, {'codigo': codigo, 'label': label}),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 16),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.event_available_rounded,
-                            color: homeAccent, size: 18),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(label,
-                              style: TextStyle(
-                                  color: textMain,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500)),
-                        ),
-                        const Icon(Icons.chevron_right_rounded,
-                            color: Color(0xFFCBD5E1), size: 18),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-            const SizedBox(height: 8),
-          ],
-        ),
+      builder: (aCtx) => AppPickerDialog<Map<String, dynamic>>(
+        title: 'Año de Ahorro',
+        titleIcon: Icons.calendar_today_outlined,
+        items: lista,
+        labelBuilder: (a) => a['_label']?.toString() ?? codigoOf(a),
       ),
     );
+    if (picked == null) return null;
+    return {
+      'codigo': codigoOf(picked),
+      'label': picked['_label']?.toString() ?? codigoOf(picked)
+    };
   }
 
   Future<Map<String, dynamic>?> _showAhorradorPicker(
@@ -1090,140 +1042,143 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             return nombre(e).toLowerCase().contains(query.toLowerCase());
           }).toList();
 
-          return Dialog(
-            backgroundColor: dialogBg,
-            surfaceTintColor: Colors.transparent,
-            insetPadding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(aCtx).size.height * 0.65,
-                maxWidth: min(420, MediaQuery.of(aCtx).size.width - 40),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
-                    decoration: const BoxDecoration(
-                      color: homeNavy,
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(18)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.person_search_rounded,
-                            color: Colors.white70, size: 18),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Seleccionar ahorrador (${lista.length})',
-                            style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700),
+          return AppAnimatedDialog(
+            child: Dialog(
+              backgroundColor: dialogBg,
+              surfaceTintColor: Colors.transparent,
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18)),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(aCtx).size.height * 0.65,
+                  maxWidth: min(420, MediaQuery.of(aCtx).size.width - 40),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
+                      decoration: const BoxDecoration(
+                        color: homeNavy,
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(18)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.person_search_rounded,
+                              color: Colors.white70, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Seleccionar ahorrador (${lista.length})',
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700),
+                            ),
                           ),
-                        ),
-                        appCloseX(() => Navigator.pop(aCtx)),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: TextField(
-                      autofocus: true,
-                      onChanged: (v) => setA(() => query = v.trim()),
-                      style: TextStyle(color: textMain, fontSize: 13),
-                      decoration: InputDecoration(
-                        hintText: 'Buscar ahorrador...',
-                        hintStyle: const TextStyle(
-                            color: Color(0xFFB0BBCC), fontSize: 13),
-                        prefixIcon: Icon(Icons.search_rounded,
-                            color: textSoft, size: 18),
-                        filled: true,
-                        fillColor: inputFill,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 10),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                BorderSide(color: lineCol)),
-                        enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                BorderSide(color: lineCol)),
-                        focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                                color: homeAccent, width: 1.5)),
+                          appCloseX(() => Navigator.pop(aCtx)),
+                        ],
                       ),
                     ),
-                  ),
-                  Flexible(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, __) =>
-                          const Divider(height: 1, indent: 16),
-                      itemBuilder: (_, i) {
-                        final e = filtered[i];
-                        final n = nombre(e);
-                        final id = (e['codigo'] ??
-                                e['valor'] ??
-                                e['codigo_deudor'] ??
-                                n)
-                            .toString();
-                        return Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(10),
-                            onTap: () =>
-                                Navigator.pop(aCtx, {'valor': id, 'nombre': n}),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 12),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                      color: homeAccent.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(9),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        n.isNotEmpty ? n[0].toUpperCase() : '?',
-                                        style: const TextStyle(
-                                          color: homeAccent,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 14,
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: TextField(
+                        autofocus: true,
+                        onChanged: (v) => setA(() => query = v.trim()),
+                        style: TextStyle(color: textMain, fontSize: 13),
+                        decoration: InputDecoration(
+                          hintText: 'Buscar ahorrador...',
+                          hintStyle: const TextStyle(
+                              color: Color(0xFFB0BBCC), fontSize: 13),
+                          prefixIcon: Icon(Icons.search_rounded,
+                              color: textSoft, size: 18),
+                          filled: true,
+                          fillColor: inputFill,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 10),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: lineCol)),
+                          enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: lineCol)),
+                          focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                  color: homeAccent, width: 1.5)),
+                        ),
+                      ),
+                    ),
+                    Flexible(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, indent: 16),
+                        itemBuilder: (_, i) {
+                          final e = filtered[i];
+                          final n = nombre(e);
+                          final id = (e['codigo'] ??
+                                  e['valor'] ??
+                                  e['codigo_deudor'] ??
+                                  n)
+                              .toString();
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () => Navigator.pop(
+                                  aCtx, {'valor': id, 'nombre': n}),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 12),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            homeAccent.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(9),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          n.isNotEmpty
+                                              ? n[0].toUpperCase()
+                                              : '?',
+                                          style: const TextStyle(
+                                            color: homeAccent,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(n,
-                                        style: TextStyle(
-                                          color: textMain,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                        )),
-                                  ),
-                                  const Icon(Icons.chevron_right_rounded,
-                                      color: Color(0xFFCBD5E1), size: 18),
-                                ],
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(n,
+                                          style: TextStyle(
+                                            color: textMain,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          )),
+                                    ),
+                                    const Icon(Icons.chevron_right_rounded,
+                                        color: Color(0xFFCBD5E1), size: 18),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -1248,391 +1203,397 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       context: screenContext,
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
-        return Dialog(
-          backgroundColor: dialogBg,
-          surfaceTintColor: Colors.transparent,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          insetPadding:
-              const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
-              maxHeight: MediaQuery.of(ctx).size.height * 0.88,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ── Header gradiente ──────────────────────────────
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.person_add_rounded,
-                            color: Colors.white, size: 22),
+        return AppAnimatedDialog(
+          child: Dialog(
+            backgroundColor: dialogBg,
+            surfaceTintColor: Colors.transparent,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: min(480, MediaQuery.of(ctx).size.width - 40),
+                maxHeight: MediaQuery.of(ctx).size.height * 0.88,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // ── Header gradiente ──────────────────────────────
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(width: 12),
-                      const Expanded(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(20)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.person_add_rounded,
+                              color: Colors.white, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Crear Ahorrador',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  )),
+                              Text('Registrar nuevo ahorrador',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                  )),
+                            ],
+                          ),
+                        ),
+                        appCloseX(saving ? null : () => Navigator.pop(ctx)),
+                      ],
+                    ),
+                  ),
+
+                  // ── Formulario ────────────────────────────────────
+                  Flexible(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                      child: Form(
+                        key: formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Crear Ahorrador',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                )),
-                            Text('Registrar nuevo ahorrador',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 11,
-                                )),
+                            // Asesor — campo buscable
+                            buildSavingsFieldLabel('Asesor'),
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () async {
+                                final result = await _showAsesorPicker(ctx);
+                                if (result != null) {
+                                  setS(() {
+                                    selectedAsesor = result['valor'];
+                                    asesorLabel = result['nombre'];
+                                  });
+                                }
+                              },
+                              child: Container(
+                                height: 48,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 14),
+                                decoration: BoxDecoration(
+                                  color: inputFill,
+                                  border: Border.all(
+                                    color: selectedAsesor != null
+                                        ? homeAccent.withValues(alpha: 0.6)
+                                        : lineCol,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.person_search_rounded,
+                                        size: 18,
+                                        color: selectedAsesor != null
+                                            ? homeAccent
+                                            : textSoft),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        asesorLabel.isNotEmpty
+                                            ? asesorLabel
+                                            : 'Seleccione un asesor...',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: asesorLabel.isNotEmpty
+                                              ? textMain
+                                              : textSoft,
+                                        ),
+                                      ),
+                                    ),
+                                    Icon(Icons.keyboard_arrow_down_rounded,
+                                        color: textSoft, size: 20),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+
+                            // N° Documento
+                            buildSavingsField(
+                              ctrl: docCtrl,
+                              label: 'N° Documento',
+                              icon: Icons.badge_outlined,
+                              keyboard: TextInputType.number,
+                              validator: (v) => (v == null || v.trim().isEmpty)
+                                  ? 'Requerido'
+                                  : null,
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Nombres + Apellidos en fila
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: buildSavingsField(
+                                    ctrl: nombresCtrl,
+                                    label: 'Nombres',
+                                    icon: Icons.person_outline_rounded,
+                                    validator: (v) =>
+                                        (v == null || v.trim().isEmpty)
+                                            ? 'Requerido'
+                                            : null,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: buildSavingsField(
+                                    ctrl: apellCtrl,
+                                    label: 'Apellidos',
+                                    icon: Icons.person_outline_rounded,
+                                    validator: (v) =>
+                                        (v == null || v.trim().isEmpty)
+                                            ? 'Requerido'
+                                            : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Dirección
+                            buildSavingsField(
+                              ctrl: dirCtrl,
+                              label: 'Dirección',
+                              icon: Icons.location_on_outlined,
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Teléfono
+                            buildSavingsField(
+                              ctrl: telCtrl,
+                              label: 'Teléfono',
+                              icon: Icons.phone_outlined,
+                              keyboard: TextInputType.phone,
+                            ),
+                            const SizedBox(height: 8),
                           ],
                         ),
                       ),
-                      appCloseX(saving ? null : () => Navigator.pop(ctx)),
-                    ],
-                  ),
-                ),
-
-                // ── Formulario ────────────────────────────────────
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                    child: Form(
-                      key: formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Asesor — campo buscable
-                          buildSavingsFieldLabel('Asesor'),
-                          const SizedBox(height: 6),
-                          GestureDetector(
-                            onTap: () async {
-                              final result = await _showAsesorPicker(ctx);
-                              if (result != null) {
-                                setS(() {
-                                  selectedAsesor = result['valor'];
-                                  asesorLabel = result['nombre'];
-                                });
-                              }
-                            },
-                            child: Container(
-                              height: 48,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 14),
-                              decoration: BoxDecoration(
-                                color: inputFill,
-                                border: Border.all(
-                                  color: selectedAsesor != null
-                                      ? homeAccent.withValues(alpha: 0.6)
-                                      : lineCol,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.person_search_rounded,
-                                      size: 18,
-                                      color: selectedAsesor != null
-                                          ? homeAccent
-                                          : textSoft),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      asesorLabel.isNotEmpty
-                                          ? asesorLabel
-                                          : 'Seleccione un asesor...',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: asesorLabel.isNotEmpty
-                                            ? textMain
-                                            : textSoft,
-                                      ),
-                                    ),
-                                  ),
-                                  Icon(Icons.keyboard_arrow_down_rounded,
-                                      color: textSoft, size: 20),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-
-                          // N° Documento
-                          buildSavingsField(
-                            ctrl: docCtrl,
-                            label: 'N° Documento',
-                            icon: Icons.badge_outlined,
-                            keyboard: TextInputType.number,
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Requerido'
-                                : null,
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Nombres + Apellidos en fila
-                          Row(
-                            children: [
-                              Expanded(
-                                child: buildSavingsField(
-                                  ctrl: nombresCtrl,
-                                  label: 'Nombres',
-                                  icon: Icons.person_outline_rounded,
-                                  validator: (v) =>
-                                      (v == null || v.trim().isEmpty)
-                                          ? 'Requerido'
-                                          : null,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: buildSavingsField(
-                                  ctrl: apellCtrl,
-                                  label: 'Apellidos',
-                                  icon: Icons.person_outline_rounded,
-                                  validator: (v) =>
-                                      (v == null || v.trim().isEmpty)
-                                          ? 'Requerido'
-                                          : null,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Dirección
-                          buildSavingsField(
-                            ctrl: dirCtrl,
-                            label: 'Dirección',
-                            icon: Icons.location_on_outlined,
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Teléfono
-                          buildSavingsField(
-                            ctrl: telCtrl,
-                            label: 'Teléfono',
-                            icon: Icons.phone_outlined,
-                            keyboard: TextInputType.phone,
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
                     ),
                   ),
-                ),
 
-                // ── Botones ───────────────────────────────────────
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: appCancelButton('Cerrar', saving ? null : () => Navigator.pop(ctx), height: 46),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: saving
-                                ? null
-                                : const LinearGradient(
-                                    colors: [
-                                      Color(0xFF0D1B4B),
-                                      Color(0xFF1E3A8A)
+                  // ── Botones ───────────────────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: appCancelButton('Cerrar',
+                              saving ? null : () => Navigator.pop(ctx),
+                              height: 46),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: saving
+                                  ? null
+                                  : const LinearGradient(
+                                      colors: [
+                                        Color(0xFF0D1B4B),
+                                        Color(0xFF1E3A8A)
+                                      ],
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                    ),
+                              color: saving ? const Color(0xFFCBD5E1) : null,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: saving
+                                  ? null
+                                  : [
+                                      BoxShadow(
+                                        color: homeNavy.withValues(alpha: 0.3),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      )
                                     ],
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                  ),
-                            color: saving ? const Color(0xFFCBD5E1) : null,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: saving
-                                ? null
-                                : [
-                                    BoxShadow(
-                                      color: homeNavy.withValues(alpha: 0.3),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    )
-                                  ],
-                          ),
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
                             ),
-                            onPressed: saving
-                                ? null
-                                : () async {
-                                    if (selectedAsesor == null) {
-                                      showResult(false,
-                                          'Seleccione un asesor para continuar');
-                                      return;
-                                    }
-                                    if (!formKey.currentState!.validate()) {
-                                      return;
-                                    }
-                                    final documentoNuevo =
-                                        docCtrl.text.trim();
-                                    final nombreNuevo =
-                                        '${nombresCtrl.text.trim()} ${apellCtrl.text.trim()}'
-                                            .trim()
-                                            .toUpperCase();
-                                    final asesorSeleccionado =
-                                        selectedAsesor!;
-                                    final fechaRegistro = _hoyColombia();
-                                    final fechaIngresoNueva =
-                                        '${fechaRegistro.year}-${fechaRegistro.month.toString().padLeft(2, '0')}-${fechaRegistro.day.toString().padLeft(2, '0')}';
-                                    setS(() => saving = true);
-                                    try {
-                                      final r = await repository.post(
-                                        '/ajax/registrar_ahorrador.php',
-                                        {
-                                          'codigo_asesor': asesorSeleccionado,
-                                          'num_documento': documentoNuevo,
-                                          'nombres': nombresCtrl.text.trim(),
-                                          'apellidos': apellCtrl.text.trim(),
-                                          'direccion': dirCtrl.text.trim(),
-                                          'telefono': telCtrl.text.trim(),
-                                        },
-                                      );
-                                      final bodyLower =
-                                          r.body.toLowerCase().trim();
-                                      final isHtmlResponse =
-                                          bodyLower.contains('<!doctype html') ||
-                                              bodyLower.contains('<html') ||
-                                              bodyLower.contains('<head') ||
-                                              bodyLower.contains('<body');
-                                      final ok = r.statusCode == 200 &&
-                                          !isHtmlResponse &&
-                                          (r.body
-                                                  .toLowerCase()
-                                                  .contains('exitoso') ||
-                                              r.body
-                                                  .toLowerCase()
-                                                  .contains('registrado') ||
-                                              r.body
-                                                  .toLowerCase()
-                                                  .contains('creado') ||
-                                              r.body
-                                                  .contains('"resultado":1') ||
-                                              r.body
-                                                  .contains('"success":true'));
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
+                              ),
+                              onPressed: saving
+                                  ? null
+                                  : () async {
+                                      if (selectedAsesor == null) {
+                                        showResult(false,
+                                            'Seleccione un asesor para continuar');
+                                        return;
+                                      }
+                                      if (!formKey.currentState!.validate()) {
+                                        return;
+                                      }
+                                      final documentoNuevo =
+                                          docCtrl.text.trim();
+                                      final nombreNuevo =
+                                          '${nombresCtrl.text.trim()} ${apellCtrl.text.trim()}'
+                                              .trim()
+                                              .toUpperCase();
+                                      final asesorSeleccionado =
+                                          selectedAsesor!;
+                                      final fechaRegistro = _hoyColombia();
+                                      final fechaIngresoNueva =
+                                          '${fechaRegistro.year}-${fechaRegistro.month.toString().padLeft(2, '0')}-${fechaRegistro.day.toString().padLeft(2, '0')}';
+                                      setS(() => saving = true);
+                                      try {
+                                        final r = await repository.post(
+                                          '/ajax/registrar_ahorrador.php',
+                                          {
+                                            'codigo_asesor': asesorSeleccionado,
+                                            'num_documento': documentoNuevo,
+                                            'nombres': nombresCtrl.text.trim(),
+                                            'apellidos': apellCtrl.text.trim(),
+                                            'direccion': dirCtrl.text.trim(),
+                                            'telefono': telCtrl.text.trim(),
+                                          },
+                                        );
+                                        final bodyLower =
+                                            r.body.toLowerCase().trim();
+                                        final isHtmlResponse = bodyLower
+                                                .contains('<!doctype html') ||
+                                            bodyLower.contains('<html') ||
+                                            bodyLower.contains('<head') ||
+                                            bodyLower.contains('<body');
+                                        final ok = r.statusCode == 200 &&
+                                            !isHtmlResponse &&
+                                            (r.body
+                                                    .toLowerCase()
+                                                    .contains('exitoso') ||
+                                                r.body
+                                                    .toLowerCase()
+                                                    .contains('registrado') ||
+                                                r.body
+                                                    .toLowerCase()
+                                                    .contains('creado') ||
+                                                r.body.contains(
+                                                    '"resultado":1') ||
+                                                r.body.contains(
+                                                    '"success":true'));
 
-                                      if (!ok) {
-                                        if (ctx.mounted) {
-                                          setS(() => saving = false);
-                                          await showDialog<void>(
-                                            context: ctx,
+                                        if (!ok) {
+                                          if (ctx.mounted) {
+                                            setS(() => saving = false);
+                                            await showDialog<void>(
+                                              context: ctx,
+                                              builder: (_) => buildResultDialog(
+                                                isHtmlResponse
+                                                    ? 'El servicio para registrar ahorradores no está instalado en el servidor.'
+                                                    : friendlyError(r.body),
+                                                false,
+                                              ),
+                                            );
+                                          }
+                                          return;
+                                        }
+
+                                        if (ctx.mounted) Navigator.pop(ctx);
+                                        if (isMounted) {
+                                          repository.invalidateCache(
+                                              '/ajax/listado_ahorros.php');
+                                          repository.invalidateCache(
+                                              '/ajax/listado_select.php');
+                                          await fetchSavers();
+                                          final asesorSigla =
+                                              creditAdvisorInitials(
+                                                  asesorSeleccionado);
+                                          if (isMounted) {
+                                            refresh(() {
+                                              final existingIndex =
+                                                  savers.indexWhere((item) =>
+                                                      (item['ahorrador'] ?? '')
+                                                          .toString()
+                                                          .trim()
+                                                          .toUpperCase() ==
+                                                      nombreNuevo);
+                                              if (existingIndex >= 0) {
+                                                savers[existingIndex]
+                                                        ['Fecha_ingreso'] =
+                                                    fechaIngresoNueva;
+                                              } else {
+                                                savers.insert(0, {
+                                                  'codigo_ahorrador':
+                                                      documentoNuevo,
+                                                  'ahorrador': nombreNuevo,
+                                                  'asesor': asesorSigla,
+                                                  'total_ahorrado': 0,
+                                                  'Valor_pactado': 0,
+                                                  'neto_pagar': 0,
+                                                  'Fecha_ingreso':
+                                                      fechaIngresoNueva,
+                                                  'ahorros': <dynamic>[],
+                                                  'sin_ahorro': true,
+                                                });
+                                              }
+                                              cachedFilteredSavers = null;
+                                              cachedSavingsAdvisorFilter = null;
+                                              savingsCurrentPage = 1;
+                                              unawaited(
+                                                  repository.saveLocalData(
+                                                      'ahorradores', savers));
+                                            });
+                                          }
+                                          showDialog(
+                                            context: screenContext,
                                             builder: (_) => buildResultDialog(
-                                              isHtmlResponse
-                                                  ? 'El servicio para registrar ahorradores no está instalado en el servidor.'
-                                                  : friendlyError(r.body),
-                                              false,
+                                              'Ahorrador registrado exitosamente',
+                                              true,
                                             ),
                                           );
                                         }
-                                        return;
-                                      }
-
-                                      if (ctx.mounted) Navigator.pop(ctx);
-                                      if (isMounted) {
-                                        repository.invalidateCache(
-                                            '/ajax/listado_ahorros.php');
-                                        repository.invalidateCache(
-                                            '/ajax/listado_select.php');
-                                        await fetchSavers();
-                                        final asesorSigla =
-                                            creditAdvisorInitials(
-                                                asesorSeleccionado);
-                                        if (isMounted) {
-                                          refresh(() {
-                                            final existingIndex =
-                                                savers.indexWhere((item) =>
-                                                (item['ahorrador'] ?? '')
-                                                    .toString()
-                                                    .trim()
-                                                    .toUpperCase() ==
-                                                nombreNuevo);
-                                            if (existingIndex >= 0) {
-                                              savers[existingIndex]
-                                                      ['Fecha_ingreso'] =
-                                                  fechaIngresoNueva;
-                                            } else {
-                                              savers.insert(0, {
-                                                'codigo_ahorrador':
-                                                    documentoNuevo,
-                                                'ahorrador': nombreNuevo,
-                                                'asesor': asesorSigla,
-                                                'total_ahorrado': 0,
-                                                'Valor_pactado': 0,
-                                                'neto_pagar': 0,
-                                                'Fecha_ingreso':
-                                                    fechaIngresoNueva,
-                                                'ahorros': <dynamic>[],
-                                                'sin_ahorro': true,
-                                              });
-                                            }
-                                            cachedFilteredSavers = null;
-                                            cachedSavingsAdvisorFilter = null;
-                                            savingsCurrentPage = 1;
-                                            unawaited(repository.saveLocalData(
-                                                'ahorradores', savers));
-                                          });
+                                      } catch (e) {
+                                        if (ctx.mounted) {
+                                          setS(() => saving = false);
                                         }
-                                        showDialog(
-                                          context: screenContext,
-                                          builder: (_) => buildResultDialog(
-                                            'Ahorrador registrado exitosamente',
-                                            true,
-                                          ),
-                                        );
+                                        showResult(false, friendlyError(e));
                                       }
-                                    } catch (e) {
-                                      if (ctx.mounted) {
-                                        setS(() => saving = false);
-                                      }
-                                      showResult(false, friendlyError(e));
-                                    }
-                                  },
-                            icon: saving
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white))
-                                : const Icon(Icons.save_rounded, size: 18),
-                            label: Text(saving ? 'Guardando...' : 'Grabar'),
+                                    },
+                              icon: saving
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white))
+                                  : const Icon(Icons.save_rounded, size: 18),
+                              label: Text(saving ? 'Guardando...' : 'Grabar'),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
@@ -1702,19 +1663,22 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       context: ctx,
       builder: (aCtx) => StatefulBuilder(
         builder: (aCtx, setA) {
-          final all = advisors.map((a) {
-            final codigo =
-                (a['codigo_asesor'] ?? a['codigo'] ?? '').toString().trim();
-            final sigla = (a['sigla'] ?? '').toString().trim();
-            final nombre = [a['nombres'], a['apellidos']]
-                .where((x) => x != null && x.toString().isNotEmpty)
-                .join(' ')
-                .trim();
-            return {
-              'valor': codigo,
-              'nombre': nombre.isNotEmpty ? nombre : sigla
-            };
-          }).where((a) => a['valor']!.isNotEmpty).toList();
+          final all = advisors
+              .map((a) {
+                final codigo =
+                    (a['codigo_asesor'] ?? a['codigo'] ?? '').toString().trim();
+                final sigla = (a['sigla'] ?? '').toString().trim();
+                final nombre = [a['nombres'], a['apellidos']]
+                    .where((x) => x != null && x.toString().isNotEmpty)
+                    .join(' ')
+                    .trim();
+                return {
+                  'valor': codigo,
+                  'nombre': nombre.isNotEmpty ? nombre : sigla
+                };
+              })
+              .where((a) => a['valor']!.isNotEmpty)
+              .toList();
 
           final filtered = query.isEmpty
               ? all
@@ -1723,133 +1687,134 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                       a['nombre']!.toLowerCase().contains(query.toLowerCase()))
                   .toList();
 
-          return Dialog(
-            backgroundColor: dialogBg,
-            surfaceTintColor: Colors.transparent,
-            insetPadding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(aCtx).size.height * 0.6,
-                maxWidth: min(420, MediaQuery.of(aCtx).size.width - 40),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
-                    decoration: const BoxDecoration(
-                      color: homeNavy,
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(18)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.person_search_rounded,
-                            color: Colors.white70, size: 18),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text('Seleccionar asesor',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700)),
-                        ),
-                        appCloseX(() => Navigator.pop(aCtx)),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: TextField(
-                      autofocus: true,
-                      onChanged: (v) => setA(() => query = v.trim()),
-                      style: TextStyle(color: textMain, fontSize: 13),
-                      decoration: InputDecoration(
-                        hintText: 'Buscar asesor...',
-                        hintStyle: const TextStyle(
-                            color: Color(0xFFB0BBCC), fontSize: 13),
-                        prefixIcon: Icon(Icons.search_rounded,
-                            color: textSoft, size: 18),
-                        filled: true,
-                        fillColor: inputFill,
-                        contentPadding:
-                            const EdgeInsets.symmetric(vertical: 10),
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                BorderSide(color: lineCol)),
-                        enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                BorderSide(color: lineCol)),
-                        focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: const BorderSide(
-                                color: homeAccent, width: 1.5)),
+          return AppAnimatedDialog(
+            child: Dialog(
+              backgroundColor: dialogBg,
+              surfaceTintColor: Colors.transparent,
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18)),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(aCtx).size.height * 0.6,
+                  maxWidth: min(420, MediaQuery.of(aCtx).size.width - 40),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 8, 12),
+                      decoration: const BoxDecoration(
+                        color: homeNavy,
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(18)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.person_search_rounded,
+                              color: Colors.white70, size: 18),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text('Seleccionar asesor',
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700)),
+                          ),
+                          appCloseX(() => Navigator.pop(aCtx)),
+                        ],
                       ),
                     ),
-                  ),
-                  Flexible(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, __) =>
-                          const Divider(height: 1, indent: 16),
-                      itemBuilder: (_, i) {
-                        final a = filtered[i];
-                        return Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(10),
-                            onTap: () => Navigator.pop(aCtx, a),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 12),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: BoxDecoration(
-                                      color: homeAccent.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(9),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        a['nombre']!.isNotEmpty
-                                            ? a['nombre']![0].toUpperCase()
-                                            : '?',
-                                        style: const TextStyle(
-                                          color: homeAccent,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 14,
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: TextField(
+                        autofocus: true,
+                        onChanged: (v) => setA(() => query = v.trim()),
+                        style: TextStyle(color: textMain, fontSize: 13),
+                        decoration: InputDecoration(
+                          hintText: 'Buscar asesor...',
+                          hintStyle: const TextStyle(
+                              color: Color(0xFFB0BBCC), fontSize: 13),
+                          prefixIcon: Icon(Icons.search_rounded,
+                              color: textSoft, size: 18),
+                          filled: true,
+                          fillColor: inputFill,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 10),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: lineCol)),
+                          enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: BorderSide(color: lineCol)),
+                          focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                  color: homeAccent, width: 1.5)),
+                        ),
+                      ),
+                    ),
+                    Flexible(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, indent: 16),
+                        itemBuilder: (_, i) {
+                          final a = filtered[i];
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(10),
+                              onTap: () => Navigator.pop(aCtx, a),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 12),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(
+                                        color:
+                                            homeAccent.withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(9),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          a['nombre']!.isNotEmpty
+                                              ? a['nombre']![0].toUpperCase()
+                                              : '?',
+                                          style: const TextStyle(
+                                            color: homeAccent,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 14,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(a['nombre']!,
-                                        style: TextStyle(
-                                          color: textMain,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                        )),
-                                  ),
-                                  const Icon(Icons.chevron_right_rounded,
-                                      color: Color(0xFFCBD5E1), size: 18),
-                                ],
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(a['nombre']!,
+                                          style: TextStyle(
+                                            color: textMain,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                          )),
+                                    ),
+                                    const Icon(Icons.chevron_right_rounded,
+                                        color: Color(0xFFCBD5E1), size: 18),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -1875,8 +1840,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
     // en los datos, ordenados por nombre completo.
     final asesorSet = <String>{...advisorNames.keys};
     for (final a in savers) {
-      final raw =
-          (a['asesor'] ?? a['codigo_asesor'] ?? '').toString().trim();
+      final raw = (a['asesor'] ?? a['codigo_asesor'] ?? '').toString().trim();
       final sigla = creditAdvisorInitials(raw).trim().toUpperCase();
       if (sigla.isNotEmpty && !RegExp(r'^\d+$').hasMatch(sigla)) {
         asesorSet.add(sigla);
@@ -2139,7 +2103,10 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   .toList(),
               onChanged: (v) {
                 if (v == null) return;
-                refresh(() { savingsYearFilter = v; savingsCurrentPage = 1; });
+                refresh(() {
+                  savingsYearFilter = v;
+                  savingsCurrentPage = 1;
+                });
                 reloadSavers();
               },
             ),
@@ -2232,10 +2199,12 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
           )
         else
           Builder(builder: (_) {
-            final totalPags = ((lista.length - 1) ~/ HomeController.savingsPageSize) + 1;
+            final totalPags =
+                ((lista.length - 1) ~/ HomeController.savingsPageSize) + 1;
             final pag = savingsCurrentPage.clamp(1, totalPags);
             final desde = (pag - 1) * HomeController.savingsPageSize;
-            final hasta = (desde + HomeController.savingsPageSize).clamp(0, lista.length);
+            final hasta =
+                (desde + HomeController.savingsPageSize).clamp(0, lista.length);
             final pagina = lista.sublist(desde, hasta);
             return Column(children: [
               ListView.separated(
@@ -2267,7 +2236,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: cardSheen,
@@ -2275,10 +2245,13 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.15)),
+                      border: Border.all(
+                          color:
+                              const Color(0xFF4F46E5).withValues(alpha: 0.15)),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF4F46E5).withValues(alpha: 0.07),
+                          color:
+                              const Color(0xFF4F46E5).withValues(alpha: 0.07),
                           blurRadius: 14,
                           offset: const Offset(0, 4),
                         ),
@@ -2287,7 +2260,9 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                     child: Row(children: [
                       // Prev button
                       GestureDetector(
-                        onTap: pag > 1 ? () => refresh(() => savingsCurrentPage = pag - 1) : null,
+                        onTap: pag > 1
+                            ? () => refresh(() => savingsCurrentPage = pag - 1)
+                            : null,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
                           width: 38,
@@ -2295,7 +2270,10 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                           decoration: BoxDecoration(
                             gradient: pag > 1
                                 ? const LinearGradient(
-                                    colors: [Color(0xFF3730A3), Color(0xFF4F46E5)],
+                                    colors: [
+                                      Color(0xFF3730A3),
+                                      Color(0xFF4F46E5)
+                                    ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   )
@@ -2305,7 +2283,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                             boxShadow: pag > 1
                                 ? [
                                     BoxShadow(
-                                      color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                                      color: const Color(0xFF4F46E5)
+                                          .withValues(alpha: 0.35),
                                       blurRadius: 10,
                                       offset: const Offset(0, 3),
                                     ),
@@ -2327,7 +2306,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                   fontWeight: FontWeight.w800,
                                   color: textMain)),
                           const SizedBox(height: 2),
-                          Text('${lista.length} ahorradores · ${pagina.length} en esta página',
+                          Text(
+                              '${lista.length} ahorradores · ${pagina.length} en esta página',
                               style: TextStyle(
                                   fontSize: 10,
                                   color: textSoft,
@@ -2347,7 +2327,10 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                           decoration: BoxDecoration(
                             gradient: pag < totalPags
                                 ? const LinearGradient(
-                                    colors: [Color(0xFF3730A3), Color(0xFF4F46E5)],
+                                    colors: [
+                                      Color(0xFF3730A3),
+                                      Color(0xFF4F46E5)
+                                    ],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   )
@@ -2357,7 +2340,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                             boxShadow: pag < totalPags
                                 ? [
                                     BoxShadow(
-                                      color: const Color(0xFF4F46E5).withValues(alpha: 0.35),
+                                      color: const Color(0xFF4F46E5)
+                                          .withValues(alpha: 0.35),
                                       blurRadius: 10,
                                       offset: const Offset(0, 3),
                                     ),
@@ -2438,13 +2422,12 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         if (parsed != null) {
           final fecha = DateTime(parsed.year, parsed.month, parsed.day);
           if (filterFrom != null) {
-            final from = DateTime(
-                filterFrom!.year, filterFrom!.month, filterFrom!.day);
+            final from =
+                DateTime(filterFrom!.year, filterFrom!.month, filterFrom!.day);
             if (fecha.isBefore(from)) return false;
           }
           if (filterTo != null) {
-            final to =
-                DateTime(filterTo!.year, filterTo!.month, filterTo!.day);
+            final to = DateTime(filterTo!.year, filterTo!.month, filterTo!.day);
             if (fecha.isAfter(to)) return false;
           }
         }
@@ -2604,21 +2587,25 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 2),
+                borderSide:
+                    const BorderSide(color: Color(0xFF4F46E5), width: 2),
               ),
               prefixIconColor: const Color(0xFF4F46E5),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
           ),
           child: Dialog(
             backgroundColor: dialogBg,
             surfaceTintColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
             elevation: 0,
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               // ── Premium header ──────────────────────────────────────────
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
@@ -2637,32 +2624,41 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   ),
                   child: Stack(children: [
                     // Orb top-right
-                    Positioned(right: -20, top: -20,
-                      child: Container(width: 90, height: 90,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(colors: [
-                            const Color(0xFF818CF8).withValues(alpha: 0.25),
-                            Colors.transparent,
-                          ]),
-                        ))),
+                    Positioned(
+                        right: -20,
+                        top: -20,
+                        child: Container(
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(colors: [
+                                const Color(0xFF818CF8).withValues(alpha: 0.25),
+                                Colors.transparent,
+                              ]),
+                            ))),
                     // Orb bottom-left
-                    Positioned(left: -10, bottom: -15,
-                      child: Container(width: 60, height: 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(colors: [
-                            const Color(0xFF6366F1).withValues(alpha: 0.20),
-                            Colors.transparent,
-                          ]),
-                        ))),
+                    Positioned(
+                        left: -10,
+                        bottom: -15,
+                        child: Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(colors: [
+                                const Color(0xFF6366F1).withValues(alpha: 0.20),
+                                Colors.transparent,
+                              ]),
+                            ))),
                     // Shimmer sweep
                     Positioned.fill(
                       child: OverflowBox(
                         maxWidth: double.infinity,
                         child: Transform.translate(
                           offset: const Offset(80, 0),
-                          child: Transform.rotate(angle: 0.4,
+                          child: Transform.rotate(
+                            angle: 0.4,
                             child: Container(
                               width: 40,
                               decoration: BoxDecoration(
@@ -2678,28 +2674,37 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                       ),
                     ),
                     // Content
-                    Center(child: Column(children: [
+                    Center(
+                        child: Column(children: [
                       Container(
                         width: 60,
                         height: 60,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF818CF8), Color(0xFF4F46E5), Color(0xFF3730A3)],
+                            colors: [
+                              Color(0xFF818CF8),
+                              Color(0xFF4F46E5),
+                              Color(0xFF3730A3)
+                            ],
                             stops: [0.0, 0.5, 1.0],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 2),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.25),
+                              width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF4F46E5).withValues(alpha: 0.50),
+                              color: const Color(0xFF4F46E5)
+                                  .withValues(alpha: 0.50),
                               blurRadius: 16,
                               offset: const Offset(0, 6),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.savings_rounded, color: Colors.white, size: 28),
+                        child: const Icon(Icons.savings_rounded,
+                            color: Colors.white, size: 28),
                       ),
                       const SizedBox(height: 12),
                       Text('Registrar cuota',
@@ -2729,7 +2734,10 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                   TextField(
                     controller: valorCtrl,
                     keyboardType: TextInputType.number,
-                    style: TextStyle(color: textMain, fontWeight: FontWeight.w600, fontSize: 15),
+                    style: TextStyle(
+                        color: textMain,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15),
                     decoration: const InputDecoration(
                       labelText: 'Valor pagado',
                       prefixText: '\$ ',
@@ -2769,9 +2777,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text('Fecha de pago',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: textSoft)),
+                                  style:
+                                      TextStyle(fontSize: 11, color: textSoft)),
                               Text(fechaTexto(),
                                   style: TextStyle(
                                       fontSize: 14,
@@ -2811,24 +2818,33 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                             gradient: saving
                                 ? null
                                 : const LinearGradient(
-                                    colors: [Color(0xFF991B1B), Color(0xFFDC2626), Color(0xFFEF4444)],
+                                    colors: [
+                                      Color(0xFF991B1B),
+                                      Color(0xFFDC2626),
+                                      Color(0xFFEF4444)
+                                    ],
                                     stops: [0.0, 0.5, 1.0],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
                             color: saving ? const Color(0xFFE5E7EB) : null,
                             borderRadius: BorderRadius.circular(14),
-                            boxShadow: saving ? null : [
-                              BoxShadow(
-                                color: const Color(0xFFDC2626).withValues(alpha: 0.40),
-                                blurRadius: 14,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
+                            boxShadow: saving
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: const Color(0xFFDC2626)
+                                          .withValues(alpha: 0.40),
+                                      blurRadius: 14,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
                           ),
                           child: const Center(
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              Icon(Icons.close_rounded, color: Colors.white, size: 16),
+                            child:
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.close_rounded,
+                                  color: Colors.white, size: 16),
                               SizedBox(width: 6),
                               Text('Cancelar',
                                   style: TextStyle(
@@ -2850,42 +2866,54 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                             gradient: saving
                                 ? null
                                 : const LinearGradient(
-                                    colors: [Color(0xFF065F46), Color(0xFF059669), Color(0xFF34D399)],
+                                    colors: [
+                                      Color(0xFF065F46),
+                                      Color(0xFF059669),
+                                      Color(0xFF34D399)
+                                    ],
                                     stops: [0.0, 0.55, 1.0],
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
                                   ),
                             color: saving ? const Color(0xFFE5E7EB) : null,
                             borderRadius: BorderRadius.circular(14),
-                            boxShadow: saving ? null : [
-                              BoxShadow(
-                                color: const Color(0xFF059669).withValues(alpha: 0.45),
-                                blurRadius: 16,
-                                offset: const Offset(0, 5),
-                              ),
-                              BoxShadow(
-                                color: const Color(0xFF34D399).withValues(alpha: 0.20),
-                                blurRadius: 28,
-                                spreadRadius: -4,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
+                            boxShadow: saving
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: const Color(0xFF059669)
+                                          .withValues(alpha: 0.45),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                    BoxShadow(
+                                      color: const Color(0xFF34D399)
+                                          .withValues(alpha: 0.20),
+                                      blurRadius: 28,
+                                      spreadRadius: -4,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
                           ),
                           child: Center(
                             child: saving
                                 ? const SizedBox(
-                                    width: 20, height: 20,
+                                    width: 20,
+                                    height: 20,
                                     child: CircularProgressIndicator(
                                         strokeWidth: 2.5, color: Colors.white))
-                                : const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                    Icon(Icons.save_rounded, color: Colors.white, size: 17),
-                                    SizedBox(width: 7),
-                                    Text('Registrar',
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 14)),
-                                  ]),
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                        Icon(Icons.save_rounded,
+                                            color: Colors.white, size: 17),
+                                        SizedBox(width: 7),
+                                        Text('Registrar',
+                                            style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 14)),
+                                      ]),
                           ),
                         ),
                       ),
@@ -2976,9 +3004,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: colors,
-                    stops: colors.length == 3
-                        ? const [0.0, 0.55, 1.0]
-                        : null,
+                    stops: colors.length == 3 ? const [0.0, 0.55, 1.0] : null,
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -2997,10 +3023,12 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                     ),
                   ],
                 ),
-                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                child:
+                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   if (loading)
                     const SizedBox(
-                      width: 18, height: 18,
+                      width: 18,
+                      height: 18,
                       child: CircularProgressIndicator(
                           strokeWidth: 2.5, color: Colors.white),
                     )
@@ -3022,377 +3050,489 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
           );
         }
 
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Container(
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(26),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF0D1B4B).withValues(alpha: 0.30),
-                    blurRadius: 40,
-                    offset: const Offset(0, 16),
-                  ),
-                  BoxShadow(
-                    color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
-                    blurRadius: 60,
-                    spreadRadius: -8,
-                    offset: const Offset(0, 20),
-                  ),
-                ],
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Premium header ──────────────────────────────
-                    ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(18, 20, 14, 20),
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Color(0xFF0F0A3C),
-                              Color(0xFF1E1265),
-                              Color(0xFF3730A3),
-                              Color(0xFF4F46E5),
-                            ],
-                            stops: [0.0, 0.3, 0.65, 1.0],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+        return AppAnimatedDialog(
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Container(
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: cardBg,
+                  borderRadius: BorderRadius.circular(26),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0D1B4B).withValues(alpha: 0.30),
+                      blurRadius: 40,
+                      offset: const Offset(0, 16),
+                    ),
+                    BoxShadow(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.12),
+                      blurRadius: 60,
+                      spreadRadius: -8,
+                      offset: const Offset(0, 20),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Premium header ──────────────────────────────
+                      ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(26)),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(18, 20, 14, 20),
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Color(0xFF0F0A3C),
+                                Color(0xFF1E1265),
+                                Color(0xFF3730A3),
+                                Color(0xFF4F46E5),
+                              ],
+                              stops: [0.0, 0.3, 0.65, 1.0],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
                           ),
-                        ),
-                        child: Stack(children: [
-                          // Orb top-right
-                          Positioned(right: -18, top: -18,
-                            child: Container(width: 80, height: 80,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(colors: [
-                                  const Color(0xFF818CF8).withValues(alpha: 0.28),
-                                  Colors.transparent,
-                                ]),
-                              ))),
-                          // Orb bottom-left
-                          Positioned(left: -12, bottom: -16,
-                            child: Container(width: 55, height: 55,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFF6366F1).withValues(alpha: 0.15),
-                              ))),
-                          // Shimmer
-                          Positioned.fill(
-                            child: OverflowBox(
-                              maxWidth: double.infinity,
-                              child: Transform.translate(
-                                offset: const Offset(60, 0),
-                                child: Transform.rotate(angle: 0.4,
-                                  child: Container(width: 32,
+                          child: Stack(children: [
+                            // Orb top-right
+                            Positioned(
+                                right: -18,
+                                top: -18,
+                                child: Container(
+                                    width: 80,
+                                    height: 80,
                                     decoration: BoxDecoration(
-                                      gradient: LinearGradient(colors: [
-                                        Colors.white.withValues(alpha: 0),
-                                        Colors.white.withValues(alpha: 0.10),
-                                        Colors.white.withValues(alpha: 0),
+                                      shape: BoxShape.circle,
+                                      gradient: RadialGradient(colors: [
+                                        const Color(0xFF818CF8)
+                                            .withValues(alpha: 0.28),
+                                        Colors.transparent,
                                       ]),
+                                    ))),
+                            // Orb bottom-left
+                            Positioned(
+                                left: -12,
+                                bottom: -16,
+                                child: Container(
+                                    width: 55,
+                                    height: 55,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: const Color(0xFF6366F1)
+                                          .withValues(alpha: 0.15),
+                                    ))),
+                            // Shimmer
+                            Positioned.fill(
+                              child: OverflowBox(
+                                maxWidth: double.infinity,
+                                child: Transform.translate(
+                                  offset: const Offset(60, 0),
+                                  child: Transform.rotate(
+                                    angle: 0.4,
+                                    child: Container(
+                                      width: 32,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(colors: [
+                                          Colors.white.withValues(alpha: 0),
+                                          Colors.white.withValues(alpha: 0.10),
+                                          Colors.white.withValues(alpha: 0),
+                                        ]),
+                                      ),
                                     ),
                                   ),
                                 ),
                               ),
                             ),
+                            // Content
+                            Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 50,
+                                    height: 50,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF818CF8),
+                                          Color(0xFF4F46E5),
+                                          Color(0xFF3730A3)
+                                        ],
+                                        stops: [0.0, 0.5, 1.0],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.22),
+                                          width: 1.5),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF4F46E5)
+                                              .withValues(alpha: 0.50),
+                                          blurRadius: 14,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: const Icon(
+                                        Icons.receipt_long_rounded,
+                                        color: Colors.white,
+                                        size: 24),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const Text('Detalle del Ahorro',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 17,
+                                                  fontWeight: FontWeight.w900,
+                                                  letterSpacing: -0.3)),
+                                          const SizedBox(height: 4),
+                                          Text(ahorrador,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                  color: Colors.white
+                                                      .withValues(alpha: 0.80),
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w500)),
+                                          const SizedBox(height: 5),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF06B6D4)
+                                                  .withValues(alpha: 0.20),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                  color: const Color(0xFF67E8F9)
+                                                      .withValues(alpha: 0.40)),
+                                            ),
+                                            child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  const Icon(
+                                                      Icons
+                                                          .calendar_month_rounded,
+                                                      size: 10,
+                                                      color: Color(0xFF67E8F9)),
+                                                  const SizedBox(width: 4),
+                                                  Text(mesComprobante,
+                                                      style: const TextStyle(
+                                                          color:
+                                                              Color(0xFF67E8F9),
+                                                          fontSize: 10,
+                                                          fontWeight:
+                                                              FontWeight.w700)),
+                                                ]),
+                                          ),
+                                        ]),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  GestureDetector(
+                                    onTap: () => Navigator.pop(ctx),
+                                    child: Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFF991B1B),
+                                            Color(0xFFDC2626),
+                                            Color(0xFFF43F5E)
+                                          ],
+                                          stops: [0.0, 0.5, 1.0],
+                                        ),
+                                        borderRadius: BorderRadius.circular(10),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFDC2626)
+                                                .withValues(alpha: 0.45),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: const Icon(Icons.close_rounded,
+                                          color: Colors.white, size: 18),
+                                    ),
+                                  ),
+                                ]),
+                          ]),
+                        ),
+                      ),
+
+                      // ── Verified badge ──────────────────────────────
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFFDCFCE7),
+                                Color(0xFFBBF7D0),
+                                Color(0xFFD1FAE5)
+                              ],
+                              stops: [0.0, 0.5, 1.0],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: const Color(0xFF16A34A)
+                                    .withValues(alpha: 0.30)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF059669)
+                                    .withValues(alpha: 0.10),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                          // Content
-                          Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                          child: Row(children: [
                             Container(
-                              width: 50,
-                              height: 50,
+                              width: 40,
+                              height: 40,
                               decoration: BoxDecoration(
                                 gradient: const LinearGradient(
-                                  colors: [Color(0xFF818CF8), Color(0xFF4F46E5), Color(0xFF3730A3)],
-                                  stops: [0.0, 0.5, 1.0],
+                                  colors: [
+                                    Color(0xFF065F46),
+                                    Color(0xFF059669)
+                                  ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1.5),
+                                shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFF4F46E5).withValues(alpha: 0.50),
-                                    blurRadius: 14,
-                                    offset: const Offset(0, 5),
+                                    color: const Color(0xFF059669)
+                                        .withValues(alpha: 0.40),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
-                              child: const Icon(Icons.receipt_long_rounded,
-                                  color: Colors.white, size: 24),
+                              child: const Icon(Icons.verified_rounded,
+                                  color: Colors.white, size: 22),
                             ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                const Text('Detalle del Ahorro',
-                                    style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 17,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: -0.3)),
-                                const SizedBox(height: 4),
-                                Text(ahorrador,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.80),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w500)),
-                                const SizedBox(height: 5),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF06B6D4).withValues(alpha: 0.20),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: const Color(0xFF67E8F9).withValues(alpha: 0.40)),
-                                  ),
-                                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                    const Icon(Icons.calendar_month_rounded,
-                                        size: 10, color: Color(0xFF67E8F9)),
-                                    const SizedBox(width: 4),
-                                    Text(mesComprobante,
-                                        style: const TextStyle(
-                                            color: Color(0xFF67E8F9),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Comprobante de cuota disponible',
+                                        style: TextStyle(
+                                            color: Color(0xFF064E3B),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800)),
+                                    SizedBox(height: 2),
+                                    Text(
+                                        'Consulta o descarga el soporte de pago',
+                                        style: TextStyle(
+                                            color: Color(0xFF065F46),
                                             fontSize: 10,
-                                            fontWeight: FontWeight.w700)),
+                                            fontWeight: FontWeight.w500)),
                                   ]),
-                                ),
-                              ]),
                             ),
-                            const SizedBox(width: 8),
-                            GestureDetector(
-                              onTap: () => Navigator.pop(ctx),
-                              child: Container(
-                                width: 34,
-                                height: 34,
+                          ]),
+                        ),
+                      ),
+
+                      // ── Detail table (expandable) ───────────────────
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeOutCubic,
+                        child: verComprobante
+                            ? Container(
+                                margin:
+                                    const EdgeInsets.fromLTRB(16, 12, 16, 4),
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
-                                    colors: [Color(0xFF991B1B), Color(0xFFDC2626), Color(0xFFF43F5E)],
-                                    stops: [0.0, 0.5, 1.0],
+                                    colors: [
+                                      Color(0xFFF8FAFF),
+                                      Color(0xFFEEF2FF)
+                                    ],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
                                   ),
-                                  borderRadius: BorderRadius.circular(10),
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                      color: const Color(0xFF4F46E5)
+                                          .withValues(alpha: 0.15)),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFFDC2626).withValues(alpha: 0.45),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
+                                      color: const Color(0xFF4F46E5)
+                                          .withValues(alpha: 0.08),
+                                      blurRadius: 16,
+                                      offset: const Offset(0, 6),
                                     ),
                                   ],
                                 ),
-                                child: const Icon(Icons.close_rounded,
-                                    color: Colors.white, size: 18),
-                              ),
-                            ),
-                          ]),
-                        ]),
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // Table header
+                                      Container(
+                                        padding: const EdgeInsets.fromLTRB(
+                                            16, 14, 16, 12),
+                                        decoration: const BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Color(0xFF3730A3),
+                                              Color(0xFF4F46E5)
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.vertical(
+                                              top: Radius.circular(18)),
+                                        ),
+                                        child: Row(children: [
+                                          Container(
+                                            width: 30,
+                                            height: 30,
+                                            decoration: BoxDecoration(
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.18),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: const Icon(
+                                                Icons.description_outlined,
+                                                color: Colors.white,
+                                                size: 16),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          const Text('Comprobante de Pago',
+                                              style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w800)),
+                                        ]),
+                                      ),
+                                      // Rows
+                                      Padding(
+                                        padding: const EdgeInsets.fromLTRB(
+                                            16, 12, 16, 0),
+                                        child: Column(children: [
+                                          _cuotaInfoRow('Ahorrador', ahorrador),
+                                          _cuotaInfoRow('Mes', mesComprobante),
+                                          _cuotaInfoRow(
+                                              'Fecha de Pago', fechaCorta),
+                                          _cuotaInfoRow('Valor Pagado',
+                                              formatCop(valorPagado)),
+                                          _cuotaInfoRow(
+                                              'Código Cuota', codigoCuota),
+                                        ]),
+                                      ),
+                                      // Footer
+                                      Container(
+                                        margin: const EdgeInsets.fromLTRB(
+                                            12, 10, 12, 12),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xFFEEF2FF),
+                                              Color(0xFFE0E7FF)
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                          border: Border.all(
+                                              color: const Color(0xFF4F46E5)
+                                                  .withValues(alpha: 0.18)),
+                                        ),
+                                        child: Row(children: [
+                                          const Icon(Icons.schedule_rounded,
+                                              size: 12,
+                                              color: Color(0xFF4F46E5)),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text('Generado: $generado',
+                                                style: const TextStyle(
+                                                    fontSize: 9,
+                                                    color: Color(0xFF4338CA),
+                                                    fontWeight:
+                                                        FontWeight.w600)),
+                                          ),
+                                        ]),
+                                      ),
+                                    ]),
+                              )
+                            : const SizedBox.shrink(),
                       ),
-                    ),
 
-                    // ── Verified badge ──────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFDCFCE7), Color(0xFFBBF7D0), Color(0xFFD1FAE5)],
-                            stops: [0.0, 0.5, 1.0],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFF16A34A).withValues(alpha: 0.30)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF059669).withValues(alpha: 0.10),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
+                      // ── Action buttons ──────────────────────────────
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            premiumButton(
+                              label: verComprobante
+                                  ? 'Comprobante visible'
+                                  : 'Ver comprobante',
+                              icon: Icons.visibility_rounded,
+                              colors: const [
+                                Color(0xFF065F46),
+                                Color(0xFF059669),
+                                Color(0xFF10B981)
+                              ],
+                              onTap: () => setS(() => verComprobante = true),
+                            ),
+                            const SizedBox(height: 10),
+                            premiumButton(
+                              label: generandoPdf
+                                  ? 'Generando...'
+                                  : 'Descargar PDF',
+                              icon: Icons.picture_as_pdf_rounded,
+                              colors: const [
+                                Color(0xFF1E1265),
+                                Color(0xFF3730A3),
+                                Color(0xFF6366F1)
+                              ],
+                              loading: generandoPdf,
+                              onTap: generandoPdf ? null : descargar,
+                            ),
+                            const SizedBox(height: 10),
+                            premiumButton(
+                              label: 'Cerrar',
+                              icon: Icons.close_rounded,
+                              colors: const [
+                                Color(0xFF7F1D1D),
+                                Color(0xFFDC2626),
+                                Color(0xFFF43F5E)
+                              ],
+                              onTap: () => Navigator.pop(ctx),
                             ),
                           ],
                         ),
-                        child: Row(children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF065F46), Color(0xFF059669)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF059669).withValues(alpha: 0.40),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(Icons.verified_rounded,
-                                color: Colors.white, size: 22),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                              Text('Comprobante de cuota disponible',
-                                  style: TextStyle(
-                                      color: Color(0xFF064E3B),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800)),
-                              SizedBox(height: 2),
-                              Text('Consulta o descarga el soporte de pago',
-                                  style: TextStyle(
-                                      color: Color(0xFF065F46),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w500)),
-                            ]),
-                          ),
-                        ]),
                       ),
-                    ),
-
-                    // ── Detail table (expandable) ───────────────────
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOutCubic,
-                      child: verComprobante
-                          ? Container(
-                              margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFFF8FAFF), Color(0xFFEEF2FF)],
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                ),
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: const Color(0xFF4F46E5).withValues(alpha: 0.15)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF4F46E5).withValues(alpha: 0.08),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                // Table header
-                                Container(
-                                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [Color(0xFF3730A3), Color(0xFF4F46E5)],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-                                  ),
-                                  child: Row(children: [
-                                    Container(
-                                      width: 30, height: 30,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.18),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(Icons.description_outlined,
-                                          color: Colors.white, size: 16),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    const Text('Comprobante de Pago',
-                                        style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800)),
-                                  ]),
-                                ),
-                                // Rows
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                                  child: Column(children: [
-                                    _cuotaInfoRow('Ahorrador', ahorrador),
-                                    _cuotaInfoRow('Mes', mesComprobante),
-                                    _cuotaInfoRow('Fecha de Pago', fechaCorta),
-                                    _cuotaInfoRow('Valor Pagado', formatCop(valorPagado)),
-                                    _cuotaInfoRow('Código Cuota', codigoCuota),
-                                  ]),
-                                ),
-                                // Footer
-                                Container(
-                                  margin: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
-                                      colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                    ),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                        color: const Color(0xFF4F46E5).withValues(alpha: 0.18)),
-                                  ),
-                                  child: Row(children: [
-                                    const Icon(Icons.schedule_rounded,
-                                        size: 12, color: Color(0xFF4F46E5)),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text('Generado: $generado',
-                                          style: const TextStyle(
-                                              fontSize: 9,
-                                              color: Color(0xFF4338CA),
-                                              fontWeight: FontWeight.w600)),
-                                    ),
-                                  ]),
-                                ),
-                              ]),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-
-                    // ── Action buttons ──────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          premiumButton(
-                            label: verComprobante ? 'Comprobante visible' : 'Ver comprobante',
-                            icon: Icons.visibility_rounded,
-                            colors: const [Color(0xFF065F46), Color(0xFF059669), Color(0xFF10B981)],
-                            onTap: () => setS(() => verComprobante = true),
-                          ),
-                          const SizedBox(height: 10),
-                          premiumButton(
-                            label: generandoPdf ? 'Generando...' : 'Descargar PDF',
-                            icon: Icons.picture_as_pdf_rounded,
-                            colors: const [Color(0xFF1E1265), Color(0xFF3730A3), Color(0xFF6366F1)],
-                            loading: generandoPdf,
-                            onTap: generandoPdf ? null : descargar,
-                          ),
-                          const SizedBox(height: 10),
-                          premiumButton(
-                            label: 'Cerrar',
-                            icon: Icons.close_rounded,
-                            colors: const [Color(0xFF7F1D1D), Color(0xFFDC2626), Color(0xFFF43F5E)],
-                            onTap: () => Navigator.pop(ctx),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -3423,11 +3563,11 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
     final logoImage = pw.MemoryImage(logoBytes);
 
     // Paleta corporativa
-    const navy     = PdfColor(0.051, 0.106, 0.294);   // #0D1B4B
-    const accent   = PdfColor(0.263, 0.380, 0.933);   // #4361EE
-    const green    = PdfColor(0.022, 0.588, 0.412);   // #059669
-    const bgLight  = PdfColor(0.961, 0.969, 0.988);   // #F5F7FC
-    const border   = PdfColor(0.882, 0.894, 0.937);   // #E1E4EF
+    const navy = PdfColor(0.051, 0.106, 0.294); // #0D1B4B
+    const accent = PdfColor(0.263, 0.380, 0.933); // #4361EE
+    const green = PdfColor(0.022, 0.588, 0.412); // #059669
+    const bgLight = PdfColor(0.961, 0.969, 0.988); // #F5F7FC
+    const border = PdfColor(0.882, 0.894, 0.937); // #E1E4EF
 
     // Iniciales del ahorrador para el avatar
     final partes = ahorrador.trim().split(RegExp(r'\s+'));
@@ -3474,7 +3614,6 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         build: (_) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
           children: [
-
             // ── HEADER ──────────────────────────────────────────────
             pw.Container(
               color: navy,
@@ -3491,8 +3630,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                         pw.ClipRRect(
                           horizontalRadius: 8,
                           verticalRadius: 8,
-                          child: pw.Image(logoImage, width: 36, height: 36,
-                              fit: pw.BoxFit.cover),
+                          child: pw.Image(logoImage,
+                              width: 36, height: 36, fit: pw.BoxFit.cover),
                         ),
                         pw.SizedBox(width: 10),
                         pw.Column(
@@ -3540,7 +3679,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             // ── FRANJA VERDE: PAGO CONFIRMADO ───────────────────────
             pw.Container(
               color: green,
-              padding: const pw.EdgeInsets.symmetric(horizontal: 36, vertical: 12),
+              padding:
+                  const pw.EdgeInsets.symmetric(horizontal: 36, vertical: 12),
               child: pw.Row(
                 children: [
                   pw.Container(
@@ -3579,7 +3719,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
               child: pw.Row(
                 children: [
                   pw.Container(
-                    width: 56, height: 56,
+                    width: 56,
+                    height: 56,
                     decoration: pw.BoxDecoration(
                       color: accent,
                       borderRadius: pw.BorderRadius.circular(14),
@@ -3663,7 +3804,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                           pw.Divider(height: 0, color: border),
                           // Fila valor destacada
                           pw.Container(
-                            color: const PdfColor(0.925, 0.976, 0.953), // verde muy suave
+                            color: const PdfColor(
+                                0.925, 0.976, 0.953), // verde muy suave
                             padding: const pw.EdgeInsets.symmetric(
                                 horizontal: 20, vertical: 13),
                             child: pw.Row(
@@ -3677,7 +3819,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                         fontWeight: pw.FontWeight.bold,
                                       )),
                                 ),
-                                pw.Container(width: 1, height: 16, color: border),
+                                pw.Container(
+                                    width: 1, height: 16, color: border),
                                 pw.SizedBox(width: 16),
                                 pw.Text(formatCop(valorPagado),
                                     style: pw.TextStyle(
@@ -3689,7 +3832,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                             ),
                           ),
                           pw.Divider(height: 0, color: border),
-                          filaDato('Código Cuota', '#$codigoCuota', shade: true),
+                          filaDato('Código Cuota', '#$codigoCuota',
+                              shade: true),
                         ],
                       ),
                     ),
@@ -3761,7 +3905,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             // ── FOOTER ───────────────────────────────────────────────
             pw.Container(
               color: navy,
-              padding: const pw.EdgeInsets.symmetric(horizontal: 36, vertical: 14),
+              padding:
+                  const pw.EdgeInsets.symmetric(horizontal: 36, vertical: 14),
               child: pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
@@ -3982,9 +4127,7 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
           color: cardBg,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: _expanded
-                ? _purple.withValues(alpha: 0.25)
-                : lineCol,
+            color: _expanded ? _purple.withValues(alpha: 0.25) : lineCol,
             width: 1.5,
           ),
           boxShadow: [
@@ -4130,13 +4273,17 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                               horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
                             color: enMora
-                                ? const Color(0xFFDC2626).withValues(alpha: 0.08)
-                                : const Color(0xFF16A34A).withValues(alpha: 0.08),
+                                ? const Color(0xFFDC2626)
+                                    .withValues(alpha: 0.08)
+                                : const Color(0xFF16A34A)
+                                    .withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
                               color: enMora
-                                  ? const Color(0xFFDC2626).withValues(alpha: 0.25)
-                                  : const Color(0xFF16A34A).withValues(alpha: 0.25),
+                                  ? const Color(0xFFDC2626)
+                                      .withValues(alpha: 0.25)
+                                  : const Color(0xFF16A34A)
+                                      .withValues(alpha: 0.25),
                             ),
                           ),
                           child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -4181,8 +4328,10 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                           gradient: LinearGradient(
                             colors: _expanded
                                 ? [
-                                    const Color(0xFF3730A3).withValues(alpha: 0.2),
-                                    const Color(0xFF4F46E5).withValues(alpha: 0.3)
+                                    const Color(0xFF3730A3)
+                                        .withValues(alpha: 0.2),
+                                    const Color(0xFF4F46E5)
+                                        .withValues(alpha: 0.3)
                                   ]
                                 : (isDarkTheme
                                     ? [
@@ -4200,9 +4349,8 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                         ),
                         child: Icon(Icons.keyboard_arrow_down_rounded,
                             size: 15,
-                            color: _expanded
-                                ? const Color(0xFF4361EE)
-                                : textSoft),
+                            color:
+                                _expanded ? const Color(0xFF4361EE) : textSoft),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -4226,14 +4374,14 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                           borderRadius: BorderRadius.circular(10),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF4361EE)
-                                  .withValues(alpha: 0.38 + 0.18 * _shimmer.value),
+                              color: const Color(0xFF4361EE).withValues(
+                                  alpha: 0.38 + 0.18 * _shimmer.value),
                               blurRadius: 10 + 6 * _shimmer.value,
                               offset: const Offset(0, 3),
                             ),
                             BoxShadow(
-                              color: const Color(0xFF3730A3)
-                                  .withValues(alpha: 0.18 + 0.08 * _shimmer.value),
+                              color: const Color(0xFF3730A3).withValues(
+                                  alpha: 0.18 + 0.08 * _shimmer.value),
                               blurRadius: 16 + 6 * _shimmer.value,
                               offset: const Offset(0, 6),
                             ),
@@ -4244,8 +4392,8 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                           child: Stack(children: [
                             Positioned.fill(
                               child: Transform.translate(
-                                offset: Offset(
-                                    (_shimmer.value * 2 - 1) * 60, 0),
+                                offset:
+                                    Offset((_shimmer.value * 2 - 1) * 60, 0),
                                 child: Transform.rotate(
                                   angle: 0.5,
                                   child: Container(
@@ -4326,119 +4474,123 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                     ),
                   ),
                   Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      height: 1,
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                      color: lineCol,
-                    ),
-                    const SizedBox(height: 14),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 1,
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        color: lineCol,
+                      ),
+                      const SizedBox(height: 14),
 
-                    // 2×2 data grid
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Row(children: [
-                        Expanded(
-                            child: _detailChip(
-                                Icons.calendar_today_outlined,
-                                'Fecha ingreso',
-                                fecha.length >= 10
-                                    ? fecha.substring(0, 10)
-                                    : fecha,
-                                const Color(0xFF4361EE),
-                                const Color(0xFF818CF8))),
-                        const SizedBox(width: 8),
-                        Expanded(
-                            child: _detailChip(
-                                Icons.savings_outlined,
-                                'Valor pactado',
-                                widget.cop(pactado),
-                                const Color(0xFF7C3AED),
-                                const Color(0xFFA78BFA))),
-                      ]),
-                    ),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Row(children: [
-                        Expanded(
-                            child: _detailChip(
-                                Icons.trending_up_rounded,
-                                'Rendimiento',
-                                '${rend.toStringAsFixed(1)}%',
-                                const Color(0xFF059669),
-                                const Color(0xFF34D399))),
-                        const SizedBox(width: 8),
-                        Expanded(
-                            child: _detailChip(
-                                Icons.account_balance_wallet_outlined,
-                                'Neto a pagar',
-                                widget.cop(neto),
-                                const Color(0xFFD97706),
-                                const Color(0xFFFBBF24))),
-                      ]),
-                    ),
-
-                    // Cuotas mensuales — scroll horizontal
-                    if (meses.isNotEmpty) ...[
+                      // 2×2 data grid
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Row(children: [
-                          Container(
-                            width: 3,
-                            height: 14,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF4361EE), Color(0xFF6366F1)],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              ),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                          const SizedBox(width: 7),
-                          Text('Cuotas mensuales',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: textMain)),
+                          Expanded(
+                              child: _detailChip(
+                                  Icons.calendar_today_outlined,
+                                  'Fecha ingreso',
+                                  fecha.length >= 10
+                                      ? fecha.substring(0, 10)
+                                      : fecha,
+                                  const Color(0xFF4361EE),
+                                  const Color(0xFF818CF8))),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: _detailChip(
+                                  Icons.savings_outlined,
+                                  'Valor pactado',
+                                  widget.cop(pactado),
+                                  const Color(0xFF7C3AED),
+                                  const Color(0xFFA78BFA))),
                         ]),
                       ),
-                      SizedBox(
-                        height: 96,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                          itemCount: meses.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (_, i) {
-                            final interval = Interval(
-                              (i * 0.07).clamp(0.0, 0.50),
-                              (i * 0.07 + 0.55).clamp(0.40, 1.0),
-                              curve: Curves.easeOutBack,
-                            );
-                            return TweenAnimationBuilder<double>(
-                              key: ValueKey('mes_${a['codigo'] ?? ''}_$i'),
-                              tween: Tween(begin: 0.0, end: 1.0),
-                              duration: const Duration(milliseconds: 700),
-                              curve: interval,
-                              builder: (_, t, child) => Opacity(
-                                opacity: t.clamp(0.0, 1.0),
-                                child: Transform.translate(
-                                  offset: Offset(0, 14 * (1 - t)),
-                                  child: child,
-                                ),
-                              ),
-                              child: _mesChip(a, meses[i]),
-                            );
-                          },
-                        ),
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Row(children: [
+                          Expanded(
+                              child: _detailChip(
+                                  Icons.trending_up_rounded,
+                                  'Rendimiento',
+                                  '${rend.toStringAsFixed(1)}%',
+                                  const Color(0xFF059669),
+                                  const Color(0xFF34D399))),
+                          const SizedBox(width: 8),
+                          Expanded(
+                              child: _detailChip(
+                                  Icons.account_balance_wallet_outlined,
+                                  'Neto a pagar',
+                                  widget.cop(neto),
+                                  const Color(0xFFD97706),
+                                  const Color(0xFFFBBF24))),
+                        ]),
                       ),
+
+                      // Cuotas mensuales — scroll horizontal
+                      if (meses.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Row(children: [
+                            Container(
+                              width: 3,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF4361EE),
+                                    Color(0xFF6366F1)
+                                  ],
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                ),
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            const SizedBox(width: 7),
+                            Text('Cuotas mensuales',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: textMain)),
+                          ]),
+                        ),
+                        SizedBox(
+                          height: 96,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                            itemCount: meses.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 8),
+                            itemBuilder: (_, i) {
+                              final interval = Interval(
+                                (i * 0.07).clamp(0.0, 0.50),
+                                (i * 0.07 + 0.55).clamp(0.40, 1.0),
+                                curve: Curves.easeOutBack,
+                              );
+                              return TweenAnimationBuilder<double>(
+                                key: ValueKey('mes_${a['codigo'] ?? ''}_$i'),
+                                tween: Tween(begin: 0.0, end: 1.0),
+                                duration: const Duration(milliseconds: 700),
+                                curve: interval,
+                                builder: (_, t, child) => Opacity(
+                                  opacity: t.clamp(0.0, 1.0),
+                                  child: Transform.translate(
+                                    offset: Offset(0, 14 * (1 - t)),
+                                    child: child,
+                                  ),
+                                ),
+                                child: _mesChip(a, meses[i]),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 14),
                     ],
-                    const SizedBox(height: 14),
-                  ],
-                ),
+                  ),
                 ]),
               ),
             ),
@@ -4464,106 +4616,104 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
         : Color.lerp(c1, Colors.black, 0.08) ?? c1;
 
     return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(children: [
-          Positioned(
-            right: -18,
-            top: -24,
-            child: Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color:
-                    Colors.white.withValues(alpha: isDarkTheme ? 0.06 : 0.22),
-              ),
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(children: [
+        Positioned(
+          right: -18,
+          top: -24,
+          child: Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: isDarkTheme ? 0.06 : 0.22),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(15, 10, 12, 10),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(15, 10, 12, 10),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDarkTheme
+                  ? [
+                      glowColor.withValues(alpha: 0.36),
+                      c1.withValues(alpha: 0.22),
+                      baseColor.withValues(alpha: 0.36),
+                    ]
+                  : [
+                      glowColor.withValues(alpha: 0.98),
+                      c1.withValues(alpha: 0.16),
+                      baseColor.withValues(alpha: 0.96),
+                    ],
+              stops: const [0.0, 0.48, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: c1.withValues(alpha: isDarkTheme ? 0.42 : 0.28),
+            ),
+            boxShadow: [
+              BoxShadow(
+                  color: c1.withValues(alpha: isDarkTheme ? 0.22 : 0.13),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6)),
+            ],
+          ),
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      c1.withValues(alpha: isDarkTheme ? 0.30 : 0.16),
+                      c2.withValues(alpha: isDarkTheme ? 0.22 : 0.12),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(icon, size: 11, color: labelColor),
+              ),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(label,
+                    style: TextStyle(
+                        fontSize: 10,
+                        color: labelColor.withValues(alpha: 0.88),
+                        fontWeight: FontWeight.w700)),
+              ),
+            ]),
+            const SizedBox(height: 6),
+            Text(value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: valueColor)),
+          ]),
+        ),
+        Positioned(
+          left: 0,
+          top: 0,
+          bottom: 0,
+          child: Container(
+            width: 3,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: isDarkTheme
-                    ? [
-                        glowColor.withValues(alpha: 0.36),
-                        c1.withValues(alpha: 0.22),
-                        baseColor.withValues(alpha: 0.36),
-                      ]
-                    : [
-                        glowColor.withValues(alpha: 0.98),
-                        c1.withValues(alpha: 0.16),
-                        baseColor.withValues(alpha: 0.96),
-                      ],
-                stops: const [0.0, 0.48, 1.0],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: c1.withValues(alpha: isDarkTheme ? 0.42 : 0.28),
-              ),
-              boxShadow: [
-                BoxShadow(
-                    color: c1.withValues(alpha: isDarkTheme ? 0.22 : 0.13),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6)),
-              ],
-            ),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        c1.withValues(alpha: isDarkTheme ? 0.30 : 0.16),
-                        c2.withValues(alpha: isDarkTheme ? 0.22 : 0.12),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Icon(icon, size: 11, color: labelColor),
-                ),
-                const SizedBox(width: 5),
-                Flexible(
-                  child: Text(label,
-                      style: TextStyle(
-                          fontSize: 10,
-                          color: labelColor.withValues(alpha: 0.88),
-                          fontWeight: FontWeight.w700)),
-                ),
-              ]),
-              const SizedBox(height: 6),
-              Text(value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: valueColor)),
-            ]),
-          ),
-          Positioned(
-            left: 0,
-            top: 0,
-            bottom: 0,
-            child: Container(
-              width: 3,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [c1, c2],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+                colors: [c1, c2],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
               ),
             ),
           ),
-        ]),
-      );
+        ),
+      ]),
+    );
   }
 
   // Fecha actual en Colombia (UTC-5, sin horario de verano), sólo Y-M-D.
@@ -4644,8 +4794,7 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                     color: glowColor.withValues(
                         alpha: (esPagado ? 0.30 : 0.25) +
                             (esPagado ? 0.20 : 0.12) * _shimmer.value),
-                    blurRadius:
-                        (esPagado ? 10.0 : 8.0) + 5 * _shimmer.value,
+                    blurRadius: (esPagado ? 10.0 : 8.0) + 5 * _shimmer.value,
                     offset: const Offset(0, 4),
                   ),
                 ]

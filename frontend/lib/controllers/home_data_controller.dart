@@ -88,13 +88,23 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // (por usuario) manda sobre la copia local del dispositivo.
     unawaited(syncThemeFromServer());
 
-    // Show cached data immediately so the screen isn't blank
-    final cachedCuentas = await repository.loadLocalData('cuentas');
-    final cachedMovs = await repository.loadLocalData('movimientos');
-    final cachedAhorradores = await repository.loadLocalData('ahorradores');
-    final cachedCreditos = await repository.loadLocalData('creditos');
-    final cachedCreditosLista =
-        await repository.loadLocalData('creditos_lista');
+    // Show cached data immediately so the screen isn't blank.
+    // Local reads run in parallel — they're independent SharedPreferences
+    // lookups with no reason to wait on each other one by one.
+    final cached = await Future.wait([
+      repository.loadLocalData('cuentas'),
+      repository.loadLocalData('movimientos'),
+      repository.loadLocalData('ahorradores'),
+      repository.loadLocalData('creditos'),
+      repository.loadLocalData('creditos_lista'),
+      repository.loadLocalData('totales'),
+    ]);
+    final cachedCuentas = cached[0];
+    final cachedMovs = cached[1];
+    final cachedAhorradores = cached[2];
+    final cachedCreditos = cached[3];
+    final cachedCreditosLista = cached[4];
+    final cachedTotales = cached[5];
 
     if (cachedCuentas != null) {
       accounts = cachedCuentas;
@@ -107,13 +117,21 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     if (cachedAhorradores != null) savers = cachedAhorradores;
     if (cachedCreditos != null) creditStatistics = cachedCreditos;
     if (cachedCreditosLista != null) credits = cachedCreditosLista;
+    if (cachedTotales != null && cachedTotales.isNotEmpty) {
+      serverExpenses = numberValue(cachedTotales.first['gastos']);
+      serverIncome = numberValue(cachedTotales.first['ingresos']);
+      serverTotalsLoaded = true;
+    }
 
     final hasCachedData = cachedCuentas != null;
     if (hasCachedData && isMounted) refresh(() => loadingData = false);
 
-    // Fetch fresh data from network
-    await fetchAccounts(codigoUsuario);
+    // Fetch fresh data from network. fetchAccounts corre junto al resto:
+    // nada aquí depende realmente de que las cuentas terminen primero
+    // (el endpoint global de movimientos no las necesita), así que
+    // serializarlo solo agregaba una ida y vuelta de red innecesaria.
     await Future.wait([
+      fetchAccounts(codigoUsuario),
       _fetchMovimientosTodasCuentas(codigoUsuario),
       fetchSavers(anio),
       fetchCredits(codigoUsuario),
@@ -450,6 +468,9 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
               invalidateComputedCache();
             });
           }
+          unawaited(repository.saveLocalData('totales', [
+            {'gastos': g, 'ingresos': ing},
+          ]));
         }
       }
     } catch (e) {
