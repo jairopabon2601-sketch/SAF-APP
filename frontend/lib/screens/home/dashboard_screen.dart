@@ -2935,11 +2935,12 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
         : _cuentaPalette[index % _cuentaPalette.length].$1;
     final cLight = Color.lerp(color, Colors.white, 0.48)!;
     final cDark = Color.lerp(color, Colors.black, 0.22)!;
-    // En light los colores muy claros (amarillo, cian) no soportan texto
-    // blanco: usar tinta oscura derivada del mismo color según luminancia.
-    final isBrightCard = !isDarkTheme && color.computeLuminance() > 0.45;
-    final onCard =
-        isBrightCard ? Color.lerp(color, Colors.black, 0.74)! : Colors.white;
+    // En light el texto es blanco en todas las tarjetas (estandarizado como
+    // dark); los tonos muy claros (amarillo, cian) se profundizan para que
+    // el blanco contraste igual sin variar el color del texto.
+    final base = (!isDarkTheme && color.computeLuminance() > 0.45)
+        ? Color.lerp(color, Colors.black, 0.32)!
+        : color;
 
     final entryInterval = Interval(
       (index * 0.10).clamp(0.0, 0.45),
@@ -2972,9 +2973,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                       Color.lerp(color, Colors.black, 0.74)!,
                     ]
                   : [
-                      Color.lerp(color, Colors.white, 0.12)!,
-                      color,
-                      Color.lerp(color, Colors.black, 0.22)!,
+                      Color.lerp(base, Colors.white, 0.12)!,
+                      base,
+                      Color.lerp(base, Colors.black, 0.22)!,
                     ],
               stops: const [0.0, 0.55, 1.0],
               begin: Alignment.topLeft,
@@ -3070,8 +3071,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                             color: saldo >= 0
                                 ? (isDarkTheme
                                     ? color.withValues(alpha: 0.12)
-                                    : onCard.withValues(
-                                        alpha: isBrightCard ? 0.10 : 0.20))
+                                    : Colors.white.withValues(alpha: 0.20))
                                 : const Color(0xFFDC2626)
                                     .withValues(alpha: isDarkTheme ? 0.10 : 0.30),
                             borderRadius: BorderRadius.circular(20),
@@ -3079,8 +3079,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                               color: saldo >= 0
                                   ? (isDarkTheme
                                       ? color.withValues(alpha: 0.30)
-                                      : onCard.withValues(
-                                          alpha: isBrightCard ? 0.30 : 0.45))
+                                      : Colors.white.withValues(alpha: 0.45))
                                   : (isDarkTheme
                                       ? const Color(0xFFDC2626)
                                           .withValues(alpha: 0.28)
@@ -3095,7 +3094,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                               height: 5,
                               decoration: BoxDecoration(
                                 color: saldo >= 0
-                                    ? (isDarkTheme ? color : onCard)
+                                    ? (isDarkTheme ? color : Colors.white)
                                     : (isDarkTheme
                                         ? const Color(0xFFDC2626)
                                         : const Color(0xFFFFB4B4)),
@@ -3110,7 +3109,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                     ? (isDarkTheme
                                         ? Color.lerp(
                                             color, Colors.white, 0.55)!
-                                        : onCard)
+                                        : Colors.white)
                                     : (isDarkTheme
                                         ? const Color(0xFFDC2626)
                                         : const Color(0xFFFFD9D9)),
@@ -3130,7 +3129,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                               fontWeight: FontWeight.w700,
                               color: isDarkTheme
                                   ? Color.lerp(color, Colors.white, 0.62)!
-                                  : onCard.withValues(alpha: 0.92))),
+                                  : Colors.white.withValues(alpha: 0.92))),
                       const SizedBox(height: 4),
                       FittedBox(
                         fit: BoxFit.scaleDown,
@@ -3140,7 +3139,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                 fontSize: 16,
                                 fontWeight: FontWeight.w900,
                                 color: saldo >= 0
-                                    ? (isDarkTheme ? Colors.white : onCard)
+                                    ? Colors.white
                                     : (isDarkTheme
                                         ? const Color(0xFFF87171)
                                         : const Color(0xFFFFD9D9)))),
