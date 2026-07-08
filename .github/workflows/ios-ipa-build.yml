@@ -1,0 +1,101 @@
+name: iOS-ipa-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_to_appstore:
+        description: 'Subir a App Store Connect'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build-ios:
+    name: iOS Build & Sign
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Select Xcode 26
+        run: |
+          XCODE26=$(ls /Applications/ | grep -E "^Xcode_26" | sort -r | head -1)
+          if [ -n "$XCODE26" ]; then
+            sudo xcode-select -s /Applications/$XCODE26/Contents/Developer
+            echo "Using $XCODE26"
+          else
+            echo "Xcode 26 not found, using default:"
+            xcode-select -p
+          fi
+
+      - uses: subosito/flutter-action@v2.21.0
+        with:
+          channel: 'stable'
+
+      - name: Flutter pub get
+        run: flutter pub get
+        working-directory: frontend
+
+      - name: Pod install
+        run: pod install --repo-update
+        working-directory: frontend/ios
+
+      - name: Install Apple distribution certificate
+        env:
+          P12_BASE64: ${{ secrets.DISTRIBUTION_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.DISTRIBUTION_P12_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 20)
+          echo -n "$P12_BASE64" | base64 --decode -o $RUNNER_TEMP/distribution.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import $RUNNER_TEMP/distribution.p12 -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+      - name: Install provisioning profile
+        env:
+          PROFILE_BASE64: ${{ secrets.PROVISIONING_PROFILE_BASE64 }}
+        run: |
+          PP_PATH=$RUNNER_TEMP/SAFAppStore.mobileprovision
+          echo -n "$PROFILE_BASE64" | base64 --decode -o $PP_PATH
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Disable Swift Package Manager
+        run: flutter config --no-enable-swift-package-manager
+        working-directory: frontend
+
+      - name: Build signed iOS IPA
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+        working-directory: frontend
+
+      - name: Upload IPA as artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: SAF-APP-${{ github.run_number }}.ipa
+          path: frontend/build/ios/ipa/*.ipa
+          retention-days: 30
+
+      - name: Upload to App Store Connect
+        if: ${{ inputs.upload_to_appstore == true }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          IPA_PATH=$(find frontend/build/ios/ipa -name "*.ipa" | head -1)
+          xcrun altool --upload-app \
+            --type ios \
+            --file "$IPA_PATH" \
+            --username "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --verbose
+
+      - name: Clean up keychain
+        if: always()
+        run: |
+          security delete-keychain $RUNNER_TEMP/app-signing.keychain-db 2>/dev/null || true
