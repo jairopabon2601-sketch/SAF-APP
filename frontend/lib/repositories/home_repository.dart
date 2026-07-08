@@ -17,6 +17,8 @@ class HomeRepository {
 
   Future<void> logout() => api.logout();
 
+  Future<void> persistUser() => api.persistUser();
+
   Future<http.Response> post(
     String endpoint,
     Map<String, dynamic> body,

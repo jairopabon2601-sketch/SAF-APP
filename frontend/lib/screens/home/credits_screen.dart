@@ -185,17 +185,21 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               fontSize: 11),
                         ),
                         const SizedBox(height: 12),
-                        Row(children: [
+                        Wrap(spacing: 8, runSpacing: 6, children: [
                           _creditHeaderBadge(
                             Icons.check_circle_outline_rounded,
                             '${credits.length} activos',
                             const Color(0xFF34D399),
                           ),
-                          const SizedBox(width: 8),
                           _creditHeaderBadge(
                             Icons.schedule_rounded,
                             '${pendientesActivas.length} pendientes',
                             const Color(0xFFFBBF24),
+                          ),
+                          _creditHeaderBadge(
+                            Icons.cancel_outlined,
+                            '${solicitudesRechazadas.length} rechazadas',
+                            const Color(0xFFF87171),
                           ),
                         ]),
                       ],

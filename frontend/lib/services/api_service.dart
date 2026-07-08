@@ -229,6 +229,13 @@ class ApiService {
     }
   }
 
+  /// Persiste en disco el estado actual de [_user] (usado tras mutarlo
+  /// in-place, p.ej. al actualizar la foto de perfil).
+  Future<void> persistUser() async {
+    final prefs = await _getPrefs();
+    if (_user != null) await prefs.setString(_userKey, jsonEncode(_user));
+  }
+
   Future<void> _saveSession() async {
     final prefs = await _getPrefs();
     if (_token != null) await prefs.setString(_tokenKey, _token!);

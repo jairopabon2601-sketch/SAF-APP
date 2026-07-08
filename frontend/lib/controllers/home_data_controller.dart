@@ -88,6 +88,12 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // (por usuario) manda sobre la copia local del dispositivo.
     unawaited(syncThemeFromServer());
 
+    // Pendientes en background desde el arranque, independiente del bloque
+    // principal (que tiene timeout y puede abortar): si fuera parte de él,
+    // un servidor lento dejaría la tarjeta de créditos en "0 pendientes"
+    // hasta que el usuario tocara la pestaña.
+    unawaited(fetchPending());
+
     // Show cached data immediately so the screen isn't blank.
     // Local reads run in parallel — they're independent SharedPreferences
     // lookups with no reason to wait on each other one by one.
@@ -98,6 +104,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       repository.loadLocalData('creditos'),
       repository.loadLocalData('creditos_lista'),
       repository.loadLocalData('totales'),
+      repository.loadLocalData('pendientes'),
     ]);
     final cachedCuentas = cached[0];
     final cachedMovs = cached[1];
@@ -105,6 +112,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     final cachedCreditos = cached[3];
     final cachedCreditosLista = cached[4];
     final cachedTotales = cached[5];
+    final cachedPendientes = cached[6];
 
     if (cachedCuentas != null) {
       accounts = cachedCuentas;
@@ -115,6 +123,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       invalidateComputedCache();
     }
     if (cachedAhorradores != null) savers = cachedAhorradores;
+    if (cachedPendientes != null) {
+      pendingRequests = cachedPendientes;
+      pendingLoaded = true;
+    }
     if (cachedCreditos != null) creditStatistics = cachedCreditos;
     if (cachedCreditosLista != null) credits = cachedCreditosLista;
     if (cachedTotales != null && cachedTotales.isNotEmpty) {
@@ -130,20 +142,27 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // nada aquí depende realmente de que las cuentas terminen primero
     // (el endpoint global de movimientos no las necesita), así que
     // serializarlo solo agregaba una ida y vuelta de red innecesaria.
-    await Future.wait([
-      fetchAccounts(codigoUsuario),
-      _fetchMovimientosTodasCuentas(codigoUsuario),
-      fetchSavers(anio),
-      fetchCredits(codigoUsuario),
-      _fetchTotalesResumen(codigoUsuario),
-    ]);
-    // Con credits ya cargada, construir deudores al instante
-    tryBuildDebtorsFromLocal();
-    // Tasas y fuentes en paralelo; deudores via API en background (no bloquea)
-    unawaited(fetchDebtors());
-    await Future.wait([fetchRates(), fetchSources(), fetchAdvisors()]);
-
-    if (isMounted) refresh(() => loadingData = false);
+    // Todo con timeout y finally: si el servidor se cuelga o algo lanza,
+    // el skeleton igual se retira y se muestra lo que haya (cache o vacío).
+    try {
+      await Future.wait([
+        fetchAccounts(codigoUsuario),
+        _fetchMovimientosTodasCuentas(codigoUsuario),
+        fetchSavers(anio),
+        fetchCredits(codigoUsuario),
+        _fetchTotalesResumen(codigoUsuario),
+      ]).timeout(const Duration(seconds: 30));
+      // Con credits ya cargada, construir deudores al instante
+      tryBuildDebtorsFromLocal();
+      // Tasas y fuentes en paralelo; deudores via API en background (no bloquea)
+      unawaited(fetchDebtors());
+      await Future.wait([fetchRates(), fetchSources(), fetchAdvisors()])
+          .timeout(const Duration(seconds: 20));
+    } catch (e) {
+      debugPrint('[SAF] loadData: $e');
+    } finally {
+      if (isMounted) refresh(() => loadingData = false);
+    }
   }
 
   Future<void> fetchAccounts(String filtro) async {
@@ -182,45 +201,54 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     final dStr = desde ?? '';
     final hStr = hasta ?? '';
 
-    // Use global endpoint: single JOIN query, globally sorted by fecha DESC, codigo DESC
-    bool globalOk = false;
-    try {
-      final globalAll = <Map<String, dynamic>>[];
-      var pagina = 1;
-      var totalPaginas = 1;
-      do {
-        final r =
-            await repository.post('/ajax/listar_movimientos_usuario.php', {
-          'usuario': usuario,
-          'desde': dStr,
-          'hasta': hStr,
-          'pagina': pagina.toString(),
-        }).timeout(const Duration(seconds: 15));
-        if (r.statusCode != 200) break;
-        final d = decodeJsonMap(r.body);
-        if (d['resultado'] != 1 && d['resultado'] != '1') break;
-        final raw = d['movimientos'];
-        if (raw is! List) break;
-        globalOk = true; // valid response received
-        for (final item in raw.whereType<Map>()) {
-          globalAll.add(Map<String, dynamic>.from(item));
-        }
-        if (raw.isEmpty) break;
-        totalPaginas = int.tryParse(d['total_paginas']?.toString() ?? '1') ?? 1;
-        pagina++;
-      } while (pagina <= totalPaginas);
+    // Use global endpoint: single JOIN query, globally sorted by fecha DESC,
+    // codigo DESC. Hasta 2 intentos: la BD del hosting a veces bota la
+    // conexión y el endpoint falla de forma transitoria.
+    for (var intento = 0; intento < 2; intento++) {
+      bool globalOk = false;
+      try {
+        final globalAll = <Map<String, dynamic>>[];
+        var pagina = 1;
+        var totalPaginas = 1;
+        do {
+          final r =
+              await repository.post('/ajax/listar_movimientos_usuario.php', {
+            'usuario': usuario,
+            'desde': dStr,
+            'hasta': hStr,
+            'pagina': pagina.toString(),
+          }).timeout(const Duration(seconds: 15));
+          if (r.statusCode != 200) break;
+          final d = decodeJsonMap(r.body);
+          if (d['resultado'] != 1 && d['resultado'] != '1') break;
+          final raw = d['movimientos'];
+          if (raw is! List) break;
+          globalOk = true; // valid response received
+          for (final item in raw.whereType<Map>()) {
+            globalAll.add(Map<String, dynamic>.from(item));
+          }
+          if (raw.isEmpty) break;
+          totalPaginas =
+              int.tryParse(d['total_paginas']?.toString() ?? '1') ?? 1;
+          pagina++;
+        } while (pagina <= totalPaginas);
 
-      if (globalOk) {
-        movements = globalAll;
-        invalidateComputedCache();
-        unawaited(repository.saveLocalData('movimientos', movements));
-        return;
+        if (globalOk) {
+          movements = globalAll;
+          invalidateComputedCache();
+          unawaited(repository.saveLocalData('movimientos', movements));
+          return;
+        }
+      } catch (e) {
+        debugPrint('[SAF] listar_movimientos_usuario intento $intento: $e');
       }
-    } catch (e) {
-      debugPrint('[SAF] listar_movimientos_usuario fallback: $e');
+      await Future.delayed(const Duration(milliseconds: 600));
     }
 
     // Fallback: per-account fetch (order may differ from web within same date)
+    // fetchAccounts corre en paralelo con esta función, así que las cuentas
+    // pueden no estar cargadas todavía; sin ellas este fallback no trae nada.
+    if (accounts.isEmpty) await fetchAccounts(usuario);
     final all = <Map<String, dynamic>>[];
     const batchSize = 3;
     for (var i = 0; i < accounts.length; i += batchSize) {
@@ -260,6 +288,9 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           0;
       return idB.compareTo(idA);
     });
+    // Si el fallback tampoco trajo nada (red caída), conservar lo que haya
+    // en memoria/caché en lugar de pisar los movimientos con una lista vacía.
+    if (all.isEmpty && movements.isNotEmpty) return;
     movements = all;
     invalidateComputedCache();
     unawaited(repository.saveLocalData('movimientos', movements));
@@ -1120,6 +1151,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           pendingLoaded = true;
           pendingError = null;
         });
+        unawaited(repository.saveLocalData('pendientes', pendingRequests));
       }
     } catch (e) {
       debugPrint('[SAF] pendientes lista: $e');

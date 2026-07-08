@@ -110,6 +110,7 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
   double? cachedExpenseTotal;
   List<Map<String, dynamic>>? cachedFilteredSavers;
   String? cachedSavingsAdvisorFilter;
+  int? photoCacheBust;
 
   BuildContext get screenContext => context;
   bool get isMounted => mounted;

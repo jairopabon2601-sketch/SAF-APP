@@ -175,8 +175,9 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
       ]) {
         final raw = (src[k] ?? '').toString().trim();
         if (raw.isNotEmpty && raw != 'null') {
-          if (raw.startsWith('http')) return raw;
-          return 'https://www.jorgemario.co/ext/saf/img/icons/$raw';
+          final bust = photoCacheBust != null ? '?v=$photoCacheBust' : '';
+          if (raw.startsWith('http')) return '$raw$bust';
+          return 'https://www.jorgemario.co/ext/saf/img/icons/$raw$bust';
         }
       }
     }
@@ -200,26 +201,51 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
     );
   }
 
-  Future<String?> uploadPhoto(Uint8List bytes) async {
+  Future<({String? filename, String? error})> uploadPhoto(
+      Uint8List bytes) async {
     try {
       final base64Image = base64Encode(bytes);
       final r = await repository
           .post('/ajax/actualizar_foto.php', {'foto': base64Image});
-      if (r.statusCode == 200) {
-        final d = decodeJsonMap(r.body);
-        if (d['resultado'] == 1) {
-          final filename = (d['foto'] ?? '').toString();
-          if (filename.isNotEmpty) {
-            repository.user?['perfil']?['foto'] = filename;
-            refresh(() {});
-            return filename;
-          }
+      if (r.statusCode != 200) {
+        debugPrint('[SAF] uploadPhoto: HTTP ${r.statusCode} -> ${r.body}');
+        return (filename: null, error: 'Error del servidor (${r.statusCode})');
+      }
+      final d = decodeJsonMap(r.body);
+      if (d.isEmpty) {
+        debugPrint('[SAF] uploadPhoto: respuesta no JSON -> ${r.body}');
+        return (
+          filename: null,
+          error: 'El servidor devolvió una respuesta inválida'
+        );
+      }
+      if (d['resultado'] != 1) {
+        final mensaje = (d['mensaje'] ?? 'No se pudo actualizar la foto')
+            .toString();
+        debugPrint('[SAF] uploadPhoto: $mensaje');
+        return (filename: null, error: mensaje);
+      }
+      final filename = (d['foto'] ?? '').toString();
+      if (filename.isEmpty) {
+        return (filename: null, error: 'El servidor no devolvió el archivo');
+      }
+      final u = repository.user;
+      if (u != null) {
+        final perfil = u['perfil'];
+        if (perfil is Map) {
+          perfil['foto'] = filename;
+        } else {
+          u['foto'] = filename;
         }
       }
+      photoCacheBust = DateTime.now().millisecondsSinceEpoch;
+      await repository.persistUser();
+      refresh(() {});
+      return (filename: filename, error: null);
     } catch (e) {
       debugPrint('[SAF] uploadPhoto: $e');
+      return (filename: null, error: 'Error de conexión: $e');
     }
-    return null;
   }
 
   Future<List<Map<String, dynamic>>> _fetchUsuariosAdmin(

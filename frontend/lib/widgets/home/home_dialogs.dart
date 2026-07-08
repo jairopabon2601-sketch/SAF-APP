@@ -1,9 +1,25 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'package:flutter/foundation.dart' show compute;
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
 import '../../controllers/home_actions.dart';
 import '../../screens/home/home_dependencies.dart';
+
+Uint8List _toJpegBytes(Uint8List source) {
+  var decoded = img.decodeImage(source);
+  if (decoded == null) return source;
+  // Redimensionar aquí (y no en el picker nativo) para soportar cualquier
+  // formato sin depender del ImageResizer de Android, que no maneja PNG.
+  if (decoded.width > 600 || decoded.height > 600) {
+    decoded = decoded.width >= decoded.height
+        ? img.copyResize(decoded, width: 600)
+        : img.copyResize(decoded, height: 600);
+  }
+  decoded = img.bakeOrientation(decoded);
+  return Uint8List.fromList(img.encodeJpg(decoded, quality: 85));
+}
 
 extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
   Widget buildLoadingView() => SizedBox(
@@ -35,7 +51,8 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
 
   Widget buildProfileSheet(
     String email, {
-    Future<String?> Function(Uint8List)? onUploadPhoto,
+    Future<({String? filename, String? error})> Function(Uint8List)?
+        onUploadPhoto,
   }) =>
       _ProfileSheetContent(
         fullName: fullName,
@@ -62,7 +79,8 @@ class _ProfileSheetContent extends StatefulWidget {
   final String email;
   final Widget avatarFallback;
   final bool showGestionUsuarios;
-  final Future<String?> Function(Uint8List)? onUploadPhoto;
+  final Future<({String? filename, String? error})> Function(Uint8List)?
+      onUploadPhoto;
   final VoidCallback onGestionUsuarios;
   final VoidCallback onLogoutConfirmed;
 
@@ -89,22 +107,31 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
   Future<void> _pickAndUpload() async {
     if (widget.onUploadPhoto == null || _uploading) return;
     final picker = ImagePicker();
-    final file = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 600,
-      maxHeight: 600,
-      imageQuality: 75,
-    );
+    final file = await picker.pickImage(source: ImageSource.gallery);
     if (file == null || !mounted) return;
-    final bytes = await file.readAsBytes();
+    final rawBytes = await file.readAsBytes();
     setState(() => _uploading = true);
     try {
-      final newFilename = await widget.onUploadPhoto!(bytes);
-      if (newFilename != null && mounted) {
+      // El servidor guarda siempre con extensión .jpg, así que normalizamos
+      // cualquier formato de origen (PNG, WEBP, HEIC, etc.) a JPEG aquí.
+      final bytes = await compute(_toJpegBytes, rawBytes);
+      final result = await widget.onUploadPhoto!(bytes);
+      if (!mounted) return;
+      if (result.filename != null) {
+        final bust = DateTime.now().millisecondsSinceEpoch;
         setState(() {
           _currentPhotoUrl =
-              'https://www.jorgemario.co/ext/saf/img/icons/$newFilename';
+              'https://www.jorgemario.co/ext/saf/img/icons/${result.filename}?v=$bust';
         });
+        unawaited(showDialog(
+          context: context,
+          barrierColor: Colors.black.withValues(alpha: 0.45),
+          builder: (_) => const _PhotoSuccessDialog(),
+        ));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.error ?? 'No se pudo subir la foto')),
+        );
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
@@ -787,6 +814,160 @@ class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
                     child: const Text('No, quedarse',
                         style: TextStyle(
                             fontWeight: FontWeight.w600, fontSize: 14)),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pop-up de éxito al actualizar la foto de perfil. Se cierra solo.
+class _PhotoSuccessDialog extends StatefulWidget {
+  const _PhotoSuccessDialog();
+
+  @override
+  State<_PhotoSuccessDialog> createState() => _PhotoSuccessDialogState();
+}
+
+class _PhotoSuccessDialogState extends State<_PhotoSuccessDialog>
+    with TickerProviderStateMixin {
+  late final AnimationController _entryCtrl = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 460));
+  late final AnimationController _iconCtrl = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 620));
+  late final AnimationController _pulse = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1100));
+  late final Animation<double> _scale = Tween(begin: 0.78, end: 1.0).animate(
+      CurvedAnimation(parent: _entryCtrl, curve: Curves.elasticOut));
+  late final Animation<double> _fade = Tween(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+          parent: _entryCtrl,
+          curve: const Interval(0.0, 0.45, curve: Curves.easeOut)));
+  late final Animation<double> _iconScale =
+      Tween(begin: 0.0, end: 1.0).animate(
+          CurvedAnimation(parent: _iconCtrl, curve: Curves.elasticOut));
+  late final Animation<double> _glow =
+      Tween(begin: 0.25, end: 0.6).animate(_pulse);
+
+  @override
+  void initState() {
+    super.initState();
+    _entryCtrl.forward();
+    _pulse.repeat(reverse: true);
+    Future.delayed(const Duration(milliseconds: 190), () {
+      if (mounted) _iconCtrl.forward();
+    });
+    // Auto-cierre
+    Future.delayed(const Duration(milliseconds: 2400), () {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  @override
+  void dispose() {
+    _entryCtrl.dispose();
+    _iconCtrl.dispose();
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  static const _grad = LinearGradient(
+    colors: [
+      Color(0xFF003D1F),
+      Color(0xFF00713A),
+      Color(0xFF00A857),
+      Color(0xFF3DDC84),
+    ],
+    stops: [0.0, 0.30, 0.65, 1.0],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: ScaleTransition(
+        scale: _scale,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Container(
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                    color: const Color(0xFF00A857).withValues(alpha: 0.22),
+                    blurRadius: 48,
+                    offset: const Offset(0, 20)),
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8)),
+              ],
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // ── Cabecera con gradiente + check animado ─────────────
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 30),
+                decoration: const BoxDecoration(
+                  gradient: _grad,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Center(
+                  child: AnimatedBuilder(
+                    animation: _glow,
+                    builder: (_, child) => Container(
+                      width: 76,
+                      height: 76,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.white
+                                .withValues(alpha: _glow.value),
+                            blurRadius: 30,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: child,
+                    ),
+                    child: ScaleTransition(
+                      scale: _iconScale,
+                      child: const Icon(Icons.check_rounded,
+                          color: Colors.white, size: 46),
+                    ),
+                  ),
+                ),
+              ),
+              // ── Texto ──────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 22, 24, 26),
+                child: Column(children: [
+                  Text('¡Foto actualizada!',
+                      style: TextStyle(
+                          color: textMain,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tu nueva foto de perfil se guardó correctamente.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: textSoft.withValues(alpha: 0.85),
+                        fontSize: 13.5,
+                        height: 1.4),
                   ),
                 ]),
               ),
