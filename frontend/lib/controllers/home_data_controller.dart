@@ -472,40 +472,54 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // Sin rango de fechas: totales históricos, igual que la web.
     // Para acotar por período están los filtros de fecha de Movimientos.
     final filtro = 'm.usuario="$usuario"';
-    try {
-      final r = await repository.post('/ajax/listado_json_campos.php', {
-        'codigo_consulta': 'json_total_gastos_ingresos',
-        'filtro': filtro,
-        'agrupacion': '',
-      });
-      if (r.statusCode == 200) {
-        final d = decodeJsonMap(r.body);
-        if (d['resultado'] == 1 &&
-            d['datos'] is List &&
-            (d['datos'] as List).isNotEmpty) {
-          final row =
-              Map<String, dynamic>.from((d['datos'] as List).first as Map);
-          double g = 0.0, ing = 0.0;
-          for (final k in row.keys) {
-            final kl = k.toString().toLowerCase();
-            if (kl.contains('gasto')) g = numberValue(row[k]);
-            if (kl.contains('ingreso')) ing = numberValue(row[k]);
+    // Hasta 2 intentos: la BD del hosting a veces bota la conexión justo
+    // tras el login (sin caché local todavía) y este endpoint es el único
+    // que el dashboard espera para retirar el skeleton.
+    for (var intento = 0; intento < 2; intento++) {
+      try {
+        final r = await repository.post('/ajax/listado_json_campos.php', {
+          'codigo_consulta': 'json_total_gastos_ingresos',
+          'filtro': filtro,
+          'agrupacion': '',
+        }).timeout(const Duration(seconds: 12));
+        if (r.statusCode == 200) {
+          final d = decodeJsonMap(r.body);
+          if (d['resultado'] == 1 &&
+              d['datos'] is List &&
+              (d['datos'] as List).isNotEmpty) {
+            final row =
+                Map<String, dynamic>.from((d['datos'] as List).first as Map);
+            double g = 0.0, ing = 0.0;
+            for (final k in row.keys) {
+              final kl = k.toString().toLowerCase();
+              if (kl.contains('gasto')) g = numberValue(row[k]);
+              if (kl.contains('ingreso')) ing = numberValue(row[k]);
+            }
+            if (isMounted) {
+              refresh(() {
+                serverExpenses = g;
+                serverIncome = ing;
+                serverTotalsLoaded = true;
+                invalidateComputedCache();
+              });
+            }
+            unawaited(repository.saveLocalData('totales', [
+              {'gastos': g, 'ingresos': ing},
+            ]));
+            return;
           }
-          if (isMounted) {
-            refresh(() {
-              serverExpenses = g;
-              serverIncome = ing;
-              serverTotalsLoaded = true;
-              invalidateComputedCache();
-            });
-          }
-          unawaited(repository.saveLocalData('totales', [
-            {'gastos': g, 'ingresos': ing},
-          ]));
         }
+      } catch (e) {
+        debugPrint('[SAF] fetchTotales intento $intento: $e');
       }
-    } catch (e) {
-      debugPrint('[SAF] fetchTotales: $e');
+      await Future.delayed(const Duration(milliseconds: 600));
+    }
+    // Fallback: marcar como cargado aunque el endpoint fallara. El dashboard
+    // condiciona su skeleton a serverTotalsLoaded; sin esto, un fallo aquí
+    // deja la pantalla en placeholders para siempre (visto tras login sin
+    // caché local). Los totales quedan en 0 o en lo que haya traído el caché.
+    if (isMounted && !serverTotalsLoaded) {
+      refresh(() => serverTotalsLoaded = true);
     }
   }
 

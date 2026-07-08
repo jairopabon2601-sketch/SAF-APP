@@ -865,12 +865,17 @@ class _LoginScreenState extends State<LoginScreen>
                                             MainAxisAlignment.spaceEvenly,
                                         children: [
                                           _trustBadge(
-                                              Icons.lock_rounded, 'SSL Seguro'),
+                                              Icons.lock_rounded,
+                                              'SSL Seguro',
+                                              const Color(0xFF34D399)),
                                           _trustBadge(
                                               Icons.verified_user_rounded,
-                                              'Encriptado'),
-                                          _trustBadge(Icons.shield_rounded,
-                                              'Protegido'),
+                                              'Encriptado',
+                                              const Color(0xFF38BDF8)),
+                                          _trustBadge(
+                                              Icons.shield_rounded,
+                                              'Protegido',
+                                              const Color(0xFFA78BFA)),
                                         ],
                                       ),
                                     ],
@@ -935,22 +940,29 @@ class _LoginScreenState extends State<LoginScreen>
         ),
       );
 
-  Widget _trustBadge(IconData icon, String label) => Container(
+  Widget _trustBadge(IconData icon, String label, Color color) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.06),
+          color: color.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+          border: Border.all(color: color.withValues(alpha: 0.28)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.14),
+              blurRadius: 12,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, color: const Color(0xFF7C8EFF), size: 12),
+          Icon(icon, color: color, size: 12),
           const SizedBox(width: 5),
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.62),
+              color: Color.lerp(color, Colors.white, 0.55),
               fontSize: 10,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               letterSpacing: 0.2,
             ),
           ),
