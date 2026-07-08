@@ -12,3 +12,9 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# iOS signing material (never commit)
+*.mobileprovision
+*.certSigningRequest
+*.p12
+*.cer

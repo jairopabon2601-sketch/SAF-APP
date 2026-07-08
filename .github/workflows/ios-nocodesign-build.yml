@@ -1,0 +1,42 @@
+name: iOS-nocodesign-build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: iOS Build (no codesign)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Select Xcode 26
+        run: |
+          XCODE26=$(ls /Applications/ | grep -E "^Xcode_26" | sort -r | head -1)
+          if [ -n "$XCODE26" ]; then
+            sudo xcode-select -s /Applications/$XCODE26/Contents/Developer
+            echo "Using $XCODE26"
+          else
+            echo "Xcode 26 not found, using default:"
+            xcode-select -p
+          fi
+
+      - uses: subosito/flutter-action@v2.21.0
+        with:
+          channel: 'stable'
+
+      - name: Flutter pub get
+        run: flutter pub get
+        working-directory: frontend
+
+      - name: Pod install
+        run: pod install --repo-update
+        working-directory: frontend/ios
+
+      - name: Disable Swift Package Manager
+        run: flutter config --no-enable-swift-package-manager
+        working-directory: frontend
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+        working-directory: frontend
