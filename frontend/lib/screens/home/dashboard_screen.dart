@@ -169,7 +169,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               _dashboardSectionHeader(
                 icon: Icons.receipt_long_rounded,
                 title: 'Actividad reciente',
-                subtitle: '${recent.length} movimientos más recientes',
+                subtitle: recent.isEmpty
+                    ? '${recent.length} movimientos más recientes'
+                    : '${formatDayLabel(movDate(recent.first))} · ${recent.length} movimientos',
                 action: 'Ver todos',
                 onAction: () => refresh(() => selectedIndex = 3),
                 gradient: const [Color(0xFFF59E0B), Color(0xFFEF4444)],
@@ -184,17 +186,36 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               else if (recent.isEmpty)
                 buildEmptyActivity()
               else
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: EdgeInsets.zero,
-                  itemCount: recent.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => buildAnimatedMovementCard(
-                    recent[i],
-                    i,
-                  ),
-                ),
+                Builder(builder: (_) {
+                  // Agrupado por día, igual que la pestaña Movimientos:
+                  // banner con fecha + neto, luego las cards de ese día.
+                  final rows = <Widget>[];
+                  String? fechaActual;
+                  var grupo = <Map<String, dynamic>>[];
+                  var i = 0;
+                  void flush() {
+                    if (grupo.isEmpty) return;
+                    rows.add(buildDayGroupHeader(fechaActual!, grupo));
+                    for (final m in grupo) {
+                      rows.add(Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: buildAnimatedMovementCard(m, i++),
+                      ));
+                    }
+                    grupo = [];
+                  }
+
+                  for (final m in recent) {
+                    final f = movDate(m);
+                    if (f != fechaActual) {
+                      flush();
+                      fechaActual = f;
+                    }
+                    grupo.add(m);
+                  }
+                  flush();
+                  return Column(children: rows);
+                }),
             ],
           ),
         ),
@@ -1067,8 +1088,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
   //  DASHBOARD CRÉDITOS (perfil 5)
   // ══════════════════════════════════════════════════════════════
   Widget buildCreditsDashboard(String greeting, String firstName) {
-    if (loadingData || !menuOptionsLoaded || !creditsDataLoaded)
+    if (loadingData || !menuOptionsLoaded || !creditsDataLoaded) {
       return _dashboardSkeleton();
+    }
 
     final totalPagado = creditsPaidTotal;
     final totalPendiente = creditsPendingTotal;
@@ -2492,8 +2514,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                 letterSpacing: -1,
                                 shadows: [
                                   Shadow(
-                                    color:
-                                        balanceColor.withValues(alpha: 0.45),
+                                    color: balanceColor.withValues(alpha: 0.45),
                                     blurRadius: 16,
                                   ),
                                 ],

@@ -11,6 +11,40 @@ import 'savings_screen.dart';
 DateTime nowBogota() =>
     DateTime.now().toUtc().subtract(const Duration(hours: 5));
 
+/// Convierte una fecha 'yyyy-MM-dd' en una etiqueta legible: "Hoy", "Ayer"
+/// o "d Mes" (con año si no es el actual). Compartido entre Movimientos
+/// (encabezados de grupo por día) e Inicio (actividad reciente).
+String formatDayLabel(String fecha) {
+  final parts = fecha.split('-');
+  if (parts.length != 3) return fecha;
+  final y = int.tryParse(parts[0]);
+  final mo = int.tryParse(parts[1]);
+  final d = int.tryParse(parts[2]);
+  if (y == null || mo == null || d == null) return fecha;
+  final date = DateTime(y, mo, d);
+  final today = nowBogota();
+  final todayD = DateTime(today.year, today.month, today.day);
+  final diff = todayD.difference(date).inDays;
+  if (diff == 0) return 'Hoy';
+  if (diff == 1) return 'Ayer';
+  const meses = [
+    'Ene',
+    'Feb',
+    'Mar',
+    'Abr',
+    'May',
+    'Jun',
+    'Jul',
+    'Ago',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dic'
+  ];
+  final mesLabel = (mo >= 1 && mo <= 12) ? meses[mo - 1] : '';
+  return '$d $mesLabel${y != today.year ? ' $y' : ''}';
+}
+
 class _MovementDayGroup {
   final String fecha; // yyyy-MM-dd
   final List<Map<String, dynamic>> items;
@@ -431,6 +465,30 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                     ),
                   ),
                 ),
+                // Barrido de luz diagonal animado
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedBuilder(
+                      animation: shimmer,
+                      builder: (_, __) => Transform.translate(
+                        offset: Offset((shimmer.value * 2 - 1) * 340, 0),
+                        child: Transform.rotate(
+                          angle: 0.45,
+                          child: Container(
+                            width: 56,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: [
+                                Colors.white.withValues(alpha: 0),
+                                Colors.white.withValues(alpha: 0.07),
+                                Colors.white.withValues(alpha: 0),
+                              ]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                   child: Column(
@@ -686,6 +744,80 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           ),
                         ),
                       ]),
+                      // ── Barra proporción ingresos/gastos ──
+                      if (ingresos + gastos > 0) ...[
+                        const SizedBox(height: 14),
+                        Builder(builder: (_) {
+                          final ratio = (ingresos / (ingresos + gastos))
+                              .clamp(0.0, 1.0);
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(5),
+                                child: Stack(children: [
+                                  Container(
+                                    height: 7,
+                                    color: const Color(0xFFEF4444)
+                                        .withValues(alpha: 0.45),
+                                  ),
+                                  TweenAnimationBuilder<double>(
+                                    tween: Tween(begin: 0.0, end: ratio),
+                                    duration:
+                                        const Duration(milliseconds: 900),
+                                    curve: Curves.easeOutCubic,
+                                    builder: (_, animRatio, __) =>
+                                        FractionallySizedBox(
+                                      widthFactor: animRatio,
+                                      child: Container(
+                                        height: 7,
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xFF059669),
+                                              Color(0xFF34D399)
+                                            ],
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(5),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFF34D399)
+                                                  .withValues(alpha: 0.6),
+                                              blurRadius: 6,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ]),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                      '${(ratio * 100).toStringAsFixed(0)}% ingresos',
+                                      style: TextStyle(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.60),
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w600)),
+                                  Text(
+                                      '${((1 - ratio) * 100).toStringAsFixed(0)}% gastos',
+                                      style: TextStyle(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.60),
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ],
+                          );
+                        }),
+                      ],
                     ],
                   ),
                 ),
@@ -781,183 +913,184 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 ],
               ),
               child: Column(children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF0B0F2E),
-                      Color(0xFF1E3A8A),
-                      Color(0xFF3B82F6),
-                    ],
-                    stops: [0.0, 0.55, 1.0],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                // Header
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Color(0xFF0B0F2E),
+                        Color(0xFF1E3A8A),
+                        Color(0xFF3B82F6),
+                      ],
+                      stops: [0.0, 0.55, 1.0],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(19)),
                   ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
-                ),
-                child: Row(children: [
-                  Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(9)),
-                    child: const Icon(Icons.tune_rounded,
-                        size: 14, color: Colors.white),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text('Filtros',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: 0.2)),
-                  if (hasUserFilter) ...[
-                    const SizedBox(width: 8),
+                  child: Row(children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.all(7),
                       decoration: BoxDecoration(
-                          color:
-                              const Color(0xFF34D399).withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                              color: const Color(0xFF34D399)
-                                  .withValues(alpha: 0.4))),
-                      child: const Text('activo',
-                          style: TextStyle(
-                              fontSize: 9,
-                              color: Color(0xFF6EE7B7),
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5)),
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(9)),
+                      child: const Icon(Icons.tune_rounded,
+                          size: 14, color: Colors.white),
                     ),
-                  ],
-                  const Spacer(),
-                  if (hasUserFilter)
-                    GestureDetector(
-                      onTap: () {
-                        refresh(() {
-                          accountFilter = '';
-                          movementTypeFilter = '';
-                          filterFrom = null;
-                          filterTo = null;
-                          filteredTotalsLoaded = false;
-                          movementsPage = 1;
-                        });
-                        unawaited(onDateFilterChanged());
-                      },
-                      child: Container(
+                    const SizedBox(width: 10),
+                    const Text('Filtros',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.2)),
+                    if (hasUserFilter) ...[
+                      const SizedBox(width: 8),
+                      Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
+                            horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
+                            color:
+                                const Color(0xFF34D399).withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(10),
                             border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.22))),
-                        child: const Row(children: [
-                          Icon(Icons.close_rounded,
-                              size: 11, color: Colors.white70),
-                          SizedBox(width: 4),
-                          Text('Limpiar',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600)),
-                        ]),
+                                color: const Color(0xFF34D399)
+                                    .withValues(alpha: 0.4))),
+                        child: const Text('activo',
+                            style: TextStyle(
+                                fontSize: 9,
+                                color: Color(0xFF6EE7B7),
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5)),
                       ),
-                    ),
-                ]),
-              ),
-              // Campos de filtro
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                child: Column(children: [
-                  Row(children: [
-                    Expanded(
-                        child: _filterDropdown<String>(
-                      label: 'Cuenta',
-                      icon: Icons.account_balance_wallet_rounded,
-                      accent: const Color(0xFF8B5CF6),
-                      value: accountFilter.isEmpty ? null : accountFilter,
-                      items: [
-                        const DropdownMenuItem(
-                            value: null, child: Text('Todas')),
-                        ...accounts.map((c) => DropdownMenuItem(
-                              value: (c['nombre'] ?? '').toString(),
-                              child: Text((c['nombre'] ?? '').toString(),
-                                  overflow: TextOverflow.ellipsis),
-                            )),
-                      ],
-                      onChanged: (v) async {
-                        refresh(() {
-                          accountFilter = v ?? '';
-                          filteredTotalsLoaded = false;
-                          movementsPage = 1;
-                        });
-                        await loadSelectedAccountMovements();
-                        unawaited(fetchFilteredTotals());
-                      },
-                    )),
-                    const SizedBox(width: 10),
-                    Expanded(
-                        child: _filterDropdown<String>(
-                      label: 'Tipo',
-                      icon: Icons.swap_vert_rounded,
-                      accent: const Color(0xFFF59E0B),
-                      value: movementTypeFilter.isEmpty
-                          ? null
-                          : movementTypeFilter,
-                      items: const [
-                        DropdownMenuItem(value: null, child: Text('Todos')),
-                        DropdownMenuItem(value: '2', child: Text('Gasto')),
-                        DropdownMenuItem(value: '3', child: Text('Ingreso')),
-                      ],
-                      onChanged: (v) {
-                        refresh(() {
-                          movementTypeFilter = v ?? '';
-                          filteredTotalsLoaded = false;
-                          movementsPage = 1;
-                        });
-                        unawaited(fetchFilteredTotals());
-                      },
-                    )),
+                    ],
+                    const Spacer(),
+                    if (hasUserFilter)
+                      GestureDetector(
+                        onTap: () {
+                          refresh(() {
+                            accountFilter = '';
+                            movementTypeFilter = '';
+                            filterFrom = null;
+                            filterTo = null;
+                            filteredTotalsLoaded = false;
+                            movementsPage = 1;
+                          });
+                          unawaited(onDateFilterChanged());
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.22))),
+                          child: const Row(children: [
+                            Icon(Icons.close_rounded,
+                                size: 11, color: Colors.white70),
+                            SizedBox(width: 4),
+                            Text('Limpiar',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                      ),
                   ]),
-                  const SizedBox(height: 10),
-                  Row(children: [
-                    Expanded(
-                        child: _filterDate(
-                      label: 'Desde',
-                      value: filterFrom,
-                      onPick: (d) {
-                        if (d == null) return;
-                        refresh(() {
-                          filterFrom = d;
-                          filteredTotalsLoaded = false;
-                          movementsPage = 1;
-                        });
-                        unawaited(onDateFilterChanged());
-                      },
-                    )),
-                    const SizedBox(width: 10),
-                    Expanded(
-                        child: _filterDate(
-                      label: 'Hasta',
-                      value: filterTo,
-                      onPick: (d) {
-                        if (d == null) return;
-                        refresh(() {
-                          filterTo = d;
-                          filteredTotalsLoaded = false;
-                          movementsPage = 1;
-                        });
-                        unawaited(onDateFilterChanged());
-                      },
-                    )),
+                ),
+                // Campos de filtro
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                  child: Column(children: [
+                    Row(children: [
+                      Expanded(
+                          child: _filterDropdown<String>(
+                        label: 'Cuenta',
+                        icon: Icons.account_balance_wallet_rounded,
+                        accent: const Color(0xFF8B5CF6),
+                        value: accountFilter.isEmpty ? null : accountFilter,
+                        items: [
+                          const DropdownMenuItem(
+                              value: null, child: Text('Todas')),
+                          ...accounts.map((c) => DropdownMenuItem(
+                                value: (c['nombre'] ?? '').toString(),
+                                child: Text((c['nombre'] ?? '').toString(),
+                                    overflow: TextOverflow.ellipsis),
+                              )),
+                        ],
+                        onChanged: (v) async {
+                          refresh(() {
+                            accountFilter = v ?? '';
+                            filteredTotalsLoaded = false;
+                            movementsPage = 1;
+                          });
+                          await loadSelectedAccountMovements();
+                          unawaited(fetchFilteredTotals());
+                        },
+                      )),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: _filterDropdown<String>(
+                        label: 'Tipo',
+                        icon: Icons.swap_vert_rounded,
+                        accent: const Color(0xFFF59E0B),
+                        value: movementTypeFilter.isEmpty
+                            ? null
+                            : movementTypeFilter,
+                        items: const [
+                          DropdownMenuItem(value: null, child: Text('Todos')),
+                          DropdownMenuItem(value: '2', child: Text('Gasto')),
+                          DropdownMenuItem(value: '3', child: Text('Ingreso')),
+                        ],
+                        onChanged: (v) {
+                          refresh(() {
+                            movementTypeFilter = v ?? '';
+                            filteredTotalsLoaded = false;
+                            movementsPage = 1;
+                          });
+                          unawaited(fetchFilteredTotals());
+                        },
+                      )),
+                    ]),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      Expanded(
+                          child: _filterDate(
+                        label: 'Desde',
+                        value: filterFrom,
+                        onPick: (d) {
+                          if (d == null) return;
+                          refresh(() {
+                            filterFrom = d;
+                            filteredTotalsLoaded = false;
+                            movementsPage = 1;
+                          });
+                          unawaited(onDateFilterChanged());
+                        },
+                      )),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: _filterDate(
+                        label: 'Hasta',
+                        value: filterTo,
+                        onPick: (d) {
+                          if (d == null) return;
+                          refresh(() {
+                            filterTo = d;
+                            filteredTotalsLoaded = false;
+                            movementsPage = 1;
+                          });
+                          unawaited(onDateFilterChanged());
+                        },
+                      )),
+                    ]),
                   ]),
-                ]),
-              ),
-            ]),
+                ),
+              ]),
             ),
           ),
           // ── Lista movimientos header ──────────────────────
@@ -1125,105 +1258,143 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     return groups;
   }
 
-  String _formatGroupDate(String fecha) {
-    final parts = fecha.split('-');
-    if (parts.length != 3) return fecha;
-    final y = int.tryParse(parts[0]);
-    final mo = int.tryParse(parts[1]);
-    final d = int.tryParse(parts[2]);
-    if (y == null || mo == null || d == null) return fecha;
-    final date = DateTime(y, mo, d);
-    final today = nowBogota();
-    final todayD = DateTime(today.year, today.month, today.day);
-    final diff = todayD.difference(date).inDays;
-    if (diff == 0) return 'Hoy';
-    if (diff == 1) return 'Ayer';
-    const meses = [
-      'Ene',
-      'Feb',
-      'Mar',
-      'Abr',
-      'May',
-      'Jun',
-      'Jul',
-      'Ago',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dic'
-    ];
-    final mesLabel = (mo >= 1 && mo <= 12) ? meses[mo - 1] : '';
-    return '$d $mesLabel${y != today.year ? ' $y' : ''}';
-  }
+  Widget _dayGroupHeader(_MovementDayGroup group) =>
+      buildDayGroupHeader(group.fecha, group.items);
 
-  Widget _dayGroupHeader(_MovementDayGroup group) {
-    final ingresos = group.items
+  /// Banner de grupo por día: gradiente navy→azul con shimmer, badge de
+  /// calendario y chip sólido verde/rojo con el neto del día. Compartido
+  /// con "Actividad reciente" en Inicio.
+  Widget buildDayGroupHeader(String fecha, List<Map<String, dynamic>> items) {
+    final ingresos = items
         .where(movementIsIncome)
         .fold(0.0, (s, m) => s + numberValue(m['valor'] ?? 0));
-    final gastos = group.items
+    final gastos = items
         .where((m) => !movementIsIncome(m))
         .fold(0.0, (s, m) => s + numberValue(m['valor'] ?? 0));
     final neto = ingresos - gastos;
-    final netoColor =
-        neto >= 0 ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+    final netoGrad = neto >= 0
+        ? const [Color(0xFF059669), Color(0xFF34D399)]
+        : const [Color(0xFFB91C1C), Color(0xFFEF4444)];
     return Padding(
       padding: const EdgeInsets.fromLTRB(2, 12, 2, 8),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
-        decoration: BoxDecoration(
-          color: cardBgAlt,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: lineCol),
-        ),
-        child: Row(children: [
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(
-              color: homeAccent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
+      child: AnimatedBuilder(
+        animation: shimmer,
+        builder: (_, __) => Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color(0xFF0B0F2E),
+                Color(0xFF1E3A8A),
+                Color(0xFF3B82F6),
+              ],
+              stops: [0.0, 0.55, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            child: const Icon(Icons.calendar_today_rounded,
-                size: 12, color: homeAccent),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1E3A8A)
+                    .withValues(alpha: 0.30 + 0.12 * shimmer.value),
+                blurRadius: 14 + 5 * shimmer.value,
+                offset: const Offset(0, 5),
+              ),
+            ],
           ),
-          const SizedBox(width: 9),
-          Text(_formatGroupDate(group.fecha),
-              style: TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w800, color: textMain)),
-          const SizedBox(width: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            decoration: BoxDecoration(
-                color: lineCol, borderRadius: BorderRadius.circular(20)),
-            child: Text(
-                '${group.items.length} ${group.items.length == 1 ? 'mov.' : 'movs.'}',
-                style: TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    color: textSoft)),
-          ),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-            decoration: BoxDecoration(
-              color: netoColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: netoColor.withValues(alpha: 0.30)),
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text('Neto ',
-                  style: TextStyle(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w600,
-                      color: netoColor.withValues(alpha: 0.75))),
-              Text('${neto >= 0 ? '+' : '−'}${formatCop(neto.abs())}',
-                  style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: netoColor)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Stack(children: [
+              Positioned.fill(
+                child: Transform.translate(
+                  offset: Offset((shimmer.value * 2 - 1) * 260, 0),
+                  child: Transform.rotate(
+                    angle: 0.42,
+                    child: Container(
+                      width: 30,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [
+                          Colors.white.withValues(alpha: 0),
+                          Colors.white.withValues(alpha: 0.16),
+                          Colors.white.withValues(alpha: 0),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 9, 10, 9),
+                child: Row(children: [
+                  Container(
+                    width: 26,
+                    height: 26,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.28)),
+                    ),
+                    child: const Icon(Icons.calendar_today_rounded,
+                        size: 12, color: Colors.white),
+                  ),
+                  const SizedBox(width: 9),
+                  Text(formatDayLabel(fecha),
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white)),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.22))),
+                    child: Text(
+                        '${items.length} ${items.length == 1 ? 'mov.' : 'movs.'}',
+                        style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white.withValues(alpha: 0.85))),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                          colors: netoGrad,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: netoGrad.last.withValues(alpha: 0.45),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text('Neto ',
+                          style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white.withValues(alpha: 0.85))),
+                      Text('${neto >= 0 ? '+' : '−'}${formatCop(neto.abs())}',
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white)),
+                    ]),
+                  ),
+                ]),
+              ),
             ]),
           ),
-        ]),
+        ),
       ),
     );
   }
@@ -1341,19 +1512,38 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 width: labelW,
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 9),
                   decoration: BoxDecoration(
-                      color: lineCol, borderRadius: BorderRadius.circular(6)),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: isDarkTheme
+                          ? [
+                              homeAccent.withValues(alpha: 0.24),
+                              homeAccent.withValues(alpha: 0.10),
+                            ]
+                          : [
+                              const Color(0xFFE0E7FF),
+                              const Color(0xFFEEF2FF),
+                            ],
+                    ),
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(
+                        color: homeAccent.withValues(
+                            alpha: isDarkTheme ? 0.30 : 0.18)),
+                  ),
                   child: Text(label,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: textMid)),
+                          fontWeight: FontWeight.w700,
+                          color: isDarkTheme
+                              ? const Color(0xFFB6C2FF)
+                              : const Color(0xFF3730A3))),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Expanded(child: input),
             ],
           );
@@ -1389,22 +1579,22 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         filled: true,
         fillColor: inputFill,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: _dialogFieldBorderColor())),
         enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: _dialogFieldBorderColor())),
         focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFF4361EE), width: 1.5)),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF4361EE), width: 1.6)),
         errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: Color(0xFFEF4444))),
         focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.5)),
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.6)),
       );
 
   Color _dialogFieldBorderColor([Color accent = homeAccent]) => isDarkTheme
@@ -1994,8 +2184,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                             onPressed: saving
                                 ? null
                                 : () async {
-                                    if (!formKey.currentState!.validate())
+                                    if (!formKey.currentState!.validate()) {
                                       return;
+                                    }
                                     setS(() => saving = true);
                                     try {
                                       final nuevoSaldo = double.tryParse(
@@ -2047,8 +2238,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                     } catch (e) {
                                       debugPrint('[SAF] ajustar saldo: $e');
                                     } finally {
-                                      if (ctx.mounted)
+                                      if (ctx.mounted) {
                                         setS(() => saving = false);
+                                      }
                                     }
                                   },
                             child: saving
@@ -4853,200 +5045,259 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         ),
       ),
       child: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _showRegistrarMovimientoDialog(cuentaInicial: c),
-      child: Container(
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.14)),
-          boxShadow: [
-            BoxShadow(
-                color: color.withValues(alpha: 0.08),
-                blurRadius: 14,
-                offset: const Offset(0, 4)),
-            BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 6,
-                offset: const Offset(0, 2)),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Stack(children: [
-            // Left accent bar
-            Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                child: Container(
-                  width: 4,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [cLight, color, cDark],
-                      stops: const [0.0, 0.5, 1.0],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                )),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
-              child: Row(children: [
-                // Avatar
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [cLight, color, cDark],
-                      stops: const [0.0, 0.5, 1.0],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                          color: color.withValues(alpha: 0.35),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4)),
+        behavior: HitTestBehavior.opaque,
+        onTap: () => _showRegistrarMovimientoDialog(cuentaInicial: c),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDarkTheme
+                  ? [
+                      Color.lerp(cardBg, color, 0.10)!,
+                      Color.lerp(cardBg, color, 0.04)!,
+                    ]
+                  : [
+                      Color.lerp(Colors.white, color, 0.03)!,
+                      Color.lerp(Colors.white, color, 0.10)!,
                     ],
-                  ),
-                  child: Center(
-                    child: Text(initials,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800)),
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.24)),
+            boxShadow: [
+              BoxShadow(
+                  color: color.withValues(alpha: 0.18),
+                  blurRadius: 16,
+                  offset: const Offset(0, 5)),
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2)),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Stack(children: [
+              // Left accent bar
+              Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 4,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [cLight, color, cDark],
+                        stops: const [0.0, 0.5, 1.0],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                    ),
+                  )),
+              // Orbe decorativo del color de la cuenta
+              Positioned(
+                  right: -18,
+                  top: -18,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(colors: [
+                          color.withValues(alpha: 0.14),
+                          Colors.transparent,
+                        ]),
+                      ),
+                    ),
+                  )),
+              // Barrido de luz animado
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: AnimatedBuilder(
+                    animation: shimmer,
+                    builder: (_, __) => Transform.translate(
+                      offset: Offset((shimmer.value * 2 - 1) * 240, 0),
+                      child: Transform.rotate(
+                        angle: 0.42,
+                        child: Container(
+                          width: 30,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [
+                              Colors.white.withValues(alpha: 0),
+                              Colors.white.withValues(
+                                  alpha: isDarkTheme ? 0.05 : 0.35),
+                              Colors.white.withValues(alpha: 0),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                // Name + badges
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(nombre,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 14,
-                              color: textMain)),
-                      const SizedBox(height: 5),
-                      Row(children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: color.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                                color: color.withValues(alpha: 0.25),
-                                width: 0.8),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
+                child: Row(children: [
+                  // Avatar
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [cLight, color, cDark],
+                        stops: const [0.0, 0.5, 1.0],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: Colors.white
+                              .withValues(alpha: isDarkTheme ? 0.14 : 0.55),
+                          width: 1.4),
+                      boxShadow: [
+                        BoxShadow(
+                            color: color.withValues(alpha: 0.45),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4)),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(initials,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Name + badges
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(nombre,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color: textMain)),
+                        const SizedBox(height: 5),
+                        Row(children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                  color: color.withValues(alpha: 0.25),
+                                  width: 0.8),
+                            ),
+                            child: Text(tipo,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    color: color,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700)),
                           ),
-                          child: Text(tipo,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: estado
+                                  ? (isDarkTheme
+                                      ? const Color(0xFF16A34A)
+                                          .withValues(alpha: 0.20)
+                                      : const Color(0xFFDCFCE7))
+                                  : (isDarkTheme
+                                      ? Colors.white.withValues(alpha: 0.08)
+                                      : const Color(0xFFF1F5F9)),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child:
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                              Container(
+                                width: 5,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: estado
+                                      ? const Color(0xFF16A34A)
+                                      : const Color(0xFF94A3B8),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(estado ? 'Activa' : 'Inactiva',
+                                  style: TextStyle(
+                                      color: estado
+                                          ? (isDarkTheme
+                                              ? const Color(0xFF6EE7A0)
+                                              : const Color(0xFF15803D))
+                                          : textSoft,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600)),
+                            ]),
+                          ),
+                        ]),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Balance + actions
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      balanceVisible
+                          ? TweenAnimationBuilder<double>(
+                              key: ValueKey(
+                                  'saldo_${c['codigo'] ?? c['id'] ?? nombre}_$saldo'),
+                              tween: Tween(begin: 0.0, end: saldo),
+                              duration: const Duration(milliseconds: 650),
+                              curve: Curves.easeOutCubic,
+                              builder: (_, animatedSaldo, __) => Text(
+                                  formatCop(animatedSaldo),
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 15,
+                                      letterSpacing: -0.4,
+                                      color: saldo >= 0
+                                          ? textMain
+                                          : const Color(0xFFDC2626))),
+                            )
+                          : Text('• • • •',
                               style: TextStyle(
-                                  color: color,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700)),
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 15,
+                                  letterSpacing: -0.4,
+                                  color: saldo >= 0
+                                      ? textMain
+                                      : const Color(0xFFDC2626))),
+                      const SizedBox(height: 8),
+                      Row(children: [
+                        _iconActionBtn(
+                          icon: Icons.edit_rounded,
+                          colors: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+                          onTap: () => _showEditarCuentaDialog(c),
                         ),
                         const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: estado
-                                ? (isDarkTheme
-                                    ? const Color(0xFF16A34A)
-                                        .withValues(alpha: 0.20)
-                                    : const Color(0xFFDCFCE7))
-                                : (isDarkTheme
-                                    ? Colors.white.withValues(alpha: 0.08)
-                                    : const Color(0xFFF1F5F9)),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Container(
-                              width: 5,
-                              height: 5,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: estado
-                                    ? const Color(0xFF16A34A)
-                                    : const Color(0xFF94A3B8),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(estado ? 'Activa' : 'Inactiva',
-                                style: TextStyle(
-                                    color: estado
-                                        ? (isDarkTheme
-                                            ? const Color(0xFF6EE7A0)
-                                            : const Color(0xFF15803D))
-                                        : textSoft,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600)),
-                          ]),
+                        _iconActionBtn(
+                          icon: Icons.balance_rounded,
+                          colors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
+                          onTap: () => _showAjustarSaldoDialog(c),
                         ),
                       ]),
                     ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                // Balance + actions
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    balanceVisible
-                        ? TweenAnimationBuilder<double>(
-                            key: ValueKey(
-                                'saldo_${c['codigo'] ?? c['id'] ?? nombre}_$saldo'),
-                            tween: Tween(begin: 0.0, end: saldo),
-                            duration: const Duration(milliseconds: 650),
-                            curve: Curves.easeOutCubic,
-                            builder: (_, animatedSaldo, __) => Text(
-                                formatCop(animatedSaldo),
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 15,
-                                    letterSpacing: -0.4,
-                                    color: saldo >= 0
-                                        ? textMain
-                                        : const Color(0xFFDC2626))),
-                          )
-                        : Text('• • • •',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                fontSize: 15,
-                                letterSpacing: -0.4,
-                                color: saldo >= 0
-                                    ? textMain
-                                    : const Color(0xFFDC2626))),
-                    const SizedBox(height: 8),
-                    Row(children: [
-                      _iconActionBtn(
-                        icon: Icons.edit_rounded,
-                        colors: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
-                        onTap: () => _showEditarCuentaDialog(c),
-                      ),
-                      const SizedBox(width: 6),
-                      _iconActionBtn(
-                        icon: Icons.balance_rounded,
-                        colors: const [Color(0xFFD97706), Color(0xFFF59E0B)],
-                        onTap: () => _showAjustarSaldoDialog(c),
-                      ),
-                    ]),
-                  ],
-                ),
-              ]),
-            ),
-          ]),
+                ]),
+              ),
+            ]),
+          ),
         ),
-      ),
       ),
     );
   }
@@ -5706,18 +5957,36 @@ class _ActionTileState extends State<_ActionTile>
                     child: Row(
                       children: [
                         // Ícono con halo pulsante suave
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.28),
-                                width: 1),
+                        AnimatedBuilder(
+                          animation: _shimmer,
+                          builder: (_, iconChild) => Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Colors.white.withValues(alpha: 0.34),
+                                  Colors.white.withValues(alpha: 0.10),
+                                ],
+                              ),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.45),
+                                  width: 1.4),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withValues(
+                                      alpha: 0.10 + 0.18 * _shimmer.value),
+                                  blurRadius: 12 + 6 * _shimmer.value,
+                                ),
+                              ],
+                            ),
+                            child: iconChild,
                           ),
                           child:
-                              Icon(widget.icon, color: Colors.white, size: 20),
+                              Icon(widget.icon, color: Colors.white, size: 21),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -5728,14 +5997,14 @@ class _ActionTileState extends State<_ActionTile>
                               Text(widget.title,
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 13,
+                                    fontSize: 13.5,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 0.1,
                                   )),
                               const SizedBox(height: 2),
                               Text(widget.subtitle,
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.68),
+                                    color: Colors.white.withValues(alpha: 0.72),
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.w500,
                                   )),
@@ -5743,10 +6012,52 @@ class _ActionTileState extends State<_ActionTile>
                           ),
                         ),
                         if (widget.trailing)
-                          Icon(Icons.arrow_forward_ios_rounded,
-                              color: Colors.white.withValues(alpha: 0.55),
-                              size: 14),
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.16),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.30)),
+                            ),
+                            child: Icon(Icons.arrow_forward_rounded,
+                                color: Colors.white.withValues(alpha: 0.90),
+                                size: 15),
+                          ),
                       ],
+                    ),
+                  ),
+                  // ── Orbe decorativo ──────────────────────
+                  Positioned(
+                    right: -22,
+                    top: -22,
+                    child: IgnorePointer(
+                      child: Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: RadialGradient(colors: [
+                            Colors.white.withValues(alpha: 0.16),
+                            Colors.transparent,
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: -16,
+                    bottom: -20,
+                    child: IgnorePointer(
+                      child: Container(
+                        width: 64,
+                        height: 64,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.07),
+                        ),
+                      ),
                     ),
                   ),
                   // ── Shimmer diagonal sweep ───────────────
@@ -5895,13 +6206,26 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
             scale: _press,
             child: Container(
               decoration: BoxDecoration(
-                color: cardBg,
+                gradient: LinearGradient(
+                  colors: isDarkTheme
+                      ? [
+                          Color.lerp(cardBg, stripColor, 0.08)!,
+                          Color.lerp(cardBg, stripColor, 0.03)!,
+                        ]
+                      : [
+                          Color.lerp(Colors.white, stripColor, 0.02)!,
+                          Color.lerp(Colors.white, stripColor, 0.08)!,
+                        ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: lineCol),
+                border:
+                    Border.all(color: stripColor.withValues(alpha: 0.20)),
                 boxShadow: [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.08),
-                    blurRadius: 14,
+                    color: stripColor.withValues(alpha: 0.14),
+                    blurRadius: 16,
                     offset: const Offset(0, 5),
                   ),
                   BoxShadow(
