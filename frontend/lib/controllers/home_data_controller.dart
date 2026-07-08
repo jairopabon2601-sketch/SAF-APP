@@ -161,7 +161,23 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     } catch (e) {
       debugPrint('[SAF] loadData: $e');
     } finally {
-      if (isMounted) refresh(() => loadingData = false);
+      // El dashboard condiciona su skeleton a serverTotalsLoaded; si el
+      // endpoint de totales falló (visto tras login sin caché local), sin
+      // este fallback la pantalla queda en placeholders para siempre. Con
+      // los movimientos ya cargados, totalIncome/totalExpenses calculan la
+      // suma local — mismas cifras que la web — en lugar de mostrar ceros.
+      final localIncome = totalIncome;
+      final localExpenses = totalExpenses;
+      if (isMounted) {
+        refresh(() {
+          if (!serverTotalsLoaded) {
+            serverIncome = localIncome;
+            serverExpenses = localExpenses;
+            serverTotalsLoaded = true;
+          }
+          loadingData = false;
+        });
+      }
     }
   }
 
@@ -513,13 +529,6 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         debugPrint('[SAF] fetchTotales intento $intento: $e');
       }
       await Future.delayed(const Duration(milliseconds: 600));
-    }
-    // Fallback: marcar como cargado aunque el endpoint fallara. El dashboard
-    // condiciona su skeleton a serverTotalsLoaded; sin esto, un fallo aquí
-    // deja la pantalla en placeholders para siempre (visto tras login sin
-    // caché local). Los totales quedan en 0 o en lo que haya traído el caché.
-    if (isMounted && !serverTotalsLoaded) {
-      refresh(() => serverTotalsLoaded = true);
     }
   }
 
