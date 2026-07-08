@@ -147,83 +147,101 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-                child: Row(children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.22),
-                                width: 1,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.22),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Icon(Icons.credit_card_rounded,
+                                    color: Colors.white, size: 19),
                               ),
+                              const SizedBox(width: 12),
+                              const Flexible(
+                                child: Text('Gestión de Créditos',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.2)),
+                              ),
+                            ]),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Administra solicitudes, créditos aprobados y simulaciones',
+                              style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.62),
+                                  fontSize: 11),
                             ),
-                            child: const Icon(Icons.credit_card_rounded,
-                                color: Colors.white, size: 19),
-                          ),
-                          const SizedBox(width: 12),
-                          const Flexible(
-                            child: Text('Gestión de Créditos',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.2)),
-                          ),
-                        ]),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Administra solicitudes, créditos aprobados y simulaciones',
-                          style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.62),
-                              fontSize: 11),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        Wrap(spacing: 8, runSpacing: 6, children: [
-                          _creditHeaderBadge(
-                            Icons.check_circle_outline_rounded,
-                            '${credits.length} activos',
-                            const Color(0xFF34D399),
+                      ),
+                      const SizedBox(width: 14),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 36,
+                            height: 36,
+                            child:
+                                CustomPaint(painter: SafLogoPainter(Colors.white)),
                           ),
-                          _creditHeaderBadge(
-                            Icons.schedule_rounded,
-                            '${pendientesActivas.length} pendientes',
-                            const Color(0xFFFBBF24),
-                          ),
-                          _creditHeaderBadge(
-                            Icons.cancel_outlined,
-                            '${solicitudesRechazadas.length} rechazadas',
-                            const Color(0xFFF87171),
-                          ),
-                        ]),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text('Sistema de',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.50),
-                            fontSize: 10)),
-                    Text('Créditos',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.50),
-                            fontSize: 10)),
-                    const SizedBox(height: 6),
-                    const Text('SAF',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5)),
-                  ]),
-                ]),
+                          const SizedBox(height: 6),
+                          const Text('SAF',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 2)),
+                        ],
+                      ),
+                    ]),
+                    const SizedBox(height: 14),
+                    Row(children: [
+                      Expanded(
+                        child: _creditHeaderBadge(
+                          Icons.check_circle_outline_rounded,
+                          '${credits.length}',
+                          'activos',
+                          const Color(0xFF34D399),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _creditHeaderBadge(
+                          Icons.schedule_rounded,
+                          '${pendientesActivas.length}',
+                          'pendientes',
+                          const Color(0xFFFBBF24),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _creditHeaderBadge(
+                          Icons.cancel_outlined,
+                          '${solicitudesRechazadas.length}',
+                          'rechazadas',
+                          const Color(0xFFF87171),
+                        ),
+                      ),
+                    ]),
+                  ],
+                ),
               ),
             ]),
           ),
@@ -279,216 +297,183 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
 
         // ── Stats card ──────────────────────────────────────────
         if (creditSubTab == 0)
-          AnimatedBuilder(
-            animation: shimmer,
-            builder: (_, __) {
-              final total = totalPagado + totalPendiente;
-              final ratio =
-                  total > 0 ? (totalPagado / total).clamp(0.0, 1.0) : 0.0;
-              return Container(
-                margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF0A0830),
-                      Color(0xFF14105A),
-                      Color(0xFF2D2B96),
-                      Color(0xFF4340C8),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+            builder: (_, entryT, entryChild) => Opacity(
+              opacity: entryT.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: Offset(0, 18 * (1 - entryT)),
+                child: entryChild,
+              ),
+            ),
+            child: AnimatedBuilder(
+              animation: shimmer,
+              builder: (_, __) {
+                final total = totalPagado + totalPendiente;
+                final ratio =
+                    total > 0 ? (totalPagado / total).clamp(0.0, 1.0) : 0.0;
+                return Container(
+                  margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFF0A0830),
+                        Color(0xFF14105A),
+                        Color(0xFF2D2B96),
+                        Color(0xFF4340C8),
+                      ],
+                      stops: [0.0, 0.28, 0.65, 1.0],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2D2B96)
+                            .withValues(alpha: 0.46 + 0.14 * shimmer.value),
+                        blurRadius: 22 + 8 * shimmer.value,
+                        offset: const Offset(0, 8),
+                      ),
                     ],
-                    stops: [0.0, 0.28, 0.65, 1.0],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF2D2B96)
-                          .withValues(alpha: 0.46 + 0.14 * shimmer.value),
-                      blurRadius: 22 + 8 * shimmer.value,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: Stack(children: [
-                    Positioned(
-                      right: -24,
-                      top: -24,
-                      child: Container(
-                        width: 110,
-                        height: 110,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(colors: [
-                            Colors.white.withValues(alpha: 0.10),
-                            Colors.transparent,
-                          ]),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: -16,
-                      bottom: -16,
-                      child: Container(
-                        width: 70,
-                        height: 70,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.05),
-                        ),
-                      ),
-                    ),
-                    Positioned.fill(
-                      child: Transform.translate(
-                        offset: Offset((shimmer.value * 2 - 1) * 280, 0),
-                        child: Transform.rotate(
-                          angle: 0.42,
-                          child: Container(
-                            width: 44,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: [
-                                Colors.white.withValues(alpha: 0),
-                                Colors.white.withValues(alpha: 0.06),
-                                Colors.white.withValues(alpha: 0),
-                              ]),
-                            ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Stack(children: [
+                      Positioned(
+                        right: -24,
+                        top: -24,
+                        child: Container(
+                          width: 110,
+                          height: 110,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(colors: [
+                              Colors.white.withValues(alpha: 0.10),
+                              Colors.transparent,
+                            ]),
                           ),
                         ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-                      child: Column(children: [
-                        Row(children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(children: [
-                                  Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF34D399)
-                                          .withValues(alpha: 0.18),
-                                      borderRadius: BorderRadius.circular(9),
-                                      border: Border.all(
-                                        color: const Color(0xFF34D399)
-                                            .withValues(alpha: 0.30),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                        Icons.check_circle_outline_rounded,
-                                        color: Color(0xFF34D399),
-                                        size: 16),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text('TOTAL PAGADO',
-                                      style: TextStyle(
-                                          color: Colors.white60,
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: 0.6)),
+                      Positioned(
+                        left: -16,
+                        bottom: -16,
+                        child: Container(
+                          width: 70,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.05),
+                          ),
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: Transform.translate(
+                          offset: Offset((shimmer.value * 2 - 1) * 280, 0),
+                          child: Transform.rotate(
+                            angle: 0.42,
+                            child: Container(
+                              width: 44,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(colors: [
+                                  Colors.white.withValues(alpha: 0),
+                                  Colors.white.withValues(alpha: 0.06),
+                                  Colors.white.withValues(alpha: 0),
                                 ]),
-                                const SizedBox(height: 8),
-                                Text(formatCop(totalPagado),
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: -0.3)),
-                              ],
+                              ),
                             ),
                           ),
-                          Container(
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                        child: Column(children: [
+                          Row(children: [
+                            Expanded(
+                              child: _creditsTotalStat(
+                                icon: Icons.check_circle_outline_rounded,
+                                label: 'TOTAL PAGADO',
+                                value: totalPagado,
+                                color: const Color(0xFF34D399),
+                              ),
+                            ),
+                            Container(
                               width: 1,
-                              height: 52,
-                              color: Colors.white.withValues(alpha: 0.14)),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(children: [
-                                    Container(
-                                      width: 30,
-                                      height: 30,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFBBF24)
-                                            .withValues(alpha: 0.18),
-                                        borderRadius: BorderRadius.circular(9),
-                                        border: Border.all(
-                                          color: const Color(0xFFFBBF24)
-                                              .withValues(alpha: 0.30),
-                                          width: 1,
-                                        ),
-                                      ),
-                                      child: const Icon(Icons.pending_outlined,
-                                          color: Color(0xFFFBBF24), size: 16),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    const Text('TOTAL PENDIENTE',
-                                        style: TextStyle(
-                                            color: Colors.white60,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: 0.6)),
-                                  ]),
-                                  const SizedBox(height: 8),
-                                  Text(formatCop(totalPendiente),
-                                      style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.3)),
-                                ],
+                              height: 54,
+                              margin:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.white.withValues(alpha: 0.20),
+                                    Colors.transparent,
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ]),
-                        if (total > 0) ...[
-                          const SizedBox(height: 14),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                      '${(ratio * 100).toStringAsFixed(0)}% recuperado',
-                                      style: TextStyle(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.55),
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w600)),
-                                  Text(formatCop(total),
-                                      style: TextStyle(
-                                          color: Colors.white
-                                              .withValues(alpha: 0.55),
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w600)),
-                                ],
+                            Expanded(
+                              child: _creditsTotalStat(
+                                icon: Icons.pending_outlined,
+                                label: 'TOTAL PENDIENTE',
+                                value: totalPendiente,
+                                color: const Color(0xFFFBBF24),
                               ),
-                              const SizedBox(height: 5),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: Stack(children: [
-                                  Container(
-                                    height: 5,
-                                    decoration: BoxDecoration(
+                            ),
+                          ]),
+                          if (total > 0) ...[
+                            const SizedBox(height: 18),
+                            Row(children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF34D399)
+                                      .withValues(alpha: 0.16),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: const Color(0xFF34D399)
+                                          .withValues(alpha: 0.35)),
+                                ),
+                                child: Text(
+                                    '${(ratio * 100).toStringAsFixed(0)}% recuperado',
+                                    style: const TextStyle(
+                                        color: Color(0xFF6EE7B7),
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                              const Spacer(),
+                              Text('Total  ${formatCop(total)}',
+                                  style: TextStyle(
                                       color:
-                                          Colors.white.withValues(alpha: 0.10),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
+                                          Colors.white.withValues(alpha: 0.55),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600)),
+                            ]),
+                            const SizedBox(height: 8),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Stack(children: [
+                                Container(
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.10),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
-                                  FractionallySizedBox(
-                                    widthFactor: ratio,
+                                ),
+                                TweenAnimationBuilder<double>(
+                                  tween: Tween(begin: 0.0, end: ratio),
+                                  duration: const Duration(milliseconds: 900),
+                                  curve: Curves.easeOutCubic,
+                                  builder: (_, animatedRatio, __) =>
+                                      FractionallySizedBox(
+                                    widthFactor: animatedRatio,
                                     child: Container(
-                                      height: 5,
+                                      height: 8,
                                       decoration: BoxDecoration(
                                         gradient: const LinearGradient(
                                           colors: [
@@ -496,7 +481,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                             Color(0xFF059669)
                                           ],
                                         ),
-                                        borderRadius: BorderRadius.circular(4),
+                                        borderRadius:
+                                            BorderRadius.circular(6),
                                         boxShadow: [
                                           BoxShadow(
                                             color: const Color(0xFF34D399)
@@ -505,19 +491,46 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                           ),
                                         ],
                                       ),
+                                      child: ClipRRect(
+                                        borderRadius:
+                                            BorderRadius.circular(6),
+                                        child: Align(
+                                          alignment: Alignment.centerRight,
+                                          child: Transform.translate(
+                                            offset: Offset(
+                                                (shimmer.value * 2 - 1) * 30,
+                                                0),
+                                            child: Container(
+                                              width: 16,
+                                              decoration: BoxDecoration(
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    Colors.white
+                                                        .withValues(alpha: 0),
+                                                    Colors.white.withValues(
+                                                        alpha: 0.55),
+                                                    Colors.white
+                                                        .withValues(alpha: 0),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ]),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ]),
-                    ),
-                  ]),
-                ),
-              );
-            },
+                                ),
+                              ]),
+                            ),
+                          ],
+                        ]),
+                      ),
+                    ]),
+                  ),
+                );
+              },
+            ),
           ),
 
         // ── Filtros (solo en Aprobados) ─────────────────────────
@@ -913,8 +926,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Column(
-                  children:
-                      pendientesActivas.map((p) => _pendienteCard(p)).toList()),
+                  children: pendientesActivas
+                      .asMap()
+                      .entries
+                      .map((e) => _pendienteCard(e.value, e.key))
+                      .toList()),
             ),
           if (pendingLoading && pendingLoaded)
             const Padding(
@@ -1221,7 +1237,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Column(
                 children: solicitudesRechazadas
-                    .map((p) => _pendienteCard(p))
+                    .asMap()
+                    .entries
+                    .map((e) => _pendienteCard(e.value, e.key))
                     .toList()),
           ),
       ],
@@ -1705,7 +1723,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         ),
                       ),
                       FractionallySizedBox(
-                        widthFactor: animPct,
+                        widthFactor: animPct.clamp(0.04, 1.0),
                         child: Container(
                           height: 20,
                           decoration: BoxDecoration(
@@ -1727,21 +1745,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               ),
                             ],
                           ),
-                          alignment: Alignment.centerRight,
-                          child: animPct > 0.15
-                              ? Padding(
-                                  padding: const EdgeInsets.only(right: 6),
-                                  child: Text(pctLabel,
-                                      style: const TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.white)),
-                                )
-                              : null,
                         ),
                       ),
                     ]),
                   ),
+                ),
+                const SizedBox(width: 6),
+                // Badge de porcentaje: siempre visible, ya no depende de que
+                // la barra sea lo bastante ancha para contener el texto.
+                SizedBox(
+                  width: 34,
+                  child: Text(pctLabel,
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: rowColor)),
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
@@ -3094,7 +3113,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
       final nombre = (c['asesor'] ?? '').toString().trim();
       final aCod = (c['asesor_cod'] ?? '').toString().trim();
       final sigla = creditAdvisorInitials(aCod).trim();
-      return sigla.isNotEmpty ? advisorName(sigla) : nombre;
+      final resuelto = sigla.isNotEmpty ? advisorName(sigla) : nombre;
+      // Si no hay nombre real (solo quedó el código numérico del asesor),
+      // no mostrar un dato críptico como "· 1".
+      return RegExp(r'^[0-9]*$').hasMatch(resuelto) ? '' : resuelto;
     })();
     final nombre = (c['cliente'] ?? 'Cliente').toString();
     final monto = numberValue(c['valor_prestamo'] ?? 0);
@@ -3129,24 +3151,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         : vencido
             ? (isDarkTheme ? const Color(0xFF5F2430) : const Color(0xFFFCA5A5))
             : lineCol;
-
-    final Color estadoColor = !activo
-        ? (isDarkTheme ? const Color(0xFF7CC4F8) : const Color(0xFF0369A1))
-        : vencido
-            ? (isDarkTheme ? const Color(0xFFF87171) : const Color(0xFFB71C1C))
-            : const Color(0xFF16A34A);
-
-    final Color estadoBg = !activo
-        ? (isDarkTheme
-            ? const Color(0xFF0369A1).withValues(alpha: 0.22)
-            : const Color(0xFFDBEAFE))
-        : vencido
-            ? (isDarkTheme
-                ? const Color(0xFFB71C1C).withValues(alpha: 0.22)
-                : const Color(0xFFFFEBEE))
-            : (isDarkTheme
-                ? const Color(0xFF16A34A).withValues(alpha: 0.20)
-                : const Color(0xFFDCFCE7));
 
     final initials = nombre
         .split(' ')
@@ -3184,65 +3188,48 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           duration: const Duration(milliseconds: 220),
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: !activo
-                  ? (isDarkTheme
-                      ? const [Color(0xFF10281C), Color(0xFF0D2018)]
-                      : const [Color(0xFFF0FDF4), Color(0xFFE8FBF0)])
-                  : vencido
-                      ? (isDarkTheme
-                          ? const [Color(0xFF2B1420), Color(0xFF221019)]
-                          : const [Color(0xFFFFF5F5), Color(0xFFFFF0F0)])
-                      : cardSheen,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: cardBg,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: borderColor, width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: accent.withValues(alpha: expanded ? 0.15 : 0.07),
-                blurRadius: expanded ? 20 : 10,
-                offset: const Offset(0, 5),
+                color: accent.withValues(alpha: expanded ? 0.28 : 0.18),
+                blurRadius: expanded ? 26 : 16,
+                offset: const Offset(0, 7),
               ),
             ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
-            child: Stack(children: [
-              // Main content (determines Stack height, left-padded to clear accent bar)
-              Padding(
-                padding: const EdgeInsets.only(left: 4),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ── Header (siempre visible) ──────────────────────────
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 14, 14, 10),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Banner de estado (color sólido, siempre visible) ────
+                  ClipRect(
+                    child: Stack(children: [
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color.lerp(accent, Colors.white, 0.14) ?? accent,
+                              accent,
+                              Color.lerp(accent, Colors.black, 0.24) ?? accent,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
                         child: Row(children: [
                           Container(
-                            width: 44,
-                            height: 44,
+                            width: 42,
+                            height: 42,
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Color.lerp(accent, Colors.white, 0.28) ??
-                                      accent,
-                                  accent,
-                                  Color.lerp(accent, Colors.black, 0.22) ??
-                                      accent,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
+                              color: Colors.white.withValues(alpha: 0.20),
                               shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: accent.withValues(alpha: 0.38),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.45),
+                                  width: 1.4),
                             ),
                             child: Center(
                                 child: Text(initials,
@@ -3259,17 +3246,28 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 Text(nombre,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 14,
-                                        color: textMain)),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14.5,
+                                        color: Colors.white)),
                                 const SizedBox(height: 2),
                                 if (asesor.isNotEmpty)
-                                  Text('· $asesor',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                          fontSize: 11, color: textSoft)),
+                                  Row(mainAxisSize: MainAxisSize.min, children: [
+                                    Icon(Icons.badge_outlined,
+                                        size: 11,
+                                        color:
+                                            Colors.white.withValues(alpha: 0.75)),
+                                    const SizedBox(width: 3),
+                                    Flexible(
+                                      child: Text(asesor,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.white
+                                                  .withValues(alpha: 0.75))),
+                                    ),
+                                  ]),
                               ])),
                           const SizedBox(width: 8),
                           Column(
@@ -3280,7 +3278,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     Text('#$cod',
                                         style: TextStyle(
                                             fontSize: 10,
-                                            color: textSoft,
+                                            color: Colors.white
+                                                .withValues(alpha: 0.65),
                                             fontWeight: FontWeight.w600)),
                                     const SizedBox(width: 6),
                                   ],
@@ -3288,11 +3287,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 9, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: estadoBg,
+                                      color: Colors.white.withValues(alpha: 0.18),
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(
                                         color:
-                                            estadoColor.withValues(alpha: 0.30),
+                                            Colors.white.withValues(alpha: 0.35),
                                         width: 1,
                                       ),
                                     ),
@@ -3302,15 +3301,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                           Container(
                                             width: 6,
                                             height: 6,
-                                            decoration: BoxDecoration(
-                                              color: estadoColor,
+                                            decoration: const BoxDecoration(
+                                              color: Colors.white,
                                               shape: BoxShape.circle,
                                             ),
                                           ),
                                           const SizedBox(width: 5),
                                           Text(estado,
-                                              style: TextStyle(
-                                                  color: estadoColor,
+                                              style: const TextStyle(
+                                                  color: Colors.white,
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.w700)),
                                         ]),
@@ -3321,17 +3320,78 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                   turns: expanded ? 0.5 : 0,
                                   duration: const Duration(milliseconds: 220),
                                   child: Icon(Icons.keyboard_arrow_down_rounded,
-                                      color: textSoft, size: 18),
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                      size: 18),
                                 ),
                               ]),
                         ]),
                       ),
+                      // Glow decorativo
+                      Positioned(
+                        right: -20,
+                        top: -20,
+                        child: IgnorePointer(
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(colors: [
+                                Colors.white.withValues(alpha: 0.18),
+                                Colors.transparent,
+                              ]),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // Barrido de luz animado (shimmer)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: AnimatedBuilder(
+                            animation: shimmer,
+                            builder: (_, __) => Transform.translate(
+                              offset: Offset((shimmer.value * 2 - 1) * 220, 0),
+                              child: Transform.rotate(
+                                angle: 0.42,
+                                child: Container(
+                                  width: 34,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(colors: [
+                                      Colors.white.withValues(alpha: 0),
+                                      Colors.white.withValues(alpha: 0.22),
+                                      Colors.white.withValues(alpha: 0),
+                                    ]),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ]),
+                  ),
 
-                      // ── Pendiente + Próxima cuota ─────────────────────────
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+                  // ── Pendiente + Próxima cuota ─────────────────────────
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
                         child: Row(children: [
                           Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: (pendiente > 0
+                                        ? const Color(0xFFDC2626)
+                                        : const Color(0xFF16A34A))
+                                    .withValues(alpha: isDarkTheme ? 0.12 : 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: (pendiente > 0
+                                          ? const Color(0xFFDC2626)
+                                          : const Color(0xFF16A34A))
+                                      .withValues(alpha: 0.22),
+                                ),
+                              ),
                               child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -3341,32 +3401,73 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                         color: textSoft,
                                         fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 2),
-                                Text(formatCop(pendiente),
-                                    style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w800,
-                                        color: pendiente > 0
-                                            ? const Color(0xFFDC2626)
-                                            : const Color(0xFF16A34A))),
-                              ])),
-                          if (proxima.isNotEmpty)
-                            Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text('PRÓX. CUOTA',
+                                TweenAnimationBuilder<double>(
+                                  key: ValueKey('pend_${cardKey}_$pendiente'),
+                                  tween: Tween(begin: 0.0, end: pendiente),
+                                  duration: const Duration(milliseconds: 700),
+                                  curve: Curves.easeOutCubic,
+                                  builder: (_, animatedPendiente, __) => Text(
+                                      formatCop(animatedPendiente),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                          fontSize: 9,
-                                          color: textSoft,
-                                          fontWeight: FontWeight.w600)),
-                                  const SizedBox(height: 2),
-                                  Text(proxima,
-                                      style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: vencido
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                          color: pendiente > 0
                                               ? const Color(0xFFDC2626)
-                                              : textMain)),
-                                ]),
+                                              : const Color(0xFF16A34A))),
+                                ),
+                              ]),
+                            ),
+                          ),
+                          if (proxima.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: (vencido
+                                        ? const Color(0xFFDC2626)
+                                        : accent)
+                                    .withValues(alpha: isDarkTheme ? 0.12 : 0.07),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: (vencido
+                                          ? const Color(0xFFDC2626)
+                                          : accent)
+                                      .withValues(alpha: 0.22),
+                                ),
+                              ),
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Row(mainAxisSize: MainAxisSize.min, children: [
+                                      if (vencido)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(right: 3),
+                                          child: Icon(
+                                              Icons.warning_amber_rounded,
+                                              size: 10,
+                                              color: const Color(0xFFDC2626)),
+                                        ),
+                                      Text('PRÓX. CUOTA',
+                                          style: TextStyle(
+                                              fontSize: 9,
+                                              color: textSoft,
+                                              fontWeight: FontWeight.w600)),
+                                    ]),
+                                    const SizedBox(height: 2),
+                                    Text(proxima,
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: vencido
+                                                ? const Color(0xFFDC2626)
+                                                : textMain)),
+                                  ]),
+                            ),
+                          ],
                         ]),
                       ),
 
@@ -3406,16 +3507,16 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                   duration: const Duration(milliseconds: 800),
                                   curve: Curves.easeOutCubic,
                                   builder: (_, v, __) => ClipRRect(
-                                    borderRadius: BorderRadius.circular(5),
+                                    borderRadius: BorderRadius.circular(6),
                                     child: Stack(children: [
                                       Container(
-                                        height: 5,
+                                        height: 7,
                                         color: lineCol,
                                       ),
                                       FractionallySizedBox(
                                         widthFactor: v,
                                         child: Container(
-                                          height: 5,
+                                          height: 7,
                                           decoration: BoxDecoration(
                                             gradient: LinearGradient(
                                               colors: progress >= 1.0
@@ -3433,7 +3534,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                                     ],
                                             ),
                                             borderRadius:
-                                                BorderRadius.circular(5),
+                                                BorderRadius.circular(6),
                                             boxShadow: [
                                               BoxShadow(
                                                 color: (progress >= 1.0
@@ -3441,7 +3542,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                                             0xFF34D399)
                                                         : accent)
                                                     .withValues(alpha: 0.55),
-                                                blurRadius: 6,
+                                                blurRadius: 7,
                                               ),
                                             ],
                                           ),
@@ -3469,30 +3570,47 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     const EdgeInsets.fromLTRB(12, 0, 12, 12),
                                 child: Row(children: [
                                   Expanded(
-                                      child: _statMini(
-                                          'Crédito',
-                                          formatCop(monto),
-                                          isDarkTheme
-                                              ? const Color(0xFF9AA8FF)
-                                              : homeNavy)),
+                                      child: _staggerIn(
+                                          expanded,
+                                          0,
+                                          _statMini(
+                                              Icons
+                                                  .account_balance_wallet_outlined,
+                                              'Crédito',
+                                              formatCop(monto),
+                                              isDarkTheme
+                                                  ? const Color(0xFF9AA8FF)
+                                                  : homeNavy))),
                                   const SizedBox(width: 6),
                                   Expanded(
-                                      child: _statMini(
-                                          'A Pagar',
-                                          formatCop(totalPagar),
-                                          const Color(0xFF4F46E5))),
+                                      child: _staggerIn(
+                                          expanded,
+                                          1,
+                                          _statMini(
+                                              Icons.payments_outlined,
+                                              'A Pagar',
+                                              formatCop(totalPagar),
+                                              const Color(0xFF4F46E5)))),
                                   const SizedBox(width: 6),
                                   Expanded(
-                                      child: _statMini(
-                                          'Pagado',
-                                          formatCop(pagado),
-                                          const Color(0xFF16A34A))),
+                                      child: _staggerIn(
+                                          expanded,
+                                          2,
+                                          _statMini(
+                                              Icons.check_circle_outline_rounded,
+                                              'Pagado',
+                                              formatCop(pagado),
+                                              const Color(0xFF16A34A)))),
                                   const SizedBox(width: 6),
                                   Expanded(
-                                      child: _statMini(
-                                          'Pendiente',
-                                          formatCop(pendiente),
-                                          const Color(0xFFDC2626))),
+                                      child: _staggerIn(
+                                          expanded,
+                                          3,
+                                          _statMini(
+                                              Icons.hourglass_bottom_rounded,
+                                              'Pendiente',
+                                              formatCop(pendiente),
+                                              const Color(0xFFDC2626)))),
                                 ]),
                               ),
                               if (fecha.isNotEmpty ||
@@ -3506,17 +3624,30 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                       runSpacing: 6,
                                       children: [
                                         if (fecha.isNotEmpty)
-                                          _infoBadge(
-                                              Icons.calendar_today_rounded,
-                                              fecha),
+                                          _staggerIn(
+                                              expanded,
+                                              4,
+                                              _infoBadgeGrad(
+                                                  Icons.calendar_today_rounded,
+                                                  fecha,
+                                                  const Color(0xFF2563EB))),
                                         if (tipo.isNotEmpty)
-                                          _infoBadge(
-                                              Icons.repeat_rounded, tipo),
+                                          _staggerIn(
+                                              expanded,
+                                              5,
+                                              _infoBadgeGrad(
+                                                  Icons.repeat_rounded,
+                                                  tipo,
+                                                  const Color(0xFF7C3AED))),
                                         if (numCuotas.isNotEmpty)
-                                          _infoBadge(
-                                              Icons
-                                                  .format_list_numbered_rounded,
-                                              '$numCuotas cuotas'),
+                                          _staggerIn(
+                                              expanded,
+                                              6,
+                                              _infoBadgeGrad(
+                                                  Icons
+                                                      .format_list_numbered_rounded,
+                                                  '$numCuotas cuotas',
+                                                  const Color(0xFF0D9488))),
                                       ]),
                                 ),
                               Padding(
@@ -3524,34 +3655,47 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     const EdgeInsets.fromLTRB(14, 0, 14, 14),
                                 child: Row(children: [
                                   Expanded(
-                                      child: _miniActionBtn(
-                                          Icons.list_alt_rounded,
-                                          'Cuotas',
-                                          isDarkTheme
-                                              ? const Color(0xFF38BDF8)
-                                              : const Color(0xFF1D4ED8),
-                                          () => _showCuotasDialog(c))),
+                                      child: _staggerIn(
+                                          expanded,
+                                          7,
+                                          _miniActionBtn(
+                                              Icons.list_alt_rounded,
+                                              'Cuotas',
+                                              isDarkTheme
+                                                  ? const Color(0xFF38BDF8)
+                                                  : const Color(0xFF1D4ED8),
+                                              () => _showCuotasDialog(c)))),
                                   const SizedBox(width: 6),
                                   if (activo)
                                     Expanded(
-                                        child: _miniActionBtn(
-                                            Icons.request_quote_outlined,
-                                            'Liquidar',
-                                            const Color(0xFF7C3AED),
-                                            () =>
-                                                _showLiquidarCreditoDialog(c))),
+                                        child: _staggerIn(
+                                            expanded,
+                                            8,
+                                            _miniActionBtn(
+                                                Icons.request_quote_outlined,
+                                                'Liquidar',
+                                                const Color(0xFF7C3AED),
+                                                () =>
+                                                    _showLiquidarCreditoDialog(
+                                                        c)))),
                                   if (activo) const SizedBox(width: 6),
                                   Expanded(
-                                      child: _miniActionBtn(
-                                          Icons.verified_outlined,
-                                          'Paz y Salvo',
-                                          const Color(0xFF2563EB),
-                                          () => _showPazYSalvoDialog(c))),
+                                      child: _staggerIn(
+                                          expanded,
+                                          9,
+                                          _miniActionBtn(
+                                              Icons.verified_outlined,
+                                              'Paz y Salvo',
+                                              const Color(0xFF2563EB),
+                                              () => _showPazYSalvoDialog(c)))),
                                   const SizedBox(width: 6),
-                                  _miniIconBtn(
-                                      Icons.delete_outline_rounded,
-                                      const Color(0xFFDC2626),
-                                      () => _confirmarEliminarCredito(c)),
+                                  _staggerIn(
+                                      expanded,
+                                      10,
+                                      _miniIconBtn(
+                                          Icons.delete_outline_rounded,
+                                          const Color(0xFFDC2626),
+                                          () => _confirmarEliminarCredito(c))),
                                 ]),
                               ),
                             ]),
@@ -3560,54 +3704,150 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             : CrossFadeState.showFirst,
                         duration: const Duration(milliseconds: 250),
                       ),
-                    ]), // closes Column children
-              ), // closes Padding
-              // Left accent bar — Positioned so it never causes overflow
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  width: 4,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color.lerp(accent, Colors.white, 0.20) ?? accent,
-                        accent,
-                        Color.lerp(accent, Colors.black, 0.28) ?? accent,
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
-              ),
-            ]), // closes Stack children
+                ]), // closes Column children
           ), // closes ClipRRect
-        ),
+        ), // closes AnimatedContainer
       ), // closes GestureDetector
     ); // closes TweenAnimationBuilder
   }
 
-  Widget _creditHeaderBadge(IconData icon, String label, Color color) =>
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.35), width: 1),
+  Widget _creditHeaderBadge(
+          IconData icon, String count, String label, Color color) =>
+      AnimatedBuilder(
+        animation: shimmer,
+        builder: (_, __) => ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.lerp(color, Colors.white, 0.10)!
+                      .withValues(alpha: 0.55 + 0.20 * shimmer.value),
+                  color.withValues(alpha: 0.20),
+                ],
+              ),
+              border: Border.all(
+                  color: color.withValues(alpha: 0.55 + 0.20 * shimmer.value),
+                  width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.30 + 0.18 * shimmer.value),
+                  blurRadius: 14 + 6 * shimmer.value,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Stack(children: [
+              Positioned.fill(
+                child: Transform.translate(
+                  offset: Offset((shimmer.value * 2 - 1) * 70, 0),
+                  child: Transform.rotate(
+                    angle: 0.4,
+                    child: Container(
+                      width: 18,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [
+                          Colors.white.withValues(alpha: 0),
+                          Colors.white.withValues(alpha: 0.30),
+                          Colors.white.withValues(alpha: 0),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(icon, size: 12, color: Colors.white),
+                      const SizedBox(width: 5),
+                      Text(count,
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white)),
+                    ]),
+                    const SizedBox(height: 3),
+                    Text(label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white.withValues(alpha: 0.88))),
+                  ],
+                ),
+              ),
+            ]),
+          ),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 5),
-          Text(label,
-              style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-        ]),
       );
 
-  Widget _statMini(String label, String value, Color color) {
+  Widget _creditsTotalStat({
+    required IconData icon,
+    required String label,
+    required double value,
+    required Color color,
+  }) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    color.withValues(alpha: 0.32),
+                    color.withValues(alpha: 0.12),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: color.withValues(alpha: 0.40)),
+              ),
+              child: Icon(icon, color: color, size: 16),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6)),
+            ),
+          ]),
+          const SizedBox(height: 8),
+          TweenAnimationBuilder<double>(
+            key: ValueKey('credits_total_${label}_$value'),
+            tween: Tween(begin: 0.0, end: value),
+            duration: const Duration(milliseconds: 700),
+            curve: Curves.easeOutCubic,
+            builder: (_, animatedValue, __) => Text(formatCop(animatedValue),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3)),
+          ),
+        ],
+      );
+
+  Widget _statMini(IconData icon, String label, String value, Color color) {
     final topColor = isDarkTheme
         ? Color.lerp(color, Colors.white, 0.16) ?? color
         : Color.lerp(color, Colors.white, 0.72) ?? color;
@@ -3622,19 +3862,19 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         : Color.lerp(color, Colors.black, 0.10) ?? color;
 
     return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: isDarkTheme
                 ? [
-                    topColor.withValues(alpha: 0.38),
-                    color.withValues(alpha: 0.20),
-                    bottomColor.withValues(alpha: 0.28),
+                    topColor.withValues(alpha: 0.42),
+                    color.withValues(alpha: 0.22),
+                    bottomColor.withValues(alpha: 0.32),
                   ]
                 : [
-                    topColor.withValues(alpha: 0.96),
-                    color.withValues(alpha: 0.14),
-                    bottomColor.withValues(alpha: 0.98),
+                    topColor.withValues(alpha: 0.98),
+                    color.withValues(alpha: 0.20),
+                    bottomColor.withValues(alpha: 1.0),
                   ],
             stops: const [0.0, 0.52, 1.0],
             begin: Alignment.topLeft,
@@ -3642,25 +3882,33 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           ),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: color.withValues(alpha: isDarkTheme ? 0.34 : 0.24),
+            color: color.withValues(alpha: isDarkTheme ? 0.38 : 0.30),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: color.withValues(alpha: isDarkTheme ? 0.16 : 0.10),
+              color: color.withValues(alpha: isDarkTheme ? 0.18 : 0.13),
               blurRadius: 12,
               offset: const Offset(0, 5),
             ),
           ],
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label,
-              style: TextStyle(
-                  fontSize: 8.5,
-                  color: labelColor.withValues(alpha: 0.88),
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.3)),
-          const SizedBox(height: 3),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(icon, size: 10, color: valueColor.withValues(alpha: 0.85)),
+            const SizedBox(width: 3),
+            Flexible(
+              child: Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 8.5,
+                      color: labelColor.withValues(alpha: 0.88),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3)),
+            ),
+          ]),
+          const SizedBox(height: 4),
           Text(value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -3670,6 +3918,30 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   color: valueColor)),
         ]));
   }
+
+  // Anima la entrada de un widget del panel expandido con un pequeño
+  // stagger por índice (fade + scale), reiniciando cada vez que se abre.
+  Widget _staggerIn(bool trigger, int index, Widget child) =>
+      TweenAnimationBuilder<double>(
+        key: ValueKey('stagger_${trigger}_$index'),
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 380),
+        curve: Interval(
+          (index * 0.05).clamp(0.0, 0.6),
+          (index * 0.05 + 0.5).clamp(0.5, 1.0),
+          curve: Curves.easeOutBack,
+        ),
+        builder: (_, t, __) => Opacity(
+          opacity: t.clamp(0.0, 1.0),
+          child: Transform.scale(
+            scale: 0.85 + 0.15 * t,
+            child: Transform.translate(
+              offset: Offset(0, 10 * (1 - t)),
+              child: child,
+            ),
+          ),
+        ),
+      );
 
   // Chip con gradiente (usado en las cards de Pendientes/Rechazadas)
   Widget _infoBadgeGrad(IconData icon, String text, Color color) {
@@ -3689,24 +3961,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, size: 11, color: color.withValues(alpha: 0.85)),
-          const SizedBox(width: 5),
-          Text(text,
-              style: TextStyle(
-                  fontSize: 10, color: textMain, fontWeight: FontWeight.w700)),
-        ]));
-  }
-
-  Widget _infoBadge(IconData icon, String text) {
-    const color = Color(0xFF4361EE);
-    return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.18), width: 1),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 11, color: color.withValues(alpha: 0.75)),
           const SizedBox(width: 5),
           Text(text,
               style: TextStyle(
@@ -3803,7 +4057,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         ));
   }
 
-  Widget _pendienteCard(Map<String, dynamic> p) {
+  Widget _pendienteCard(Map<String, dynamic> p, [int index = 0]) {
     final cod = (p['codigo_solicitud'] ?? p['cod'] ?? '').toString();
     final solicitante = ([p['nombres'], p['apellidos']]
             .where((x) => x != null && x.toString().isNotEmpty)
@@ -3837,15 +4091,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     // Verde = asesor asignado, Rojo = rechazado (estado 3), Blanco = pendiente
     final tieneAsesor = codigoAsesor.isNotEmpty;
     final rechazado = estadoCod == 3;
-    final cardGradient = rechazado
-        ? (isDarkTheme
-            ? const [Color(0xFF2B1420), Color(0xFF3A1A28)]
-            : const [Color(0xFFFFF0F0), Color(0xFFFFCDD2)])
-        : tieneAsesor
-            ? (isDarkTheme
-                ? const [Color(0xFF10281C), Color(0xFF16352a)]
-                : const [Color(0xFFEAF8EB), Color(0xFFC8E6C9)])
-            : cardSheen;
     final cardBorder = rechazado
         ? (isDarkTheme ? const Color(0xFF6B2837) : const Color(0xFFEF9A9A))
         : tieneAsesor
@@ -3877,140 +4122,204 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final cardKey = cod.isNotEmpty ? cod : '$solicitante|$doc';
     final expanded = expandedPending.contains(cardKey);
 
-    return GestureDetector(
-      onTap: () => refresh(() => expanded
-          ? expandedPending.remove(cardKey)
-          : expandedPending.add(cardKey)),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: cardGradient,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: cardBorder, width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: accentColor.withValues(alpha: expanded ? 0.18 : 0.10),
-              blurRadius: expanded ? 18 : 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
+    final entryInterval = Interval(
+      (index * 0.08).clamp(0.0, 0.45),
+      (index * 0.08 + 0.70).clamp(0.5, 1.0),
+      curve: Curves.easeOutBack,
+    );
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(cardKey),
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 900),
+      curve: entryInterval,
+      builder: (_, v, child) => Opacity(
+        opacity: v.clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(0, 22 * (1 - v)),
+          child: child,
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: Stack(children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Color.lerp(accentColor, Colors.white, 0.28) ??
-                                    accentColor,
-                                accentColor,
-                                Color.lerp(accentColor, Colors.black, 0.22) ??
-                                    accentColor,
-                              ],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: accentColor.withValues(alpha: 0.38),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
+      ),
+      child: GestureDetector(
+        onTap: () => refresh(() => expanded
+            ? expandedPending.remove(cardKey)
+            : expandedPending.add(cardKey)),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: cardBorder, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withValues(alpha: expanded ? 0.26 : 0.16),
+                blurRadius: expanded ? 24 : 15,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Banner de estado (color sólido) ────────────────
+                  ClipRect(
+                    child: Stack(children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color.lerp(accentColor, Colors.white, 0.14) ??
+                                  accentColor,
+                              accentColor,
+                              Color.lerp(accentColor, Colors.black, 0.24) ??
+                                  accentColor,
                             ],
-                          ),
-                          child: Center(
-                            child: Text(initials,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 15)),
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                    solicitante.isNotEmpty
-                                        ? solicitante
-                                        : 'Sin nombre',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 14,
-                                        color: textMain)),
-                                const SizedBox(height: 2),
-                                if (doc.isNotEmpty)
-                                  Text('Doc: $doc',
-                                      style: TextStyle(
-                                          fontSize: 11, color: textSoft)),
-                              ]),
-                        ),
-                        const SizedBox(width: 8),
-                        Row(mainAxisSize: MainAxisSize.min, children: [
-                          if (cod.isNotEmpty) ...[
-                            Text('#$cod',
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    color: textSoft,
-                                    fontWeight: FontWeight.w600)),
-                            const SizedBox(width: 6),
-                          ],
+                        child: Row(children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                            width: 42,
+                            height: 42,
                             decoration: BoxDecoration(
-                              color: accentColor.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(10),
+                              color: Colors.white.withValues(alpha: 0.20),
+                              shape: BoxShape.circle,
                               border: Border.all(
-                                  color: accentColor.withValues(alpha: 0.28),
-                                  width: 1),
+                                  color: Colors.white.withValues(alpha: 0.45),
+                                  width: 1.4),
                             ),
-                            child:
-                                Row(mainAxisSize: MainAxisSize.min, children: [
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                    color: accentColor, shape: BoxShape.circle),
-                              ),
-                              const SizedBox(width: 4),
-                              Text(estadoLabel,
+                            child: Center(
+                              child: Text(initials,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 15)),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                      solicitante.isNotEmpty
+                                          ? solicitante
+                                          : 'Sin nombre',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 14.5,
+                                          color: Colors.white)),
+                                  const SizedBox(height: 2),
+                                  if (doc.isNotEmpty)
+                                    Text('Doc: $doc',
+                                        style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.white
+                                                .withValues(alpha: 0.75))),
+                                ]),
+                          ),
+                          const SizedBox(width: 8),
+                          Row(mainAxisSize: MainAxisSize.min, children: [
+                            if (cod.isNotEmpty) ...[
+                              Text('#$cod',
                                   style: TextStyle(
-                                      color: accentColor,
                                       fontSize: 10,
-                                      fontWeight: FontWeight.w700)),
-                            ]),
+                                      color: Colors.white.withValues(alpha: 0.65),
+                                      fontWeight: FontWeight.w600)),
+                              const SizedBox(width: 6),
+                            ],
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.35),
+                                    width: 1),
+                              ),
+                              child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(estadoLabel,
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700)),
+                                  ]),
+                            ),
+                          ]),
+                          const SizedBox(width: 6),
+                          AnimatedRotation(
+                            turns: expanded ? 0.5 : 0,
+                            duration: const Duration(milliseconds: 220),
+                            child: Icon(Icons.keyboard_arrow_down_rounded,
+                                color: Colors.white.withValues(alpha: 0.85),
+                                size: 18),
                           ),
                         ]),
-                        const SizedBox(width: 6),
-                        AnimatedRotation(
-                          turns: expanded ? 0.5 : 0,
-                          duration: const Duration(milliseconds: 220),
-                          child: Icon(Icons.keyboard_arrow_down_rounded,
-                              color: textSoft, size: 18),
+                      ),
+                      Positioned(
+                        right: -20,
+                        top: -20,
+                        child: IgnorePointer(
+                          child: Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: RadialGradient(colors: [
+                                Colors.white.withValues(alpha: 0.18),
+                                Colors.transparent,
+                              ]),
+                            ),
+                          ),
                         ),
-                      ]),
-                      const SizedBox(height: 10),
+                      ),
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: AnimatedBuilder(
+                            animation: shimmer,
+                            builder: (_, __) => Transform.translate(
+                              offset: Offset((shimmer.value * 2 - 1) * 220, 0),
+                              child: Transform.rotate(
+                                angle: 0.42,
+                                child: Container(
+                                  width: 34,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(colors: [
+                                      Colors.white.withValues(alpha: 0),
+                                      Colors.white.withValues(alpha: 0.22),
+                                      Colors.white.withValues(alpha: 0),
+                                    ]),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ]),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                       Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -4097,33 +4406,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         duration: const Duration(milliseconds: 250),
                       ),
                     ]),
-              ),
-            ),
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              child: Container(
-                width: 4,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color.lerp(accentColor, Colors.white, 0.22) ??
-                          accentColor,
-                      accentColor,
-                      Color.lerp(accentColor, Colors.black, 0.28) ??
-                          accentColor,
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
                   ),
-                ),
-              ),
-            ),
-          ]),
-        ),
-      ),
-    );
+                ]),
+          ), // closes ClipRRect
+        ), // closes AnimatedContainer
+      ), // closes GestureDetector
+    ); // closes TweenAnimationBuilder
   }
 
   void _showEditarSolicitudDialog(Map<String, dynamic> p) {

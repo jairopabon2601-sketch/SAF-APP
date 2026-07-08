@@ -2050,12 +2050,15 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                     fontSize: 13)),
                           ])),
                       Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text('Sistema de',
-                                style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.50),
-                                    fontSize: 10)),
+                            SizedBox(
+                              width: 30,
+                              height: 30,
+                              child:
+                                  CustomPaint(painter: SafLogoPainter(Colors.white)),
+                            ),
+                            const SizedBox(height: 5),
                             const Text('SAF',
                                 style: TextStyle(
                                     color: Colors.white,
@@ -2067,19 +2070,13 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                     const SizedBox(height: 14),
                     Row(children: [
                       _ahorMiniStat(Icons.check_circle_outline_rounded,
-                          'Al día', '$alDiaCount', const Color(0xFF6EE7B7)),
-                      Container(
-                          width: 1,
-                          height: 30,
-                          color: Colors.white.withValues(alpha: 0.2)),
+                          'Al día', '$alDiaCount', const Color(0xFF34D399)),
+                      const SizedBox(width: 8),
                       _ahorMiniStat(Icons.warning_amber_rounded, 'En mora',
-                          '$enMoraCount', const Color(0xFFFCA5A5)),
-                      Container(
-                          width: 1,
-                          height: 30,
-                          color: Colors.white.withValues(alpha: 0.2)),
-                      _ahorMiniStat(Icons.calendar_today_outlined, 'Año',
-                          savingsYearFilter, Colors.white),
+                          '$enMoraCount', const Color(0xFFFBBF24)),
+                      const SizedBox(width: 8),
+                      _ahorMiniStat(Icons.calendar_today_rounded, 'Año',
+                          savingsYearFilter, const Color(0xFFF472B6)),
                     ]),
                   ]),
                 ),
@@ -2373,28 +2370,83 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
   Widget _ahorMiniStat(
           IconData icon, String label, String value, Color color) =>
       Expanded(
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.65),
-                        fontSize: 10)),
-                Text(value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: color,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13)),
-              ],
+        child: AnimatedBuilder(
+          animation: shimmer,
+          builder: (_, __) => ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color.lerp(color, Colors.white, 0.12)!
+                        .withValues(alpha: 0.55 + 0.18 * shimmer.value),
+                    color.withValues(alpha: 0.22),
+                  ],
+                ),
+                border: Border.all(
+                    color: color.withValues(alpha: 0.55 + 0.18 * shimmer.value),
+                    width: 1.1),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: 0.28 + 0.16 * shimmer.value),
+                    blurRadius: 12 + 5 * shimmer.value,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Stack(children: [
+                Positioned.fill(
+                  child: Transform.translate(
+                    offset: Offset((shimmer.value * 2 - 1) * 60, 0),
+                    child: Transform.rotate(
+                      angle: 0.4,
+                      child: Container(
+                        width: 16,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [
+                            Colors.white.withValues(alpha: 0),
+                            Colors.white.withValues(alpha: 0.28),
+                            Colors.white.withValues(alpha: 0),
+                          ]),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(icon, size: 13, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(value,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14)),
+                      ]),
+                      const SizedBox(height: 2),
+                      Text(label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.85),
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              ]),
             ),
           ),
-        ]),
+        ),
       );
 
   // ══════════════════════════════════════════════════════════════

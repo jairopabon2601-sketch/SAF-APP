@@ -68,7 +68,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                           child: _summaryCard(
                             icon: Icons.trending_up_rounded,
                             label: 'Total ingresos',
-                            value: formatCop(ingresos),
+                            value: balanceVisible
+                                ? formatCop(ingresos)
+                                : '• • • • • •',
                             color: const Color(0xFF00B86B),
                             ratioValue: total > 0 ? ingresos / total : null,
                             index: 0,
@@ -79,7 +81,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                           child: _summaryCard(
                             icon: Icons.trending_down_rounded,
                             label: 'Total gastos',
-                            value: formatCop(egresos),
+                            value: balanceVisible
+                                ? formatCop(egresos)
+                                : '• • • • • •',
                             color: const Color(0xFFDC003A),
                             ratioValue: total > 0 ? egresos / total : null,
                             index: 1,
@@ -97,7 +101,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                           child: _summaryCard(
                             icon: Icons.account_balance_wallet_rounded,
                             label: 'Balance neto',
-                            value: formatCop(balance),
+                            value: balanceVisible
+                                ? formatCop(balance)
+                                : '• • • • • •',
                             color: const Color(0xFF3A5FE5),
                             badge: '${accounts.length} cuentas',
                             valueColor: balance < 0
@@ -205,8 +211,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
 
     final lista = filteredSavers;
     final total = lista.length;
-    final totalAhorrado = lista.fold(
-        0.0, (s, a) => s + numberValue(a['total_ahorrado'] ?? 0));
+    final totalAhorrado =
+        lista.fold(0.0, (s, a) => s + numberValue(a['total_ahorrado'] ?? 0));
 
     final hoy = DateTime.now().toUtc().subtract(const Duration(hours: 5));
     final hoyDate = DateTime(hoy.year, hoy.month, hoy.day);
@@ -215,8 +221,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       final cuotas = a['ahorros'];
       if (cuotas is! List) return false;
       return cuotas.whereType<Map>().any((m) {
-        final pagado =
-            (m['estado_pago'] ?? '').toString().toLowerCase().contains('pagado');
+        final pagado = (m['estado_pago'] ?? '')
+            .toString()
+            .toLowerCase()
+            .contains('pagado');
         if (pagado) return false;
         final fc = DateTime.tryParse((m['fecha_cuota'] ?? '').toString());
         if (fc == null) return false;
@@ -224,8 +232,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       });
     }).toList();
 
-    final alDiaLista =
-        lista.where((a) => !enMoraLista.contains(a)).toList();
+    final alDiaLista = lista.where((a) => !enMoraLista.contains(a)).toList();
     final enMoraCount = enMoraLista.length;
     final alDiaCount = alDiaLista.length;
 
@@ -322,7 +329,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                 const SizedBox(height: 10),
                 ...enMoraLista.asMap().entries.map((e) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: _asesorSaverCard(e.value, isMora: true, index: e.key),
+                      child:
+                          _asesorSaverCard(e.value, isMora: true, index: e.key),
                     )),
               ],
             ),
@@ -346,7 +354,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                 const SizedBox(height: 10),
                 ...alDiaLista.asMap().entries.map((e) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: _asesorSaverCard(e.value, isMora: false, index: e.key),
+                      child: _asesorSaverCard(e.value,
+                          isMora: false, index: e.key),
                     )),
               ],
             ),
@@ -421,9 +430,11 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           child: Stack(
             children: [
               Positioned(
-                top: -28, right: -28,
+                top: -28,
+                right: -28,
                 child: Container(
-                  width: 130, height: 130,
+                  width: 130,
+                  height: 130,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(colors: [
@@ -434,9 +445,11 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
               ),
               Positioned(
-                bottom: -36, right: 30,
+                bottom: -36,
+                right: 30,
                 child: Container(
-                  width: 96, height: 96,
+                  width: 96,
+                  height: 96,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(colors: [
@@ -597,7 +610,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           children: [
             Row(children: [
               Container(
-                width: 7, height: 7,
+                width: 7,
+                height: 7,
                 decoration: BoxDecoration(
                   color: statusColor,
                   shape: BoxShape.circle,
@@ -660,7 +674,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     final nombre = (a['ahorrador'] ?? '').toString();
     final monto = numberValue(a['total_ahorrado'] ?? 0);
     final initials = nombre.isNotEmpty
-        ? nombre.trim().split(' ').take(2)
+        ? nombre
+            .trim()
+            .split(' ')
+            .take(2)
             .map((w) => w.isNotEmpty ? w[0] : '')
             .join()
             .toUpperCase()
@@ -853,8 +870,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                 letterSpacing: -0.5)),
                         const SizedBox(height: 2),
                         Text('ahorrado',
-                            style: TextStyle(
-                                fontSize: 10, color: textSoft)),
+                            style: TextStyle(fontSize: 10, color: textSoft)),
                       ],
                     ),
                   ]),
@@ -874,7 +890,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     final mes = (activity['mes'] ?? '').toString();
     final valor = numberValue(activity['valor_pagado'] ?? 0);
     final initials = nombre.isNotEmpty
-        ? nombre.trim().split(' ').take(2)
+        ? nombre
+            .trim()
+            .split(' ')
+            .take(2)
             .map((w) => w.isNotEmpty ? w[0] : '')
             .join()
             .toUpperCase()
@@ -1031,8 +1050,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                 letterSpacing: -0.5)),
                         const SizedBox(height: 2),
                         Text('pagado',
-                            style: TextStyle(
-                                fontSize: 10, color: textSoft)),
+                            style: TextStyle(fontSize: 10, color: textSoft)),
                       ],
                     ),
                   ]),
@@ -1049,7 +1067,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
   //  DASHBOARD CRÉDITOS (perfil 5)
   // ══════════════════════════════════════════════════════════════
   Widget buildCreditsDashboard(String greeting, String firstName) {
-    if (loadingData || !menuOptionsLoaded || !creditsDataLoaded) return _dashboardSkeleton();
+    if (loadingData || !menuOptionsLoaded || !creditsDataLoaded)
+      return _dashboardSkeleton();
 
     final totalPagado = creditsPaidTotal;
     final totalPendiente = creditsPendingTotal;
@@ -1057,7 +1076,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     final ratio = total > 0 ? (totalPagado / total).clamp(0.0, 1.0) : 0.0;
     final activeCount = credits.length;
     final pendingCount = pendingRequests
-        .where((p) => (int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0) != 3)
+        .where((p) =>
+            (int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0) != 3)
         .length;
 
     // Últimos créditos (5)
@@ -1068,6 +1088,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       final v = (m['fecha'] ?? '').toString();
       return v.length >= 10 ? v.substring(0, 10) : v;
     }
+
     final recentMovements = ([...movements]
           ..sort((a, b) => movDate(b).compareTo(movDate(a))))
         .take(5)
@@ -1077,8 +1098,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── Hero card ─────────────────────────────────────────
-        _buildCreditsHeroCard(
-            greeting, firstName, totalPagado, totalPendiente,
+        _buildCreditsHeroCard(greeting, firstName, totalPagado, totalPendiente,
             activeCount, pendingCount, ratio),
         const SizedBox(height: 24),
 
@@ -1269,9 +1289,11 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           borderRadius: BorderRadius.circular(28),
           child: Stack(children: [
             Positioned(
-              top: -28, right: -28,
+              top: -28,
+              right: -28,
               child: Container(
-                width: 130, height: 130,
+                width: 130,
+                height: 130,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(colors: [
@@ -1282,9 +1304,11 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               ),
             ),
             Positioned(
-              bottom: -36, right: 30,
+              bottom: -36,
+              right: 30,
               child: Container(
-                width: 96, height: 96,
+                width: 96,
+                height: 96,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(colors: [
@@ -1345,8 +1369,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               ),
             ),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
                 color: Colors.white.withValues(alpha: 0.10),
@@ -1394,8 +1417,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                   borderRadius: BorderRadius.circular(4),
                   child: Stack(children: [
                     Container(
-                        height: 5,
-                        color: Colors.white.withValues(alpha: 0.15)),
+                        height: 5, color: Colors.white.withValues(alpha: 0.15)),
                     FractionallySizedBox(
                       widthFactor: v,
                       child: Container(
@@ -1409,7 +1431,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                   ]),
                 ),
                 const SizedBox(height: 4),
-                Text('$pct% recuperado de ${formatCop(totalPendiente + totalPagado)}',
+                Text(
+                    '$pct% recuperado de ${formatCop(totalPendiente + totalPagado)}',
                     style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.50),
                         fontSize: 10,
@@ -1473,9 +1496,11 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Container(
-              width: 7, height: 7,
+              width: 7,
+              height: 7,
               decoration: BoxDecoration(
-                color: statusColor, shape: BoxShape.circle,
+                color: statusColor,
+                shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
                       color: statusColor.withValues(alpha: 0.55),
@@ -1527,26 +1552,33 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
 
   // ── Tarjeta de crédito para el dashboard ────────────────────────────────────
   Widget _creditDashCard(Map<String, dynamic> c, int index) {
-    final cliente   = (c['cliente'] ?? c['deudor'] ?? '').toString();
+    final cliente = (c['cliente'] ?? c['deudor'] ?? '').toString();
     final pendiente = numberValue(c['saldo_pendiente'] ?? 0);
-    final pagado    = numberValue(c['total_pagado']    ?? 0);
-    final totalPagar = numberValue(c['total_pagar']   ?? 0);
+    final pagado = numberValue(c['total_pagado'] ?? 0);
+    final totalPagar = numberValue(c['total_pagar'] ?? 0);
     final valorPrestamo = numberValue(c['valor_prestamo'] ?? 0);
-    final proxFecha = (c['proxima_fecha'] ?? c['proxima_cuota'] ?? '').toString();
+    final proxFecha =
+        (c['proxima_fecha'] ?? c['proxima_cuota'] ?? '').toString();
     final numCuotas = (c['num_cuotas'] ?? '').toString();
-    final tipo      = (c['tipo']   ?? '').toString();
-    final estado    = (c['estado'] ?? 'Activo').toString();
-    final activo    = estado.toLowerCase().contains('activ');
+    final tipo = (c['tipo'] ?? '').toString();
+    final estado = (c['estado'] ?? 'Activo').toString();
+    final activo = estado.toLowerCase().contains('activ');
 
     bool vencido = false;
     if (activo && proxFecha.isNotEmpty && proxFecha != 'null') {
-      try { vencido = DateTime.parse(proxFecha).isBefore(DateTime.now()); }
-      catch (_) {}
+      try {
+        vencido = DateTime.parse(proxFecha).isBefore(DateTime.now());
+      } catch (_) {}
     }
 
-    final initials = cliente.trim().split(' ')
-        .where((w) => w.isNotEmpty).take(2)
-        .map((w) => w[0]).join().toUpperCase();
+    final initials = cliente
+        .trim()
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .take(2)
+        .map((w) => w[0])
+        .join()
+        .toUpperCase();
 
     final progress = totalPagar > 0
         ? (pagado / totalPagar).clamp(0.0, 1.0)
@@ -1567,12 +1599,20 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
 
     final statusColor = !activo
         ? const Color(0xFF059669)
-        : vencido ? const Color(0xFFDC2626) : const Color(0xFF4361EE);
+        : vencido
+            ? const Color(0xFFDC2626)
+            : const Color(0xFF4361EE);
     final statusBg = statusColor.withValues(alpha: isDarkTheme ? 0.18 : 0.10);
-    final statusLabel = !activo ? 'Pagado' : vencido ? 'Vencido' : 'Activo';
+    final statusLabel = !activo
+        ? 'Pagado'
+        : vencido
+            ? 'Vencido'
+            : 'Activo';
     final statusIcon = !activo
         ? Icons.check_circle_rounded
-        : vencido ? Icons.warning_rounded : Icons.credit_card_rounded;
+        : vencido
+            ? Icons.warning_rounded
+            : Icons.credit_card_rounded;
 
     final proxStr = proxFecha.isNotEmpty && proxFecha != 'null'
         ? proxFecha.substring(0, proxFecha.length.clamp(0, 10))
@@ -1590,7 +1630,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: grad[0].withValues(alpha: 0.18), width: 1.2),
+          border:
+              Border.all(color: grad[0].withValues(alpha: 0.18), width: 1.2),
           boxShadow: [
             BoxShadow(
               color: grad[0].withValues(alpha: 0.12),
@@ -1607,7 +1648,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
           child: IntrinsicHeight(
-            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            child:
+                Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               // Barra lateral con gradiente
               Container(
                 width: 6,
@@ -1628,7 +1670,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                       // Fila superior: avatar + nombre + estado
                       Row(children: [
                         Container(
-                          width: 44, height: 44,
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: grad,
@@ -1685,7 +1728,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                   ),
                                   const SizedBox(width: 6),
                                 ],
-                                if (numCuotas.isNotEmpty && numCuotas != '0') ...[
+                                if (numCuotas.isNotEmpty &&
+                                    numCuotas != '0') ...[
                                   Icon(Icons.repeat_rounded,
                                       size: 10, color: textSoft),
                                   const SizedBox(width: 3),
@@ -1723,8 +1767,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                       // Barra de progreso
                       TweenAnimationBuilder<double>(
                         tween: Tween(begin: 0.0, end: progress),
-                        duration:
-                            Duration(milliseconds: 700 + index * 80),
+                        duration: Duration(milliseconds: 700 + index * 80),
                         curve: Curves.easeOutCubic,
                         builder: (_, v, __) => Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1814,7 +1857,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                                     : const Color(0xFFDC2626))
                                                 : (isDarkTheme
                                                     ? textMain
-                                                    : const Color(0xFF5A6A8A)))),
+                                                    : const Color(
+                                                        0xFF5A6A8A)))),
                                   ]),
                             ),
                           if (valorPrestamo > 0)
@@ -1861,7 +1905,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     final incomeGrad = [const Color(0xFF059669), const Color(0xFF34D399)];
     final expenseGrad = [const Color(0xFFDC2626), const Color(0xFFF87171)];
     final barGrad = isIngreso ? incomeGrad : expenseGrad;
-    final amtColor = isIngreso ? const Color(0xFF059669) : const Color(0xFFDC2626);
+    final amtColor =
+        isIngreso ? const Color(0xFF059669) : const Color(0xFFDC2626);
     final bgTint = isIngreso
         ? const Color(0xFF059669).withValues(alpha: 0.04)
         : const Color(0xFFDC2626).withValues(alpha: 0.04);
@@ -1890,7 +1935,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
         child: ClipRRect(
           borderRadius: BorderRadius.circular(18),
           child: IntrinsicHeight(
-            child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            child:
+                Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Container(
                 width: 5,
                 decoration: BoxDecoration(
@@ -1911,7 +1957,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                   padding: const EdgeInsets.fromLTRB(12, 11, 14, 11),
                   child: Row(children: [
                     Container(
-                      width: 42, height: 42,
+                      width: 42,
+                      height: 42,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: barGrad,
@@ -1954,7 +2001,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                           Row(children: [
                             if (cuenta.isNotEmpty) ...[
                               Container(
-                                width: 7, height: 7,
+                                width: 7,
+                                height: 7,
                                 margin: const EdgeInsets.only(right: 5),
                                 decoration: BoxDecoration(
                                   color: accentColor,
@@ -2178,8 +2226,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     final isPositive = saldo >= 0;
     final balanceColor =
         isPositive ? const Color(0xFFBFD4FF) : const Color(0xFFFCA5A5);
-    final glowColor =
-        isPositive ? homeAccent : const Color(0xFFDC2626);
+    final glowColor = isPositive ? homeAccent : const Color(0xFFDC2626);
     final gradColors = isPositive
         ? const [
             Color(0xFF060E35),
@@ -2193,323 +2240,368 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             Color(0xFFB91C1C),
             Color(0xFFDC2626),
           ];
-    final orbColor = isPositive
-        ? const Color(0xFF00C6FF)
-        : const Color(0xFFFF8080);
+    final orbColor =
+        isPositive ? const Color(0xFF00C6FF) : const Color(0xFFFF8080);
 
-    return AnimatedBuilder(
-      animation: shimmer,
-      builder: (_, child) {
-        return Container(
-          margin: const EdgeInsets.fromLTRB(20, 6, 20, 0),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: gradColors,
-              stops: const [0.0, 0.38, 0.72, 1.0],
-            ),
-            // En oscuro la card se funde con el fondo: borde + glow más fuertes
-            border: isDarkTheme
-                ? Border.all(
-                    color: const Color(0xFF6366F1).withValues(alpha: 0.55),
-                    width: 1.4)
-                : null,
-            boxShadow: [
-              BoxShadow(
-                color: glowColor.withValues(
-                    alpha: (isDarkTheme ? 0.55 : 0.38) + 0.18 * shimmer.value),
-                blurRadius: 28 + 14 * shimmer.value,
-                offset: const Offset(0, 12),
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: const Duration(milliseconds: 650),
+      curve: Curves.easeOutCubic,
+      builder: (_, entryT, cardChild) => Opacity(
+        opacity: entryT.clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(0, 24 * (1 - entryT)),
+          child: cardChild,
+        ),
+      ),
+      child: AnimatedBuilder(
+        animation: shimmer,
+        builder: (_, child) {
+          return Container(
+            margin: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(28),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: gradColors,
+                stops: const [0.0, 0.38, 0.72, 1.0],
               ),
-              BoxShadow(
-                color: glowColor.withValues(alpha: 0.20 + 0.10 * shimmer.value),
-                blurRadius: 55,
-                spreadRadius: -6,
-                offset: const Offset(0, 22),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: -28,
-                  right: -28,
-                  child: Container(
-                    width: 130,
-                    height: 130,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(colors: [
-                        Colors.white.withValues(alpha: 0.08),
-                        Colors.transparent,
-                      ]),
-                    ),
-                  ),
+              // En oscuro la card se funde con el fondo: borde + glow más fuertes
+              border: isDarkTheme
+                  ? Border.all(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.55),
+                      width: 1.4)
+                  : null,
+              boxShadow: [
+                BoxShadow(
+                  color: glowColor.withValues(
+                      alpha:
+                          (isDarkTheme ? 0.55 : 0.38) + 0.18 * shimmer.value),
+                  blurRadius: 28 + 14 * shimmer.value,
+                  offset: const Offset(0, 12),
                 ),
-                Positioned(
-                  bottom: -36,
-                  right: 30,
-                  child: Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(colors: [
-                        orbColor.withValues(alpha: 0.12),
-                        Colors.transparent,
-                      ]),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 20,
-                  left: -30,
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(colors: [
-                        const Color(0xFF6C63FF).withValues(alpha: 0.10),
-                        Colors.transparent,
-                      ]),
-                    ),
-                  ),
-                ),
-                Positioned.fill(
-                  child: Transform.translate(
-                    offset: Offset((shimmer.value * 2 - 1) * 340, 0),
-                    child: Transform.rotate(
-                      angle: 0.45,
-                      child: Container(
-                        width: 60,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.white.withValues(alpha: 0),
-                              Colors.white.withValues(alpha: 0.055),
-                              Colors.white.withValues(alpha: 0),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
-                  child: child!,
+                BoxShadow(
+                  color:
+                      glowColor.withValues(alpha: 0.20 + 0.10 * shimmer.value),
+                  blurRadius: 55,
+                  spreadRadius: -6,
+                  offset: const Offset(0, 22),
                 ),
               ],
             ),
-          ),
-        );
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      greeting,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.60),
-                        fontSize: 12.5,
-                        letterSpacing: 0.3,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: Stack(
+                children: [
+                  Positioned(
+                    top: -28,
+                    right: -28,
+                    child: Container(
+                      width: 130,
+                      height: 130,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(colors: [
+                          Colors.white.withValues(alpha: 0.08),
+                          Colors.transparent,
+                        ]),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: Colors.white.withValues(alpha: 0.10),
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.18), width: 1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    SafPulsingStatusDot(),
-                    SizedBox(width: 6),
-                    Text(
-                      'Activo',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text(
-                'Total de Saldos',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.55),
-                  fontSize: 11.5,
-                  letterSpacing: 0.6,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.14), width: 1),
-                ),
-                child: Text(
-                  _currentMonthLabel(),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.65),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 320),
-                  transitionBuilder: (child, anim) => FadeTransition(
-                      opacity: anim,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                                begin: const Offset(0, 0.2), end: Offset.zero)
-                            .animate(anim),
-                        child: child,
-                      )),
-                  child: balanceVisible
-                      ? Text(
-                          formatCop(saldo),
-                          key: const ValueKey('v'),
-                          style: TextStyle(
-                            color: balanceColor,
-                            fontSize: 34,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1,
-                            shadows: [
-                              Shadow(
-                                color: balanceColor.withValues(alpha: 0.45),
-                                blurRadius: 16,
-                              ),
-                            ],
-                          ),
-                        )
-                      : const Text(
-                          '• • • • • •',
-                          key: ValueKey('h'),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
+                  Positioned(
+                    bottom: -36,
+                    right: 30,
+                    child: Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(colors: [
+                          orbColor.withValues(alpha: 0.12),
+                          Colors.transparent,
+                        ]),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 20,
+                    left: -30,
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(colors: [
+                          const Color(0xFF6C63FF).withValues(alpha: 0.10),
+                          Colors.transparent,
+                        ]),
+                      ),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Transform.translate(
+                      offset: Offset((shimmer.value * 2 - 1) * 340, 0),
+                      child: Transform.rotate(
+                        angle: 0.45,
+                        child: Container(
+                          width: 60,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withValues(alpha: 0),
+                                Colors.white.withValues(alpha: 0.055),
+                                Colors.white.withValues(alpha: 0),
+                              ],
+                            ),
                           ),
                         ),
-                ),
-              ),
-              GestureDetector(
-                onTap: () => refresh(() => balanceVisible = !balanceVisible),
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(10),
-                    border:
-                        Border.all(color: Colors.white.withValues(alpha: 0.16)),
+                      ),
+                    ),
                   ),
-                  child: Icon(
-                    balanceVisible
-                        ? Icons.visibility_rounded
-                        : Icons.visibility_off_rounded,
-                    color: Colors.white.withValues(alpha: 0.75),
-                    size: 18,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+                    child: child!,
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Container(
-            height: 1,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  Colors.white.withValues(alpha: 0.18),
-                  Colors.transparent,
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _balanceMini(
-                Icons.savings_rounded,
-                'Ahorros',
-                formatCop(savers.fold(
-                    0.0,
-                    (s, a) =>
-                        s +
-                        numberValue(a['total_ahorrado'] ?? a['monto'] ?? 0))),
-                const Color(0xFFA78BFA),
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        greeting,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.60),
+                          fontSize: 12.5,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.white.withValues(alpha: 0.10),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.18), width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      SafPulsingStatusDot(),
+                      SizedBox(width: 6),
+                      Text(
+                        'Activo',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Total de Saldos',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.55),
+                    fontSize: 11.5,
+                    letterSpacing: 0.6,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.14), width: 1),
+                  ),
+                  child: Text(
+                    _currentMonthLabel(),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.65),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 320),
+                    transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                                  begin: const Offset(0, 0.2), end: Offset.zero)
+                              .animate(anim),
+                          child: child,
+                        )),
+                    child: balanceVisible
+                        ? TweenAnimationBuilder<double>(
+                            key: const ValueKey('v'),
+                            tween: Tween(begin: 0.0, end: saldo),
+                            duration: const Duration(milliseconds: 750),
+                            curve: Curves.easeOutCubic,
+                            builder: (_, animatedSaldo, __) => Text(
+                              formatCop(animatedSaldo),
+                              style: TextStyle(
+                                color: balanceColor,
+                                fontSize: 34,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -1,
+                                shadows: [
+                                  Shadow(
+                                    color:
+                                        balanceColor.withValues(alpha: 0.45),
+                                    blurRadius: 16,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : const Text(
+                            '• • • • • •',
+                            key: ValueKey('h'),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                  ),
+                ),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () =>
+                        refresh(() => balanceVisible = !balanceVisible),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.16)),
+                      ),
+                      child: TweenAnimationBuilder<double>(
+                        key: ValueKey(balanceVisible),
+                        tween: Tween(begin: 0.5, end: 1.0),
+                        duration: const Duration(milliseconds: 320),
+                        curve: Curves.elasticOut,
+                        builder: (_, scale, child) => Transform.scale(
+                          scale: scale,
+                          child: child,
+                        ),
+                        child: Icon(
+                          balanceVisible
+                              ? Icons.visibility_rounded
+                              : Icons.visibility_off_rounded,
+                          color: Colors.white.withValues(alpha: 0.75),
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Container(
+              height: 1,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    Colors.white.withValues(alpha: 0.18),
+                    Colors.transparent,
+                  ],
+                ),
               ),
-              _balanceDivider(),
-              _balanceMini(
-                Icons.credit_score_rounded,
-                'Créditos',
-                creditStatistics.length.toString(),
-                const Color(0xFF34D399),
-              ),
-              _balanceDivider(),
-              _balanceMini(
-                Icons.people_alt_rounded,
-                'Ahorradores',
-                savers.length.toString(),
-                const Color(0xFF60A5FA),
-              ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                // Ahorros, créditos y cuentas: sin repetir "Ahorradores",
+                // que ya aparece como card propia en el resumen de abajo.
+                _balanceMini(
+                  Icons.savings_rounded,
+                  'Ahorros',
+                  balanceVisible
+                      ? formatCop(savers.fold(
+                          0.0,
+                          (s, a) =>
+                              s +
+                              numberValue(
+                                  a['total_ahorrado'] ?? a['monto'] ?? 0)))
+                      : '• • • •',
+                  const Color(0xFFA78BFA),
+                  0,
+                  () => refresh(() => selectedIndex = 2),
+                ),
+                const SizedBox(width: 10),
+                _balanceMini(
+                  Icons.credit_score_rounded,
+                  'Créditos',
+                  creditsTotal.toString(),
+                  const Color(0xFF34D399),
+                  1,
+                  () => refresh(() => selectedIndex = 1),
+                ),
+                const SizedBox(width: 10),
+                _balanceMini(
+                  Icons.account_balance_rounded,
+                  'Cuentas',
+                  accounts.length.toString(),
+                  const Color(0xFF60A5FA),
+                  2,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2536,33 +2628,90 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
   // ══════════════════════════════════════════════════════════════
 
   Widget _balanceMini(IconData icon, String label, String value,
-          [Color iconColor = Colors.white]) =>
+          [Color iconColor = Colors.white,
+          int index = 0,
+          VoidCallback? onTap]) =>
       Expanded(
-        child: Column(
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(9),
-                border: Border.all(
-                    color: iconColor.withValues(alpha: 0.25), width: 1),
+        child: TweenAnimationBuilder<double>(
+          key: ValueKey('mini_${label}_$value'),
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 500),
+          curve: Interval(
+            (index * 0.12).clamp(0.0, 0.4),
+            (index * 0.12 + 0.6).clamp(0.5, 1.0),
+            curve: Curves.easeOutBack,
+          ),
+          builder: (_, t, child) => Opacity(
+            opacity: t.clamp(0.0, 1.0),
+            child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(16),
+              splashColor: iconColor.withValues(alpha: 0.18),
+              highlightColor: iconColor.withValues(alpha: 0.08),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      iconColor.withValues(alpha: 0.14),
+                      iconColor.withValues(alpha: 0.04),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: iconColor.withValues(alpha: 0.22), width: 1),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            iconColor.withValues(alpha: 0.85),
+                            iconColor.withValues(alpha: 0.55),
+                          ],
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: iconColor.withValues(alpha: 0.45),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Icon(icon, color: Colors.white, size: 15),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(label,
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.55),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 2),
+                    Text(value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w800)),
+                  ],
+                ),
               ),
-              child: Icon(icon, color: iconColor, size: 14),
             ),
-            const SizedBox(height: 5),
-            Text(label,
-                style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.50),
-                    fontSize: 9.5)),
-            const SizedBox(height: 2),
-            Text(value,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800)),
-          ],
+          ),
         ),
       );
 
@@ -3072,8 +3221,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                 ? (isDarkTheme
                                     ? color.withValues(alpha: 0.12)
                                     : Colors.white.withValues(alpha: 0.20))
-                                : const Color(0xFFDC2626)
-                                    .withValues(alpha: isDarkTheme ? 0.10 : 0.30),
+                                : const Color(0xFFDC2626).withValues(
+                                    alpha: isDarkTheme ? 0.10 : 0.30),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: saldo >= 0
@@ -3107,8 +3256,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                               style: TextStyle(
                                 color: saldo >= 0
                                     ? (isDarkTheme
-                                        ? Color.lerp(
-                                            color, Colors.white, 0.55)!
+                                        ? Color.lerp(color, Colors.white, 0.55)!
                                         : Colors.white)
                                     : (isDarkTheme
                                         ? const Color(0xFFDC2626)
@@ -3134,7 +3282,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
-                        child: Text(formatCop(saldo),
+                        child: Text(
+                            balanceVisible ? formatCop(saldo) : '• • • •',
                             style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w900,
@@ -3203,8 +3352,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             Text(subtitle,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: textSoft.withValues(alpha: 0.8),
-                    fontSize: 12)),
+                    color: textSoft.withValues(alpha: 0.8), fontSize: 12)),
             if (badge != null) ...[
               const SizedBox(height: 14),
               Container(
@@ -3300,10 +3448,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             animation: shimmer,
             builder: (_, __) {
               final c = isDarkTheme
-                  ? Color.lerp(const Color(0xFF1B2348),
-                      const Color(0xFF232C58), shimmer.value)!
-                  : Color.lerp(const Color(0xFFCED7EE),
-                      const Color(0xFFDDE5F5), shimmer.value)!;
+                  ? Color.lerp(const Color(0xFF1B2348), const Color(0xFF232C58),
+                      shimmer.value)!
+                  : Color.lerp(const Color(0xFFCED7EE), const Color(0xFFDDE5F5),
+                      shimmer.value)!;
               return Container(
                 margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 height: 190,

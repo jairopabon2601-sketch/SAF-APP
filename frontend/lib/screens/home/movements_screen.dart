@@ -11,6 +11,12 @@ import 'savings_screen.dart';
 DateTime nowBogota() =>
     DateTime.now().toUtc().subtract(const Duration(hours: 5));
 
+class _MovementDayGroup {
+  final String fecha; // yyyy-MM-dd
+  final List<Map<String, dynamic>> items;
+  _MovementDayGroup(this.fecha, this.items);
+}
+
 extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   Widget buildMovementsScreen() {
     if (loadingData) return _movementsSkeleton();
@@ -287,7 +293,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                       fontWeight: FontWeight.w600,
                                       letterSpacing: 0.3)),
                               const SizedBox(height: 4),
-                              Text(formatCop(total),
+                              Text(
+                                  balanceVisible
+                                      ? formatCop(total)
+                                      : '• • • • • •',
                                   style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 24,
@@ -335,7 +344,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               itemCount: activeAccounts.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _cuentaRowReal(activeAccounts[i]),
+              itemBuilder: (_, i) => _cuentaRowReal(activeAccounts[i], i),
             ),
         ] else ...[
           // ── HERO BANNER ────────────────────────────────────
@@ -747,20 +756,31 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             ),
           ),
           // ── Filtros ──────────────────────────────────────
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: lineCol),
-              boxShadow: [
-                BoxShadow(
-                    color: homeNavy.withValues(alpha: 0.07),
-                    blurRadius: 18,
-                    offset: const Offset(0, 5))
-              ],
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 550),
+            curve: Curves.easeOutCubic,
+            builder: (_, t, child) => Opacity(
+              opacity: t.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: Offset(0, 14 * (1 - t)),
+                child: child,
+              ),
             ),
-            child: Column(children: [
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: lineCol),
+                boxShadow: [
+                  BoxShadow(
+                      color: homeNavy.withValues(alpha: 0.07),
+                      blurRadius: 18,
+                      offset: const Offset(0, 5))
+                ],
+              ),
+              child: Column(children: [
               // Header
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
@@ -857,6 +877,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                     Expanded(
                         child: _filterDropdown<String>(
                       label: 'Cuenta',
+                      icon: Icons.account_balance_wallet_rounded,
+                      accent: const Color(0xFF8B5CF6),
                       value: accountFilter.isEmpty ? null : accountFilter,
                       items: [
                         const DropdownMenuItem(
@@ -881,6 +903,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                     Expanded(
                         child: _filterDropdown<String>(
                       label: 'Tipo',
+                      icon: Icons.swap_vert_rounded,
+                      accent: const Color(0xFFF59E0B),
                       value: movementTypeFilter.isEmpty
                           ? null
                           : movementTypeFilter,
@@ -934,6 +958,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 ]),
               ),
             ]),
+            ),
           ),
           // ── Lista movimientos header ──────────────────────
           Padding(
@@ -1006,19 +1031,29 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               final hasta =
                   (desde + movementsPageSize).clamp(0, filtrados.length);
               final pagina = filtrados.sublist(desde, hasta);
+              final groups = _groupMovementsByDay(pagina);
+              final rows = <Widget>[];
+              var localIndex = 0;
+              for (final group in groups) {
+                rows.add(_dayGroupHeader(group));
+                for (final m in group.items) {
+                  final i = localIndex++;
+                  rows.add(Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: _AnimatedMovementCard(
+                      key: ValueKey('mov_${desde + i}'),
+                      data: m,
+                      index: i,
+                      onDelete: () => _confirmEliminarMovimiento(m),
+                    ),
+                  ));
+                }
+                rows.add(const SizedBox(height: 6));
+              }
               return Column(children: [
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+                Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                  itemCount: pagina.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _AnimatedMovementCard(
-                    key: ValueKey('mov_${desde + i}'),
-                    data: pagina[i],
-                    index: i,
-                    onDelete: () => _confirmEliminarMovimiento(pagina[i]),
-                  ),
+                  child: Column(children: rows),
                 ),
                 if (totalPags > 1)
                   Padding(
@@ -1073,85 +1108,227 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         onDelete: onDelete,
       );
 
+  // Agrupa movimientos consecutivos del mismo día (la lista ya viene
+  // ordenada por fecha desc) para mostrar subtotales tipo "estado de cuenta".
+  List<_MovementDayGroup> _groupMovementsByDay(
+      List<Map<String, dynamic>> list) {
+    final groups = <_MovementDayGroup>[];
+    for (final m in list) {
+      final raw = (m['fecha'] ?? '').toString();
+      final fecha = raw.length >= 10 ? raw.substring(0, 10) : raw;
+      if (groups.isNotEmpty && groups.last.fecha == fecha) {
+        groups.last.items.add(m);
+      } else {
+        groups.add(_MovementDayGroup(fecha, [m]));
+      }
+    }
+    return groups;
+  }
+
+  String _formatGroupDate(String fecha) {
+    final parts = fecha.split('-');
+    if (parts.length != 3) return fecha;
+    final y = int.tryParse(parts[0]);
+    final mo = int.tryParse(parts[1]);
+    final d = int.tryParse(parts[2]);
+    if (y == null || mo == null || d == null) return fecha;
+    final date = DateTime(y, mo, d);
+    final today = nowBogota();
+    final todayD = DateTime(today.year, today.month, today.day);
+    final diff = todayD.difference(date).inDays;
+    if (diff == 0) return 'Hoy';
+    if (diff == 1) return 'Ayer';
+    const meses = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic'
+    ];
+    final mesLabel = (mo >= 1 && mo <= 12) ? meses[mo - 1] : '';
+    return '$d $mesLabel${y != today.year ? ' $y' : ''}';
+  }
+
+  Widget _dayGroupHeader(_MovementDayGroup group) {
+    final ingresos = group.items
+        .where(movementIsIncome)
+        .fold(0.0, (s, m) => s + numberValue(m['valor'] ?? 0));
+    final gastos = group.items
+        .where((m) => !movementIsIncome(m))
+        .fold(0.0, (s, m) => s + numberValue(m['valor'] ?? 0));
+    final neto = ingresos - gastos;
+    final netoColor =
+        neto >= 0 ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 12, 2, 8),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
+        decoration: BoxDecoration(
+          color: cardBgAlt,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: lineCol),
+        ),
+        child: Row(children: [
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: homeAccent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.calendar_today_rounded,
+                size: 12, color: homeAccent),
+          ),
+          const SizedBox(width: 9),
+          Text(_formatGroupDate(group.fecha),
+              style: TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w800, color: textMain)),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+                color: lineCol, borderRadius: BorderRadius.circular(20)),
+            child: Text(
+                '${group.items.length} ${group.items.length == 1 ? 'mov.' : 'movs.'}',
+                style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: textSoft)),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              color: netoColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: netoColor.withValues(alpha: 0.30)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('Neto ',
+                  style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w600,
+                      color: netoColor.withValues(alpha: 0.75))),
+              Text('${neto >= 0 ? '+' : '−'}${formatCop(neto.abs())}',
+                  style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: netoColor)),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
   Widget _filterDropdown<ValueType>({
     required String label,
     required ValueType? value,
     required List<DropdownMenuItem<ValueType>> items,
     required ValueChanged<ValueType?> onChanged,
-  }) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w600, color: textSoft)),
-        const SizedBox(height: 4),
-        Container(
-          height: 36,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: inputFill,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<ValueType>(
-              value: value,
-              isExpanded: true,
-              items: items,
-              onChanged: onChanged,
-              dropdownColor: dialogBg,
-              style: TextStyle(
-                  fontSize: 12, color: textMain, fontFamily: 'sans-serif'),
-              icon: Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 18, color: textSoft),
+    IconData icon = Icons.filter_list_rounded,
+    Color accent = const Color(0xFF3B82F6),
+  }) {
+    final active = value != null;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w600, color: textSoft)),
+      const SizedBox(height: 4),
+      AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: active ? accent.withValues(alpha: 0.08) : inputFill,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: active ? accent.withValues(alpha: 0.45) : lineCol),
+        ),
+        child: Row(children: [
+          Icon(icon, size: 14, color: active ? accent : textSoft),
+          const SizedBox(width: 6),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<ValueType>(
+                value: value,
+                isExpanded: true,
+                items: items,
+                onChanged: onChanged,
+                dropdownColor: dialogBg,
+                style: TextStyle(
+                    fontSize: 12, color: textMain, fontFamily: 'sans-serif'),
+                icon: Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 18, color: active ? accent : textSoft),
+              ),
             ),
           ),
-        ),
-      ]);
+        ]),
+      ),
+    ]);
+  }
 
   Widget _filterDate({
     required String label,
     required DateTime? value,
     required ValueChanged<DateTime?> onPick,
-  }) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w600, color: textSoft)),
-        const SizedBox(height: 4),
-        GestureDetector(
-          onTap: () async {
-            final picked = await showLightDatePicker(
-              screenContext,
-              initialDate: value ?? DateTime.now(),
-              firstDate: DateTime(2020),
-              lastDate: DateTime(2030),
-            );
-            onPick(picked);
-          },
-          child: Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: inputFill,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(children: [
-              Icon(Icons.calendar_today_rounded, size: 14, color: textSoft),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  value != null
-                      ? '${value.day.toString().padLeft(2, '0')}/'
-                          '${value.month.toString().padLeft(2, '0')}/'
-                          '${value.year}'
-                      : 'Seleccione',
-                  style: TextStyle(
-                      fontSize: 12, color: value != null ? textMain : textSoft),
-                ),
-              ),
-            ]),
+    Color accent = const Color(0xFF3B82F6),
+  }) {
+    final active = value != null;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
+          style: TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w600, color: textSoft)),
+      const SizedBox(height: 4),
+      GestureDetector(
+        onTap: () async {
+          final picked = await showLightDatePicker(
+            screenContext,
+            initialDate: value ?? DateTime.now(),
+            firstDate: DateTime(2020),
+            lastDate: DateTime(2030),
+          );
+          onPick(picked);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          height: 38,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: active ? accent.withValues(alpha: 0.08) : inputFill,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+                color: active ? accent.withValues(alpha: 0.45) : lineCol),
           ),
+          child: Row(children: [
+            Icon(Icons.calendar_today_rounded,
+                size: 14, color: active ? accent : textSoft),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                value != null
+                    ? '${value.day.toString().padLeft(2, '0')}/'
+                        '${value.month.toString().padLeft(2, '0')}/'
+                        '${value.year}'
+                    : 'Seleccione',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                    color: active ? textMain : textSoft),
+              ),
+            ),
+          ]),
         ),
-      ]);
+      ),
+    ]);
+  }
 
   // ── Diálogo Crear Deudor ─────────────────────────────────────────
   Widget buildDialogRow(String label, Widget input) => LayoutBuilder(
@@ -4645,7 +4822,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   double accountBalance(Map<String, dynamic> cuenta) => numberValue(
       cuenta['saldo_actual'] ?? cuenta['saldo'] ?? cuenta['balance'] ?? 0);
 
-  Widget _cuentaRowReal(Map<String, dynamic> c) {
+  Widget _cuentaRowReal(Map<String, dynamic> c, [int index = 0]) {
     final nombre = (c['nombre'] ?? 'Cuenta').toString();
     final tipo = (c['tipo_nombre'] ?? '').toString();
     final saldo = accountBalance(c);
@@ -4658,7 +4835,24 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     final cLight = Color.lerp(color, Colors.white, 0.40)!;
     final cDark = Color.lerp(color, Colors.black, 0.20)!;
 
-    return GestureDetector(
+    final entryInterval = Interval(
+      (index * 0.07).clamp(0.0, 0.5),
+      (index * 0.07 + 0.6).clamp(0.5, 1.0),
+      curve: Curves.easeOutBack,
+    );
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('cuenta_${c['codigo'] ?? c['id'] ?? nombre}'),
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 700),
+      curve: entryInterval,
+      builder: (_, v, child) => Opacity(
+        opacity: v.clamp(0.0, 1.0),
+        child: Transform.translate(
+          offset: Offset(0, 16 * (1 - v)),
+          child: child,
+        ),
+      ),
+      child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _showRegistrarMovimientoDialog(cuentaInicial: c),
       child: Container(
@@ -4807,14 +5001,31 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(formatCop(saldo),
-                        style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 15,
-                            letterSpacing: -0.4,
-                            color: saldo >= 0
-                                ? textMain
-                                : const Color(0xFFDC2626))),
+                    balanceVisible
+                        ? TweenAnimationBuilder<double>(
+                            key: ValueKey(
+                                'saldo_${c['codigo'] ?? c['id'] ?? nombre}_$saldo'),
+                            tween: Tween(begin: 0.0, end: saldo),
+                            duration: const Duration(milliseconds: 650),
+                            curve: Curves.easeOutCubic,
+                            builder: (_, animatedSaldo, __) => Text(
+                                formatCop(animatedSaldo),
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 15,
+                                    letterSpacing: -0.4,
+                                    color: saldo >= 0
+                                        ? textMain
+                                        : const Color(0xFFDC2626))),
+                          )
+                        : Text('• • • •',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                                letterSpacing: -0.4,
+                                color: saldo >= 0
+                                    ? textMain
+                                    : const Color(0xFFDC2626))),
                     const SizedBox(height: 8),
                     Row(children: [
                       _iconActionBtn(
@@ -4835,6 +5046,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             ),
           ]),
         ),
+      ),
       ),
     );
   }
