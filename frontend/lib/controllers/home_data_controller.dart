@@ -253,6 +253,9 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           movements = globalAll;
           invalidateComputedCache();
           unawaited(repository.saveLocalData('movimientos', movements));
+          // Repintar: si el timeout general de loadData ya venció, nadie
+          // más va a refrescar y los movimientos quedarían invisibles.
+          if (isMounted) refresh(() {});
           return;
         }
       } catch (e) {
@@ -310,6 +313,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     movements = all;
     invalidateComputedCache();
     unawaited(repository.saveLocalData('movimientos', movements));
+    if (isMounted) refresh(() {});
   }
 
   Future<List<Map<String, dynamic>>> fetchAccountMovements(
