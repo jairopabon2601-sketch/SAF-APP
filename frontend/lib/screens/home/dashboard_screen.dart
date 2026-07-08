@@ -2967,9 +2967,9 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                       Color.lerp(color, Colors.black, 0.74)!,
                     ]
                   : [
-                      Color.lerp(color, Colors.white, 0.72)!,
-                      Color.lerp(color, Colors.white, 0.42)!,
-                      Color.lerp(color, Colors.white, 0.18)!,
+                      Color.lerp(color, Colors.white, 0.12)!,
+                      color,
+                      Color.lerp(color, Colors.black, 0.22)!,
                     ],
               stops: const [0.0, 0.55, 1.0],
               begin: Alignment.topLeft,
@@ -3063,15 +3063,22 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                               horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
                             color: saldo >= 0
-                                ? color.withValues(alpha: 0.12)
+                                ? (isDarkTheme
+                                    ? color.withValues(alpha: 0.12)
+                                    : Colors.white.withValues(alpha: 0.20))
                                 : const Color(0xFFDC2626)
-                                    .withValues(alpha: 0.10),
+                                    .withValues(alpha: isDarkTheme ? 0.10 : 0.30),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: saldo >= 0
-                                  ? color.withValues(alpha: 0.30)
-                                  : const Color(0xFFDC2626)
-                                      .withValues(alpha: 0.28),
+                                  ? (isDarkTheme
+                                      ? color.withValues(alpha: 0.30)
+                                      : Colors.white.withValues(alpha: 0.45))
+                                  : (isDarkTheme
+                                      ? const Color(0xFFDC2626)
+                                          .withValues(alpha: 0.28)
+                                      : const Color(0xFFFFB4B4)
+                                          .withValues(alpha: 0.60)),
                               width: 1,
                             ),
                           ),
@@ -3081,8 +3088,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                               height: 5,
                               decoration: BoxDecoration(
                                 color: saldo >= 0
-                                    ? color
-                                    : const Color(0xFFDC2626),
+                                    ? (isDarkTheme ? color : Colors.white)
+                                    : (isDarkTheme
+                                        ? const Color(0xFFDC2626)
+                                        : const Color(0xFFFFB4B4)),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -3094,8 +3103,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                     ? (isDarkTheme
                                         ? Color.lerp(
                                             color, Colors.white, 0.55)!
-                                        : color)
-                                    : const Color(0xFFDC2626),
+                                        : Colors.white)
+                                    : (isDarkTheme
+                                        ? const Color(0xFFDC2626)
+                                        : const Color(0xFFFFD9D9)),
                                 fontSize: 8.5,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -3112,7 +3123,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                               fontWeight: FontWeight.w700,
                               color: isDarkTheme
                                   ? Color.lerp(color, Colors.white, 0.62)!
-                                  : cDark)),
+                                  : Colors.white.withValues(alpha: 0.92))),
                       const SizedBox(height: 4),
                       FittedBox(
                         fit: BoxFit.scaleDown,
@@ -3122,10 +3133,10 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                 fontSize: 16,
                                 fontWeight: FontWeight.w900,
                                 color: saldo >= 0
-                                    ? (isDarkTheme ? Colors.white : textMain)
+                                    ? Colors.white
                                     : (isDarkTheme
                                         ? const Color(0xFFF87171)
-                                        : const Color(0xFFDC2626)))),
+                                        : const Color(0xFFFFD9D9)))),
                       ),
                     ]),
               ),
