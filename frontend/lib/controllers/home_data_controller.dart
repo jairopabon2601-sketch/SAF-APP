@@ -293,6 +293,16 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           // disparar cientos de peticiones.
           final totalPaginas = totalPaginasDetectadas.clamp(1, 100);
           final paginas = <int, List<Map<String, dynamic>>>{1: primera};
+
+          // Mostrar la página 1 de inmediato (~1-2s) en vez de esperar a
+          // que las hasta 32 páginas restantes terminen — antes la lista
+          // se quedaba invisible los ~8-12s completos aunque el usuario
+          // solo fuera a mirar los movimientos más recientes.
+          movements = List<Map<String, dynamic>>.from(primera);
+          invalidateComputedCache();
+          movementsSettled = true;
+          if (isMounted) refresh(() {});
+
           var falloAlguna = false;
           const lote = 6;
           for (var desde = 2;
@@ -312,24 +322,25 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
                 paginas[desde + j] = res;
               }
             }
+            if (!falloAlguna) {
+              // La lista crece con cada lote que llega, en vez de aparecer
+              // toda de golpe al final.
+              movements = <Map<String, dynamic>>[
+                for (var p = 1; p <= hastaLote; p++) ...?paginas[p],
+              ];
+              invalidateComputedCache();
+              if (isMounted) refresh(() {});
+            }
           }
 
           if (!falloAlguna) {
-            // Reconstruir en orden de página para conservar el ORDER BY
-            // global (fecha DESC, codigo DESC) del servidor.
-            final globalAll = <Map<String, dynamic>>[
-              for (var p = 1; p <= totalPaginas; p++) ...?paginas[p],
-            ];
-            movements = globalAll;
-            invalidateComputedCache();
             unawaited(repository.saveLocalData('movimientos', movements));
             _refreshFallbackTotalsIfNeeded();
-            movementsSettled = true;
-            // Repintar: si el timeout general de loadData ya venció, nadie
-            // más va a refrescar y los movimientos quedarían invisibles.
-            if (isMounted) refresh(() {});
             return;
           }
+          // Si algún lote falló a mitad de camino, cae al fallback por
+          // cuenta de abajo — pero el usuario ya vio progreso parcial en
+          // vez de una pantalla en blanco durante toda la espera.
         }
       } catch (e) {
         debugPrint('[SAF] listar_movimientos_usuario intento $intento: $e');
@@ -897,7 +908,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     refresh(() => loadingData = false);
   }
 
-  Future<void> fetchCredits(String filtro) async {
+  Future<void> fetchCredits(String filtro, {bool soloListado = false}) async {
     final estadoSeleccionado = creditStatusFilter;
     // "Atrasados" no es un codigo_estado del servidor: es un crédito Activo
     // (estado=1) cuya proxima_fecha ya venció. Se pide la lista completa de
@@ -971,7 +982,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           creditsDataLoaded = true;
         });
       }
-    } else {
+    } else if (!soloListado) {
       // La cabecera de la web usa json_total_creditos_valores. El cálculo
       // incluido en get_creditos_lista.php puede diferir por ajustes de
       // cuotas, por lo que nunca debe sobrescribir estos totales oficiales.
@@ -980,6 +991,12 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         estado: estadoSeleccionado,
       );
     }
+
+    // Al cambiar de página los totales y la estadística por fuente no
+    // cambian (dependen del filtro, no de la página) — pedirlos de nuevo en
+    // cada clic de paginación solo suma dos round-trips de red que retrasan
+    // la actualización del listado sin aportar nada nuevo.
+    if (soloListado) return;
 
     // Estadística por fuente — endpoint dedicado con campos fijos
     try {

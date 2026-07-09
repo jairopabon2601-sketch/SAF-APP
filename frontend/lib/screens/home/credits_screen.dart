@@ -404,6 +404,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 label: 'TOTAL PAGADO',
                                 value: totalPagado,
                                 color: const Color(0xFF34D399),
+                                loading: !creditsDataLoaded,
                               ),
                             ),
                             Container(
@@ -429,6 +430,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 label: 'TOTAL PENDIENTE',
                                 value: totalPendiente,
                                 color: const Color(0xFFFBBF24),
+                                loading: !creditsDataLoaded,
                               ),
                             ),
                           ]),
@@ -591,344 +593,405 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               Padding(
                 padding: const EdgeInsets.all(14),
                 child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-              TextField(
-                decoration: InputDecoration(
-                  hintText: 'Buscar por cliente o código...',
-                  hintStyle: TextStyle(fontSize: 12.5, color: textSoft),
-                  prefixIcon: Padding(
-                    padding: const EdgeInsets.all(9),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF60A5FA), Color(0xFF3B82F6)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.search_rounded,
-                          size: 15, color: Colors.white),
-                    ),
-                  ),
-                  suffixIcon: creditsBuscar.isNotEmpty
-                      ? GestureDetector(
-                          onTap: () async {
-                            refresh(() {
-                              creditsBuscar = '';
-                              creditsPage = 1;
-                              queryingCredits = true;
-                            });
-                            await fetchCredits('');
-                            if (isMounted) {
-                              refresh(() => queryingCredits = false);
-                            }
-                          },
-                          child: Icon(Icons.close_rounded,
-                              size: 16, color: textSoft),
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: inputFill,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: Color(0xFF4338CA), width: 1.5),
-                  ),
-                ),
-                style: TextStyle(fontSize: 13, color: textMain),
-                onChanged: (v) => refresh(() => creditsBuscar = v.trim()),
-                onSubmitted: (_) async {
-                  refresh(() {
-                    creditsPage = 1;
-                    queryingCredits = true;
-                  });
-                  await fetchCredits('');
-                  if (isMounted) refresh(() => queryingCredits = false);
-                },
-              ),
-              const SizedBox(height: 10),
-              if (isAdmin && advisors.isEmpty && !advisorsFetchInFlight)
-                Builder(builder: (_) {
-                  // El listado de asesores del filtro puede quedar vacío si
-                  // el fetch de bootstrap falló/expiró (servidor lento). Sin
-                  // este reintento, el dropdown se queda en "Todos" para
-                  // siempre hasta reiniciar la app.
-                  advisorsFetchInFlight = true;
-                  fetchAdvisors().whenComplete(() {
-                    advisorsFetchInFlight = false;
-                    if (isMounted) refresh(() {});
-                  });
-                  return const SizedBox.shrink();
-                }),
-              Row(children: [
-                if (isAdmin)
-                  Expanded(
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                        Text('ASESOR',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: textSoft,
-                                letterSpacing: 0.6)),
-                        const SizedBox(height: 5),
-                        Container(
-                          height: 44,
-                          padding: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            gradient: creditAdvisorFilter.isNotEmpty
-                                ? LinearGradient(
-                                    colors: [
-                                      const Color(0xFF8B5CF6)
-                                          .withValues(alpha: 0.14),
-                                      const Color(0xFF8B5CF6)
-                                          .withValues(alpha: 0.05),
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  )
-                                : null,
-                            color: creditAdvisorFilter.isEmpty
-                                ? inputFill
-                                : null,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: creditAdvisorFilter.isNotEmpty
-                                    ? const Color(0xFF8B5CF6)
-                                        .withValues(alpha: 0.45)
-                                    : lineCol),
-                          ),
-                          child: Row(children: [
-                            Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFFA78BFA),
-                                    Color(0xFF8B5CF6),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.person_outline_rounded,
-                                  size: 13, color: Colors.white),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: advisors.any((a) =>
-                                      (a['sigla'] ?? '').toString() ==
-                                      creditAdvisorFilter)
-                                  ? creditAdvisorFilter
-                                  : null,
-                              isExpanded: true,
-                              dropdownColor: dialogBg,
-                              hint: Text('Todos',
-                                  style:
-                                      TextStyle(fontSize: 12, color: textSoft)),
-                              style: TextStyle(fontSize: 12.5, color: textMain),
-                              icon: Icon(Icons.keyboard_arrow_down_rounded,
-                                  size: 16, color: textSoft),
-                              items: [
-                                DropdownMenuItem(
-                                    value: null,
-                                    child: Text('Todos',
-                                        style: TextStyle(color: textMain))),
-                                ...advisors.map((a) {
-                                  final sigla = (a['sigla'] ??
-                                          a['codigo_asesor'] ??
-                                          a['codigo'] ??
-                                          '')
-                                      .toString()
-                                      .trim();
-                                  final nombre = ([a['nombres'], a['apellidos']]
-                                          .where((x) =>
-                                              x != null &&
-                                              x.toString().isNotEmpty)
-                                          .join(' '))
-                                      .trim();
-                                  final display =
-                                      nombre.isNotEmpty ? nombre : sigla;
-                                  return DropdownMenuItem(
-                                      value: sigla,
-                                      child: Text(display,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(color: textMain)));
-                                }),
-                              ],
-                              onChanged: (v) async {
-                                refresh(() {
-                                  creditAdvisorFilter = v ?? '';
-                                  creditsPage = 1;
-                                  queryingCredits = true;
-                                });
-                                try {
-                                  if (creditSubTab == 0) {
-                                    await fetchCredits('');
-                                  } else {
-                                    await fetchPending();
-                                  }
-                                } finally {
-                                  if (isMounted) {
-                                    refresh(() => queryingCredits = false);
-                                  }
-                                }
-                              },
-                            ),
-                          ),
-                            ),
-                          ]),
-                        ),
-                      ])),
-                if (isAdmin) const SizedBox(width: 10),
-                Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                      Text('ESTADO',
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: textSoft,
-                              letterSpacing: 0.6)),
-                      const SizedBox(height: 5),
-                      Container(
-                        height: 44,
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        decoration: BoxDecoration(
-                          gradient: creditStatusFilter.isNotEmpty
-                              ? LinearGradient(
-                                  colors: [
-                                    const Color(0xFF3B82F6)
-                                        .withValues(alpha: 0.14),
-                                    const Color(0xFF3B82F6)
-                                        .withValues(alpha: 0.05),
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                )
-                              : null,
-                          color: creditStatusFilter.isEmpty ? inputFill : null,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                              color: creditStatusFilter.isNotEmpty
-                                  ? const Color(0xFF3B82F6)
-                                      .withValues(alpha: 0.45)
-                                  : lineCol),
-                        ),
-                        child: Row(children: [
-                          Container(
-                            width: 26,
-                            height: 26,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Buscar por cliente o código...',
+                        hintStyle: TextStyle(fontSize: 12.5, color: textSoft),
+                        prefixIcon: Padding(
+                          padding: const EdgeInsets.all(9),
+                          child: Container(
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFF60A5FA),
-                                  Color(0xFF3B82F6),
-                                ],
+                                colors: [Color(0xFF60A5FA), Color(0xFF3B82F6)],
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                               ),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Icon(
-                                Icons.radio_button_checked_rounded,
-                                size: 13,
-                                color: Colors.white),
+                            child: const Icon(Icons.search_rounded,
+                                size: 15, color: Colors.white),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: creditStatusFilter.isEmpty
-                                ? null
-                                : creditStatusFilter,
-                            isExpanded: true,
-                            dropdownColor: dialogBg,
-                            hint: Text('Todos',
-                                style:
-                                    TextStyle(fontSize: 12, color: textSoft)),
-                            style: TextStyle(fontSize: 12.5, color: textMain),
-                            icon: Icon(Icons.keyboard_arrow_down_rounded,
-                                size: 16, color: textSoft),
-                            items: [
-                              DropdownMenuItem(
-                                  value: null,
-                                  child: Text('Todos',
-                                      style: TextStyle(color: textMain))),
-                              DropdownMenuItem(
-                                  value: '1',
-                                  child: Row(children: [
-                                    Container(
-                                        width: 7,
-                                        height: 7,
-                                        decoration: const BoxDecoration(
-                                            color: Color(0xFF16A34A),
-                                            shape: BoxShape.circle)),
-                                    const SizedBox(width: 6),
-                                    const Text('Activo',
+                        ),
+                        suffixIcon: creditsBuscar.isNotEmpty
+                            ? GestureDetector(
+                                onTap: () async {
+                                  refresh(() {
+                                    creditsBuscar = '';
+                                    creditsPage = 1;
+                                    queryingCredits = true;
+                                  });
+                                  await fetchCredits('');
+                                  if (isMounted) {
+                                    refresh(() => queryingCredits = false);
+                                  }
+                                },
+                                child: Icon(Icons.close_rounded,
+                                    size: 16, color: textSoft),
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: inputFill,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: lineCol),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: lineCol),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                              color: Color(0xFF4338CA), width: 1.5),
+                        ),
+                      ),
+                      style: TextStyle(fontSize: 13, color: textMain),
+                      onChanged: (v) => refresh(() => creditsBuscar = v.trim()),
+                      onSubmitted: (_) async {
+                        refresh(() {
+                          creditsPage = 1;
+                          queryingCredits = true;
+                        });
+                        await fetchCredits('');
+                        if (isMounted) refresh(() => queryingCredits = false);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    if (isAdmin && advisors.isEmpty && !advisorsFetchInFlight)
+                      Builder(builder: (_) {
+                        // El listado de asesores del filtro puede quedar vacío si
+                        // el fetch de bootstrap falló/expiró (servidor lento). Sin
+                        // este reintento, el dropdown se queda en "Todos" para
+                        // siempre hasta reiniciar la app.
+                        advisorsFetchInFlight = true;
+                        fetchAdvisors().whenComplete(() {
+                          advisorsFetchInFlight = false;
+                          if (isMounted) refresh(() {});
+                        });
+                        return const SizedBox.shrink();
+                      }),
+                    Row(children: [
+                      if (isAdmin)
+                        Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                              Text('ASESOR',
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: textSoft,
+                                      letterSpacing: 0.6)),
+                              const SizedBox(height: 5),
+                              Container(
+                                height: 44,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                decoration: BoxDecoration(
+                                  gradient: creditAdvisorFilter.isNotEmpty
+                                      ? LinearGradient(
+                                          colors: [
+                                            const Color(0xFF8B5CF6)
+                                                .withValues(alpha: 0.14),
+                                            const Color(0xFF8B5CF6)
+                                                .withValues(alpha: 0.05),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        )
+                                      : null,
+                                  color: creditAdvisorFilter.isEmpty
+                                      ? inputFill
+                                      : null,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: creditAdvisorFilter.isNotEmpty
+                                          ? const Color(0xFF8B5CF6)
+                                              .withValues(alpha: 0.45)
+                                          : lineCol),
+                                ),
+                                child: Row(children: [
+                                  Container(
+                                    width: 26,
+                                    height: 26,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFFA78BFA),
+                                          Color(0xFF8B5CF6),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                        Icons.person_outline_rounded,
+                                        size: 13,
+                                        color: Colors.white),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<String>(
+                                        value: advisors.any((a) =>
+                                                (a['sigla'] ?? '').toString() ==
+                                                creditAdvisorFilter)
+                                            ? creditAdvisorFilter
+                                            : null,
+                                        isExpanded: true,
+                                        dropdownColor: dialogBg,
+                                        hint: Text('Todos',
+                                            style: TextStyle(
+                                                fontSize: 12, color: textSoft)),
                                         style: TextStyle(
-                                            color: Color(0xFF16A34A),
-                                            fontWeight: FontWeight.w600)),
-                                  ])),
-                              DropdownMenuItem(
-                                  value: '2',
-                                  child: Row(children: [
-                                    Container(
-                                        width: 7,
-                                        height: 7,
-                                        decoration: const BoxDecoration(
-                                            color: Color(0xFF0369A1),
-                                            shape: BoxShape.circle)),
-                                    const SizedBox(width: 6),
-                                    const Text('Pagado',
-                                        style: TextStyle(
-                                            color: Color(0xFF0369A1),
-                                            fontWeight: FontWeight.w600)),
-                                  ])),
-                              DropdownMenuItem(
-                                  value: 'atrasado',
-                                  child: Row(children: [
-                                    Container(
-                                        width: 7,
-                                        height: 7,
-                                        decoration: const BoxDecoration(
-                                            color: Color(0xFFDC2626),
-                                            shape: BoxShape.circle)),
-                                    const SizedBox(width: 6),
-                                    const Text('Atrasados',
-                                        style: TextStyle(
-                                            color: Color(0xFFDC2626),
-                                            fontWeight: FontWeight.w600)),
-                                  ])),
-                            ],
-                            onChanged: (v) async {
-                              refresh(() {
-                                creditStatusFilter = v ?? '';
-                                creditsPage = 1;
-                                queryingCredits = true;
-                              });
+                                            fontSize: 12.5, color: textMain),
+                                        icon: Icon(
+                                            Icons.keyboard_arrow_down_rounded,
+                                            size: 16,
+                                            color: textSoft),
+                                        items: [
+                                          DropdownMenuItem(
+                                              value: null,
+                                              child: Text('Todos',
+                                                  style: TextStyle(
+                                                      color: textMain))),
+                                          ...advisors.map((a) {
+                                            final sigla = (a['sigla'] ??
+                                                    a['codigo_asesor'] ??
+                                                    a['codigo'] ??
+                                                    '')
+                                                .toString()
+                                                .trim();
+                                            final nombre = ([
+                                              a['nombres'],
+                                              a['apellidos']
+                                            ]
+                                                    .where((x) =>
+                                                        x != null &&
+                                                        x.toString().isNotEmpty)
+                                                    .join(' '))
+                                                .trim();
+                                            final display = nombre.isNotEmpty
+                                                ? nombre
+                                                : sigla;
+                                            return DropdownMenuItem(
+                                                value: sigla,
+                                                child: Text(display,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                        color: textMain)));
+                                          }),
+                                        ],
+                                        onChanged: (v) async {
+                                          refresh(() {
+                                            creditAdvisorFilter = v ?? '';
+                                            creditsPage = 1;
+                                            queryingCredits = true;
+                                          });
+                                          try {
+                                            if (creditSubTab == 0) {
+                                              await fetchCredits('');
+                                            } else {
+                                              await fetchPending();
+                                            }
+                                          } finally {
+                                            if (isMounted) {
+                                              refresh(() =>
+                                                  queryingCredits = false);
+                                            }
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ]),
+                              ),
+                            ])),
+                      if (isAdmin) const SizedBox(width: 10),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text('ESTADO',
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: textSoft,
+                                    letterSpacing: 0.6)),
+                            const SizedBox(height: 5),
+                            Container(
+                              height: 44,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              decoration: BoxDecoration(
+                                gradient: creditStatusFilter.isNotEmpty
+                                    ? LinearGradient(
+                                        colors: [
+                                          const Color(0xFF3B82F6)
+                                              .withValues(alpha: 0.14),
+                                          const Color(0xFF3B82F6)
+                                              .withValues(alpha: 0.05),
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    : null,
+                                color: creditStatusFilter.isEmpty
+                                    ? inputFill
+                                    : null,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                    color: creditStatusFilter.isNotEmpty
+                                        ? const Color(0xFF3B82F6)
+                                            .withValues(alpha: 0.45)
+                                        : lineCol),
+                              ),
+                              child: Row(children: [
+                                Container(
+                                  width: 26,
+                                  height: 26,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF60A5FA),
+                                        Color(0xFF3B82F6),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                      Icons.radio_button_checked_rounded,
+                                      size: 13,
+                                      color: Colors.white),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<String>(
+                                      value: creditStatusFilter.isEmpty
+                                          ? null
+                                          : creditStatusFilter,
+                                      isExpanded: true,
+                                      dropdownColor: dialogBg,
+                                      hint: Text('Todos',
+                                          style: TextStyle(
+                                              fontSize: 12, color: textSoft)),
+                                      style: TextStyle(
+                                          fontSize: 12.5, color: textMain),
+                                      icon: Icon(
+                                          Icons.keyboard_arrow_down_rounded,
+                                          size: 16,
+                                          color: textSoft),
+                                      items: [
+                                        DropdownMenuItem(
+                                            value: null,
+                                            child: Text('Todos',
+                                                style: TextStyle(
+                                                    color: textMain))),
+                                        DropdownMenuItem(
+                                            value: '1',
+                                            child: Row(children: [
+                                              Container(
+                                                  width: 7,
+                                                  height: 7,
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                          color:
+                                                              Color(0xFF16A34A),
+                                                          shape:
+                                                              BoxShape.circle)),
+                                              const SizedBox(width: 6),
+                                              const Text('Activo',
+                                                  style: TextStyle(
+                                                      color: Color(0xFF16A34A),
+                                                      fontWeight:
+                                                          FontWeight.w600)),
+                                            ])),
+                                        DropdownMenuItem(
+                                            value: '2',
+                                            child: Row(children: [
+                                              Container(
+                                                  width: 7,
+                                                  height: 7,
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                          color:
+                                                              Color(0xFF0369A1),
+                                                          shape:
+                                                              BoxShape.circle)),
+                                              const SizedBox(width: 6),
+                                              const Text('Pagado',
+                                                  style: TextStyle(
+                                                      color: Color(0xFF0369A1),
+                                                      fontWeight:
+                                                          FontWeight.w600)),
+                                            ])),
+                                        DropdownMenuItem(
+                                            value: 'atrasado',
+                                            child: Row(children: [
+                                              Container(
+                                                  width: 7,
+                                                  height: 7,
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                          color:
+                                                              Color(0xFFDC2626),
+                                                          shape:
+                                                              BoxShape.circle)),
+                                              const SizedBox(width: 6),
+                                              const Text('Atrasados',
+                                                  style: TextStyle(
+                                                      color: Color(0xFFDC2626),
+                                                      fontWeight:
+                                                          FontWeight.w600)),
+                                            ])),
+                                      ],
+                                      onChanged: (v) async {
+                                        refresh(() {
+                                          creditStatusFilter = v ?? '';
+                                          creditsPage = 1;
+                                          queryingCredits = true;
+                                        });
+                                        try {
+                                          if (creditSubTab == 0) {
+                                            await fetchCredits('');
+                                          } else {
+                                            await fetchPending();
+                                          }
+                                        } finally {
+                                          if (isMounted) {
+                                            refresh(
+                                                () => queryingCredits = false);
+                                          }
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ]),
+                            ),
+                          ])),
+                    ]),
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: queryingCredits
+                          ? null
+                          : () async {
+                              refresh(() => queryingCredits = true);
                               try {
                                 if (creditSubTab == 0) {
+                                  refresh(() => creditsPage = 1);
                                   await fetchCredits('');
                                 } else {
+                                  refresh(() => pendingPage = 1);
                                   await fetchPending();
                                 }
                               } finally {
@@ -937,80 +1000,59 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 }
                               }
                             },
-                          ),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        height: 42,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: queryingCredits
+                              ? null
+                              : const LinearGradient(
+                                  colors: [
+                                      Color(0xFF4338CA),
+                                      Color(0xFF2D2A9E)
+                                    ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight),
+                          color:
+                              queryingCredits ? const Color(0xFFE2E8F0) : null,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: queryingCredits
+                              ? null
+                              : [
+                                  BoxShadow(
+                                      color: const Color(0xFF4338CA)
+                                          .withValues(alpha: 0.4),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4)),
+                                ],
                         ),
-                          ),
-                        ]),
+                        child: Center(
+                          child: queryingCredits
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Color(0xFF4338CA))))
+                              : const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                      Icon(Icons.search_rounded,
+                                          color: Colors.white, size: 15),
+                                      SizedBox(width: 7),
+                                      Text('Consultar',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 0.3)),
+                                    ]),
+                        ),
                       ),
-                    ])),
-              ]),
-              const SizedBox(height: 12),
-              GestureDetector(
-                onTap: queryingCredits
-                    ? null
-                    : () async {
-                        refresh(() => queryingCredits = true);
-                        try {
-                          if (creditSubTab == 0) {
-                            refresh(() => creditsPage = 1);
-                            await fetchCredits('');
-                          } else {
-                            refresh(() => pendingPage = 1);
-                            await fetchPending();
-                          }
-                        } finally {
-                          if (isMounted) {
-                            refresh(() => queryingCredits = false);
-                          }
-                        }
-                      },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  height: 42,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: queryingCredits
-                        ? null
-                        : const LinearGradient(
-                            colors: [Color(0xFF4338CA), Color(0xFF2D2A9E)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight),
-                    color: queryingCredits ? const Color(0xFFE2E8F0) : null,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: queryingCredits
-                        ? null
-                        : [
-                            BoxShadow(
-                                color: const Color(0xFF4338CA)
-                                    .withValues(alpha: 0.4),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4)),
-                          ],
-                  ),
-                  child: Center(
-                    child: queryingCredits
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                    Color(0xFF4338CA))))
-                        : const Row(mainAxisSize: MainAxisSize.min, children: [
-                            Icon(Icons.search_rounded,
-                                color: Colors.white, size: 15),
-                            SizedBox(width: 7),
-                            Text('Consultar',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.3)),
-                          ]),
-                  ),
-                ),
-              ),
-                    ],
+                    ),
+                  ],
                 ),
               ),
             ]),
@@ -1035,25 +1077,24 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           if (creditsTotal > creditsPageSize)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: Row(children: [
+              child: buildPaginationBar([
                 buildPaginationButton(
                     Icons.chevron_left_rounded, creditsPage > 1, () async {
                   refresh(() => creditsPage--);
-                  await fetchCredits('');
+                  await fetchCredits('', soloListado: true);
                   if (isMounted) refresh(() {});
                 }),
                 const SizedBox(width: 8),
                 Expanded(
                     child: Center(
-                        child: Text(
+                        child: buildPaginationLabel(
                   'Pág $creditsPage de ${((creditsTotal - 1) ~/ creditsPageSize) + 1}  ·  $creditsTotal registros',
-                  style: TextStyle(fontSize: 12, color: textSoft),
                 ))),
                 const SizedBox(width: 8),
                 buildPaginationButton(Icons.chevron_right_rounded,
                     creditsPage * creditsPageSize < creditsTotal, () async {
                   refresh(() => creditsPage++);
-                  await fetchCredits('');
+                  await fetchCredits('', soloListado: true);
                   if (isMounted) refresh(() {});
                 }),
               ]),
@@ -1099,7 +1140,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           if (pendingTotal > creditsPageSize)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: Row(children: [
+              child: buildPaginationBar([
                 buildPaginationButton(
                     Icons.chevron_left_rounded, pendingPage > 1, () async {
                   refresh(() => pendingPage--);
@@ -1109,9 +1150,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 const SizedBox(width: 8),
                 Expanded(
                     child: Center(
-                        child: Text(
+                        child: buildPaginationLabel(
                   'Pág $pendingPage de ${((pendingTotal - 1) ~/ creditsPageSize) + 1}  ·  $pendingTotal solicitudes',
-                  style: TextStyle(fontSize: 12, color: textSoft),
                 ))),
                 const SizedBox(width: 8),
                 buildPaginationButton(Icons.chevron_right_rounded,
@@ -3913,6 +3953,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     required String label,
     required double value,
     required Color color,
+    bool loading = false,
   }) =>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3948,20 +3989,37 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             ),
           ]),
           const SizedBox(height: 8),
-          TweenAnimationBuilder<double>(
-            key: ValueKey('credits_total_${label}_$value'),
-            tween: Tween(begin: 0.0, end: value),
-            duration: const Duration(milliseconds: 700),
-            curve: Curves.easeOutCubic,
-            builder: (_, animatedValue, __) => Text(formatCop(animatedValue),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.3)),
-          ),
+          // Mientras creditsDataLoaded sigue en false el valor real aún no
+          // llegó del servidor — mostrar "$0" en ese momento se confunde con
+          // un total que ya cargó y de verdad es cero, así que se muestra un
+          // placeholder shimmer hasta que el dato definitivo esté listo.
+          if (loading)
+            AnimatedBuilder(
+              animation: shimmer,
+              builder: (_, __) => Container(
+                width: 74,
+                height: 19,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14 + 0.08 * shimmer.value),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            )
+          else
+            TweenAnimationBuilder<double>(
+              key: ValueKey('credits_total_${label}_$value'),
+              tween: Tween(begin: 0.0, end: value),
+              duration: const Duration(milliseconds: 700),
+              curve: Curves.easeOutCubic,
+              builder: (_, animatedValue, __) => Text(formatCop(animatedValue),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3)),
+            ),
         ],
       );
 
@@ -4256,8 +4314,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     // índigo sobre índigo oscuro casi no se distinguía. Aquí sí se aclara
     // solo para texto, sin tocar accentColor (bordes/ícono/banner ya tenían
     // buen contraste).
-    final amountTextColor =
-        isDarkTheme ? Color.lerp(accentColor, Colors.white, 0.35)! : accentColor;
+    final amountTextColor = isDarkTheme
+        ? Color.lerp(accentColor, Colors.white, 0.35)!
+        : accentColor;
 
     final estadoLabel = rechazado
         ? 'Rechazado'
@@ -4481,10 +4540,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [
-                              accentColor
-                                  .withValues(alpha: isDarkTheme ? 0.20 : 0.12),
-                              accentColor
-                                  .withValues(alpha: isDarkTheme ? 0.08 : 0.04),
+                              accentColor.withValues(
+                                  alpha: isDarkTheme ? 0.20 : 0.12),
+                              accentColor.withValues(
+                                  alpha: isDarkTheme ? 0.08 : 0.04),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(12),
@@ -4576,45 +4635,48 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               const SizedBox(height: 10),
                               IntrinsicHeight(
                                 child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    if (tieneAsesor && !rechazado)
-                                      Expanded(
-                                        child: _miniActionBtn(
-                                            Icons.cancel_outlined,
-                                            'Rechazar',
-                                            const Color(0xFFDC2626),
-                                            () => _rechazarSolicitud(p)),
-                                      )
-                                    else if (rechazado)
-                                      Expanded(
-                                        child: _miniActionBtn(
-                                            Icons.check_circle_outline_rounded,
-                                            'Aprobar',
-                                            const Color(0xFF16A34A),
-                                            () => _aprobarSolicitud(p)),
-                                      )
-                                    else ...[
-                                      Expanded(
-                                        child: _miniActionBtn(
-                                            Icons.check_circle_outline_rounded,
-                                            'Aprobar',
-                                            const Color(0xFF16A34A),
-                                            () => _aprobarSolicitud(p)),
-                                      ),
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      if (tieneAsesor && !rechazado)
+                                        Expanded(
+                                          child: _miniActionBtn(
+                                              Icons.cancel_outlined,
+                                              'Rechazar',
+                                              const Color(0xFFDC2626),
+                                              () => _rechazarSolicitud(p)),
+                                        )
+                                      else if (rechazado)
+                                        Expanded(
+                                          child: _miniActionBtn(
+                                              Icons
+                                                  .check_circle_outline_rounded,
+                                              'Aprobar',
+                                              const Color(0xFF16A34A),
+                                              () => _aprobarSolicitud(p)),
+                                        )
+                                      else ...[
+                                        Expanded(
+                                          child: _miniActionBtn(
+                                              Icons
+                                                  .check_circle_outline_rounded,
+                                              'Aprobar',
+                                              const Color(0xFF16A34A),
+                                              () => _aprobarSolicitud(p)),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _miniActionBtn(
+                                              Icons.cancel_outlined,
+                                              'Rechazar',
+                                              const Color(0xFFDC2626),
+                                              () => _rechazarSolicitud(p)),
+                                        ),
+                                      ],
                                       const SizedBox(width: 8),
-                                      Expanded(
-                                        child: _miniActionBtn(
-                                            Icons.cancel_outlined,
-                                            'Rechazar',
-                                            const Color(0xFFDC2626),
-                                            () => _rechazarSolicitud(p)),
-                                      ),
-                                    ],
-                                    const SizedBox(width: 8),
-                                    _miniIconBtn(Icons.edit_rounded, homeNavy,
-                                        () => _showEditarSolicitudDialog(p)),
-                                  ]),
+                                      _miniIconBtn(Icons.edit_rounded, homeNavy,
+                                          () => _showEditarSolicitudDialog(p)),
+                                    ]),
                               ),
                             ]),
                         crossFadeState: expanded
@@ -5562,133 +5624,141 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           ),
                         ),
                         child: Container(
-                        color: bg,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        child: Row(children: [
-                          SizedBox(
-                            width: 24,
-                            child: Text('${q['numero_cuota'] ?? i + 1}',
-                                style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: txt)),
-                          ),
-                          Expanded(
-                              flex: 3,
-                              child: Text(fechaPago,
-                                  style: TextStyle(fontSize: 10, color: txt))),
-                          Expanded(
-                              flex: 3,
-                              child: Text(formatCop(valorPago),
+                          color: bg,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          child: Row(children: [
+                            SizedBox(
+                              width: 24,
+                              child: Text('${q['numero_cuota'] ?? i + 1}',
                                   style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: txt))),
-                          Expanded(
-                              flex: 3,
-                              child: Text(
-                                  valorPagado > 0 ? formatCop(valorPagado) : '',
-                                  style: TextStyle(fontSize: 10, color: txt))),
-                          SizedBox(
-                              width: 28,
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 5, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: accentPill.withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(6),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: txt)),
+                            ),
+                            Expanded(
+                                flex: 3,
+                                child: Text(fechaPago,
+                                    style:
+                                        TextStyle(fontSize: 10, color: txt))),
+                            Expanded(
+                                flex: 3,
+                                child: Text(formatCop(valorPago),
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: txt))),
+                            Expanded(
+                                flex: 3,
+                                child: Text(
+                                    valorPagado > 0
+                                        ? formatCop(valorPagado)
+                                        : '',
+                                    style:
+                                        TextStyle(fontSize: 10, color: txt))),
+                            SizedBox(
+                                width: 28,
+                                child: Center(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: accentPill.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Icon(
+                                        pagadoSi
+                                            ? Icons.check_rounded
+                                            : Icons.close_rounded,
+                                        size: 12,
+                                        color: accentPill),
                                   ),
-                                  child: Icon(
-                                      pagadoSi
-                                          ? Icons.check_rounded
-                                          : Icons.close_rounded,
-                                      size: 12,
-                                      color: accentPill),
-                                ),
-                              )),
-                          SizedBox(
-                              width: 56,
-                              child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () =>
-                                          _showRegistroPagoDialog(ctx, q, () {
-                                        repository.post(
-                                            '/ajax/get_cuotas_credito.php',
-                                            {'codigo_credito': cod}).then((r) {
-                                          if (r.statusCode == 200) {
-                                            try {
-                                              final d = jsonDecode(r.body);
-                                              if (d is List) {
-                                                cuotas = d
-                                                    .whereType<Map>()
-                                                    .map((e) => Map<String,
-                                                        dynamic>.from(e))
-                                                    .toList();
-                                              }
-                                            } catch (_) {}
-                                          }
-                                          if (ctx.mounted) setS(() {});
-                                          repository.invalidateCache(
-                                              '/ajax/get_creditos_lista.php');
-                                          fetchCredits('').then((_) {
-                                            if (isMounted) refresh(() {});
+                                )),
+                            SizedBox(
+                                width: 56,
+                                child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () =>
+                                            _showRegistroPagoDialog(ctx, q, () {
+                                          repository.post(
+                                              '/ajax/get_cuotas_credito.php', {
+                                            'codigo_credito': cod
+                                          }).then((r) {
+                                            if (r.statusCode == 200) {
+                                              try {
+                                                final d = jsonDecode(r.body);
+                                                if (d is List) {
+                                                  cuotas = d
+                                                      .whereType<Map>()
+                                                      .map((e) => Map<String,
+                                                          dynamic>.from(e))
+                                                      .toList();
+                                                }
+                                              } catch (_) {}
+                                            }
+                                            if (ctx.mounted) setS(() {});
+                                            repository.invalidateCache(
+                                                '/ajax/get_creditos_lista.php');
+                                            fetchCredits('').then((_) {
+                                              if (isMounted) refresh(() {});
+                                            });
                                           });
-                                        });
-                                      }),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF3B3B8A)
-                                              .withValues(alpha: 0.12),
-                                          borderRadius:
-                                              BorderRadius.circular(7),
+                                        }),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF3B3B8A)
+                                                .withValues(alpha: 0.12),
+                                            borderRadius:
+                                                BorderRadius.circular(7),
+                                          ),
+                                          child: const Icon(
+                                              Icons
+                                                  .assignment_turned_in_outlined,
+                                              size: 14,
+                                              color: Color(0xFF3B3B8A)),
                                         ),
-                                        child: const Icon(
-                                            Icons.assignment_turned_in_outlined,
-                                            size: 14,
-                                            color: Color(0xFF3B3B8A)),
                                       ),
-                                    ),
-                                    GestureDetector(
-                                      onTap: () =>
-                                          _showEditarCuotaDialog(ctx, q, () {
-                                        repository.post(
-                                            '/ajax/get_cuotas_credito.php',
-                                            {'codigo_credito': cod}).then((r) {
-                                          if (r.statusCode == 200) {
-                                            try {
-                                              final d = jsonDecode(r.body);
-                                              if (d is List) {
-                                                cuotas = d
-                                                    .whereType<Map>()
-                                                    .map((e) => Map<String,
-                                                        dynamic>.from(e))
-                                                    .toList();
-                                              }
-                                            } catch (_) {}
-                                          }
-                                          if (ctx.mounted) setS(() {});
-                                        });
-                                      }),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF3B3B8A)
-                                              .withValues(alpha: 0.12),
-                                          borderRadius:
-                                              BorderRadius.circular(7),
+                                      GestureDetector(
+                                        onTap: () =>
+                                            _showEditarCuotaDialog(ctx, q, () {
+                                          repository.post(
+                                              '/ajax/get_cuotas_credito.php', {
+                                            'codigo_credito': cod
+                                          }).then((r) {
+                                            if (r.statusCode == 200) {
+                                              try {
+                                                final d = jsonDecode(r.body);
+                                                if (d is List) {
+                                                  cuotas = d
+                                                      .whereType<Map>()
+                                                      .map((e) => Map<String,
+                                                          dynamic>.from(e))
+                                                      .toList();
+                                                }
+                                              } catch (_) {}
+                                            }
+                                            if (ctx.mounted) setS(() {});
+                                          });
+                                        }),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF3B3B8A)
+                                                .withValues(alpha: 0.12),
+                                            borderRadius:
+                                                BorderRadius.circular(7),
+                                          ),
+                                          child: const Icon(Icons.edit_outlined,
+                                              size: 14,
+                                              color: Color(0xFF3B3B8A)),
                                         ),
-                                        child: const Icon(Icons.edit_outlined,
-                                            size: 14, color: Color(0xFF3B3B8A)),
                                       ),
-                                    ),
-                                  ])),
-                        ]),
+                                    ])),
+                          ]),
                         ),
                       );
                     },
@@ -6037,46 +6107,47 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         : () async {
                             final val =
                                 double.tryParse(valorCtrl.text.trim()) ?? 0;
-                      if (val <= 0) {
-                        showResult(false,
-                            'Ingresa el valor del pago antes de continuar');
-                        return;
-                      }
-                      if (fuente.isEmpty) {
-                        showResult(false,
-                            'Selecciona la fuente donde ingresó el pago');
-                        return;
-                      }
-                      setS(() => saving = true);
-                      final r = await repository
-                          .post('/ajax/registrar_cuota_credito.php', {
-                        'codigo_cuota': codigoCuota,
-                        'interes': interes,
-                        'valor_pagado': valorCtrl.text.trim(),
-                        'fuente_cuota': fuente,
-                        'fecha_pago': fechaStr(),
-                        'comentarios': comentCtrl.text.trim(),
-                      });
-                      setS(() => saving = false);
-                      if (!ctx.mounted) return;
-                      final bodyLowerCuota = r.body.toLowerCase();
-                      final decodedCuota = decodeJsonMap(r.body);
-                      final ok = r.statusCode == 200 &&
-                          (decodedCuota['success'] == true ||
-                              decodedCuota['resultado'] == 1 ||
-                              bodyLowerCuota.contains('pago registrado') ||
-                              bodyLowerCuota.contains('registrado') ||
-                              bodyLowerCuota.contains('exitoso') ||
-                              bodyLowerCuota.contains('success'));
-                      if (ok) {
-                        Navigator.pop(ctx);
-                        onSaved();
-                      }
-                      showResult(
-                          ok,
-                          ok
-                              ? 'Pago registrado correctamente'
-                              : friendlyError(r.body));
+                            if (val <= 0) {
+                              showResult(false,
+                                  'Ingresa el valor del pago antes de continuar');
+                              return;
+                            }
+                            if (fuente.isEmpty) {
+                              showResult(false,
+                                  'Selecciona la fuente donde ingresó el pago');
+                              return;
+                            }
+                            setS(() => saving = true);
+                            final r = await repository
+                                .post('/ajax/registrar_cuota_credito.php', {
+                              'codigo_cuota': codigoCuota,
+                              'interes': interes,
+                              'valor_pagado': valorCtrl.text.trim(),
+                              'fuente_cuota': fuente,
+                              'fecha_pago': fechaStr(),
+                              'comentarios': comentCtrl.text.trim(),
+                            });
+                            setS(() => saving = false);
+                            if (!ctx.mounted) return;
+                            final bodyLowerCuota = r.body.toLowerCase();
+                            final decodedCuota = decodeJsonMap(r.body);
+                            final ok = r.statusCode == 200 &&
+                                (decodedCuota['success'] == true ||
+                                    decodedCuota['resultado'] == 1 ||
+                                    bodyLowerCuota
+                                        .contains('pago registrado') ||
+                                    bodyLowerCuota.contains('registrado') ||
+                                    bodyLowerCuota.contains('exitoso') ||
+                                    bodyLowerCuota.contains('success'));
+                            if (ok) {
+                              Navigator.pop(ctx);
+                              onSaved();
+                            }
+                            showResult(
+                                ok,
+                                ok
+                                    ? 'Pago registrado correctamente'
+                                    : friendlyError(r.body));
                           },
                     child: saving
                         ? const SizedBox(
@@ -6246,8 +6317,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           actions: [
             Row(children: [
               Expanded(
-                  child: appCancelButton(
-                      'Cancelar', () => Navigator.pop(ctx))),
+                  child: appCancelButton('Cancelar', () => Navigator.pop(ctx))),
               const SizedBox(width: 10),
               Expanded(
                 child: SizedBox(
@@ -6382,387 +6452,391 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
 
         return AppAnimatedDialog(
           child: AlertDialog(
-          backgroundColor: dialogBg,
-          surfaceTintColor: Colors.transparent,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          titlePadding: EdgeInsets.zero,
-          contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-          title: ClipRRect(
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(16)),
-            child: appDialogHeader(
-              icon: Icons.request_page_rounded,
-              title: 'Liquidar crédito #$cod',
-              subtitle: 'Cliente: $cliente',
-              gradientColors: const [
-                Color(0xFF1E1B4B),
-                Color(0xFF3B3B8A),
-                Color(0xFF7C3AED),
-              ],
-              onClose: () => Navigator.pop(ctx),
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              const SizedBox(height: 4),
-              // Fecha de liquidación
-              GestureDetector(
-                onTap: () async {
-                  final d = await showLightDatePicker(
-                    ctx,
-                    initialDate: fechaLiquidacion,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2035),
-                  );
-                  if (d != null && ctx.mounted) {
-                    setS(() {
-                      fechaLiquidacion = d;
-                      calculo = null;
-                      errorCalculo = null;
-                    });
-                  }
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: inputFill,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: lineCol),
-                  ),
-                  child: Row(children: [
-                    const Icon(Icons.calendar_today_outlined,
-                        size: 14, color: Color(0xFF3B3B8A)),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Fecha de liquidación: ${fechaLiquidacion.day.toString().padLeft(2, '0')}/${fechaLiquidacion.month.toString().padLeft(2, '0')}/${fechaLiquidacion.year}',
-                      style: TextStyle(fontSize: 12, color: textMain),
-                    ),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: calculando ? null : calcular,
-                child: Container(
-                  width: double.infinity,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4F46E5), Color(0xFF3B3B8A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                          color:
-                              const Color(0xFF3B3B8A).withValues(alpha: 0.45),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4)),
-                    ],
-                  ),
-                  child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        if (calculando)
-                          const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                        else
-                          const Icon(Icons.calculate_outlined,
-                              size: 16, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Text(
-                            calculando
-                                ? 'Calculando...'
-                                : 'Calcular valor a pagar',
-                            style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white)),
-                      ]),
-                ),
-              ),
-              if (errorCalculo != null) ...[
-                const SizedBox(height: 16),
-                TweenAnimationBuilder<double>(
-                  key: ValueKey('err_$errorCalculo'),
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  duration: const Duration(milliseconds: 320),
-                  curve: Curves.easeOutBack,
-                  builder: (_, v, child) => Opacity(
-                    opacity: v.clamp(0.0, 1.0),
-                    child: Transform.scale(
-                        scale: 0.9 + 0.1 * v,
-                        child: RepaintBoundary(child: child)),
-                  ),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isDarkTheme
-                          ? const Color(0xFF3A1A22)
-                          : const Color(0xFFFFD7DB),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: isDarkTheme
-                              ? const Color(0xFF6B2837)
-                              : const Color(0xFFF3A8B0)),
-                    ),
-                    child: Text(errorCalculo!,
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isDarkTheme
-                                ? const Color(0xFFF87171)
-                                : const Color(0xFFB71C1C))),
-                  ),
-                ),
-              ],
-              if (calculo != null) ...[
-                const SizedBox(height: 16),
-                TweenAnimationBuilder<double>(
-                  key: ValueKey('calc_$valorLiquidacion'),
-                  tween: Tween(begin: 0.0, end: 1.0),
-                  duration: const Duration(milliseconds: 380),
-                  curve: Curves.easeOutBack,
-                  builder: (_, v, child) => Opacity(
-                    opacity: v.clamp(0.0, 1.0),
-                    child: Transform.scale(
-                        scale: 0.9 + 0.1 * v,
-                        child: RepaintBoundary(child: child)),
-                  ),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isDarkTheme
-                          ? const Color(0xFF12341F)
-                          : const Color(0xFFDDF2E1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: isDarkTheme
-                              ? const Color(0xFF1E5A3C)
-                              : const Color(0xFFB8DFC0)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                            'Capital pendiente: ${formatCop(capitalPendiente)}',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: isDarkTheme
-                                    ? const Color(0xFF6EE7A0)
-                                    : const Color(0xFF1B5E20))),
-                        Text('Interés prorateado: ${formatCop(interesTotal)}',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: isDarkTheme
-                                    ? const Color(0xFF6EE7A0)
-                                    : const Color(0xFF1B5E20))),
-                        Text(
-                            'Cuotas que se cancelan/fusionan: $cuotasPendientes',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: isDarkTheme
-                                    ? const Color(0xFF6EE7A0)
-                                    : const Color(0xFF1B5E20))),
-                        const SizedBox(height: 4),
-                        Text('Total a pagar: ${formatCop(valorLiquidacion)}',
-                            style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: isDarkTheme
-                                    ? const Color(0xFF6EE7A0)
-                                    : const Color(0xFF1B5E20))),
-                      ]),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                initialValue: fuente,
-                isExpanded: true,
-                dropdownColor: dialogBg,
-                iconEnabledColor: const Color(0xFF3B3B8A),
-                style: TextStyle(
-                  color: textMain,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Fuente',
-                  labelStyle: const TextStyle(
-                    color: Color(0xFF5B5BB0),
-                    fontWeight: FontWeight.w600,
-                  ),
-                  filled: true,
-                  fillColor: inputFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: '',
-                    child:
-                        Text('[Seleccione]', style: TextStyle(color: textSoft)),
-                  ),
-                  ...fuentesPago.map((f) => DropdownMenuItem(
-                      value: f['codigo'],
-                      child:
-                          Text(f['nombre']!, overflow: TextOverflow.ellipsis))),
+            backgroundColor: dialogBg,
+            surfaceTintColor: Colors.transparent,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            titlePadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            title: ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
+              child: appDialogHeader(
+                icon: Icons.request_page_rounded,
+                title: 'Liquidar crédito #$cod',
+                subtitle: 'Cliente: $cliente',
+                gradientColors: const [
+                  Color(0xFF1E1B4B),
+                  Color(0xFF3B3B8A),
+                  Color(0xFF7C3AED),
                 ],
-                onChanged: (v) => setS(() => fuente = v ?? ''),
+                onClose: () => Navigator.pop(ctx),
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: comentCtrl,
-                maxLines: 3,
-                style: TextStyle(
-                    color: textMain, fontSize: 14, fontWeight: FontWeight.w500),
-                cursorColor: const Color(0xFF3B3B8A),
-                decoration: InputDecoration(
-                  hintText: 'Comentarios (opcional)',
-                  hintStyle: TextStyle(color: textSoft),
-                  filled: true,
-                  fillColor: inputFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-              ),
-            ]),
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          actions: [
-            Row(children: [
-              Expanded(
-                flex: 2,
-                child: GestureDetector(
-                  onTap: () => Navigator.pop(ctx),
+            ),
+            content: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const SizedBox(height: 4),
+                // Fecha de liquidación
+                GestureDetector(
+                  onTap: () async {
+                    final d = await showLightDatePicker(
+                      ctx,
+                      initialDate: fechaLiquidacion,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2035),
+                    );
+                    if (d != null && ctx.mounted) {
+                      setS(() {
+                        fechaLiquidacion = d;
+                        calculo = null;
+                        errorCalculo = null;
+                      });
+                    }
+                  },
                   child: Container(
-                    height: 40,
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: inputFill,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: lineCol),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.calendar_today_outlined,
+                          size: 14, color: Color(0xFF3B3B8A)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Fecha de liquidación: ${fechaLiquidacion.day.toString().padLeft(2, '0')}/${fechaLiquidacion.month.toString().padLeft(2, '0')}/${fechaLiquidacion.year}',
+                        style: TextStyle(fontSize: 12, color: textMain),
+                      ),
+                    ]),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: calculando ? null : calcular,
+                  child: Container(
+                    width: double.infinity,
+                    height: 44,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
+                        colors: [Color(0xFF4F46E5), Color(0xFF3B3B8A)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       boxShadow: [
                         BoxShadow(
                             color:
-                                const Color(0xFFDC2626).withValues(alpha: 0.4),
+                                const Color(0xFF3B3B8A).withValues(alpha: 0.45),
                             blurRadius: 10,
                             offset: const Offset(0, 4)),
                       ],
                     ),
-                    alignment: Alignment.center,
-                    child: const Text('Cerrar',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700)),
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (calculando)
+                            const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                          else
+                            const Icon(Icons.calculate_outlined,
+                                size: 16, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Text(
+                              calculando
+                                  ? 'Calculando...'
+                                  : 'Calcular valor a pagar',
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white)),
+                        ]),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 3,
-                child: GestureDetector(
-                  onTap: (calculo == null || confirmando)
-                      ? null
-                      : () async {
-                          if (fuente.isEmpty) {
-                            showResult(false,
-                                'Selecciona la fuente donde ingresó el pago');
-                            return;
-                          }
-                          setS(() => confirmando = true);
-                          final r = await repository
-                              .post('/ajax/liquidar_credito.php', {
-                            'codigo_credito': cod,
-                            'fecha_liquidacion': fechaStr(),
-                            'fuente_cuota': fuente,
-                            'comentarios': comentCtrl.text.trim(),
-                          });
-                          setS(() => confirmando = false);
-                          if (!ctx.mounted) return;
-                          final decoded = decodeJsonMap(r.body);
-                          final ok =
-                              r.statusCode == 200 && decoded['success'] == true;
-                          if (ok) {
-                            Navigator.pop(ctx);
-                            repository.invalidateCache(
-                                '/ajax/get_creditos_lista.php');
-                            await fetchCredits('');
-                            if (isMounted) refresh(() {});
-                          }
-                          showResult(
-                              ok,
-                              ok
-                                  ? 'Crédito liquidado correctamente'
-                                  : friendlyError(
-                                      (decoded['error'] ?? r.body).toString()));
-                        },
-                  child: Opacity(
-                    opacity: (calculo == null || confirmando) ? 0.4 : 1,
-                    child: RepaintBoundary(
-                      child: Container(
+                if (errorCalculo != null) ...[
+                  const SizedBox(height: 16),
+                  TweenAnimationBuilder<double>(
+                    key: ValueKey('err_$errorCalculo'),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 320),
+                    curve: Curves.easeOutBack,
+                    builder: (_, v, child) => Opacity(
+                      opacity: v.clamp(0.0, 1.0),
+                      child: Transform.scale(
+                          scale: 0.9 + 0.1 * v,
+                          child: RepaintBoundary(child: child)),
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isDarkTheme
+                            ? const Color(0xFF3A1A22)
+                            : const Color(0xFFFFD7DB),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: isDarkTheme
+                                ? const Color(0xFF6B2837)
+                                : const Color(0xFFF3A8B0)),
+                      ),
+                      child: Text(errorCalculo!,
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: isDarkTheme
+                                  ? const Color(0xFFF87171)
+                                  : const Color(0xFFB71C1C))),
+                    ),
+                  ),
+                ],
+                if (calculo != null) ...[
+                  const SizedBox(height: 16),
+                  TweenAnimationBuilder<double>(
+                    key: ValueKey('calc_$valorLiquidacion'),
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 380),
+                    curve: Curves.easeOutBack,
+                    builder: (_, v, child) => Opacity(
+                      opacity: v.clamp(0.0, 1.0),
+                      child: Transform.scale(
+                          scale: 0.9 + 0.1 * v,
+                          child: RepaintBoundary(child: child)),
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isDarkTheme
+                            ? const Color(0xFF12341F)
+                            : const Color(0xFFDDF2E1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: isDarkTheme
+                                ? const Color(0xFF1E5A3C)
+                                : const Color(0xFFB8DFC0)),
+                      ),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                'Capital pendiente: ${formatCop(capitalPendiente)}',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDarkTheme
+                                        ? const Color(0xFF6EE7A0)
+                                        : const Color(0xFF1B5E20))),
+                            Text(
+                                'Interés prorateado: ${formatCop(interesTotal)}',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDarkTheme
+                                        ? const Color(0xFF6EE7A0)
+                                        : const Color(0xFF1B5E20))),
+                            Text(
+                                'Cuotas que se cancelan/fusionan: $cuotasPendientes',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDarkTheme
+                                        ? const Color(0xFF6EE7A0)
+                                        : const Color(0xFF1B5E20))),
+                            const SizedBox(height: 4),
+                            Text(
+                                'Total a pagar: ${formatCop(valorLiquidacion)}',
+                                style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: isDarkTheme
+                                        ? const Color(0xFF6EE7A0)
+                                        : const Color(0xFF1B5E20))),
+                          ]),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: fuente,
+                  isExpanded: true,
+                  dropdownColor: dialogBg,
+                  iconEnabledColor: const Color(0xFF3B3B8A),
+                  style: TextStyle(
+                    color: textMain,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Fuente',
+                    labelStyle: const TextStyle(
+                      color: Color(0xFF5B5BB0),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    filled: true,
+                    fillColor: inputFill,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: lineCol),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                  ),
+                  items: [
+                    DropdownMenuItem(
+                      value: '',
+                      child: Text('[Seleccione]',
+                          style: TextStyle(color: textSoft)),
+                    ),
+                    ...fuentesPago.map((f) => DropdownMenuItem(
+                        value: f['codigo'],
+                        child: Text(f['nombre']!,
+                            overflow: TextOverflow.ellipsis))),
+                  ],
+                  onChanged: (v) => setS(() => fuente = v ?? ''),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: comentCtrl,
+                  maxLines: 3,
+                  style: TextStyle(
+                      color: textMain,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500),
+                  cursorColor: const Color(0xFF3B3B8A),
+                  decoration: InputDecoration(
+                    hintText: 'Comentarios (opcional)',
+                    hintStyle: TextStyle(color: textSoft),
+                    filled: true,
+                    fillColor: inputFill,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: lineCol),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                  ),
+                ),
+              ]),
+            ),
+            actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            actions: [
+              Row(children: [
+                Expanded(
+                  flex: 2,
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(ctx),
+                    child: Container(
                       height: 40,
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFF7C3AED), Color(0xFFA855F7)],
+                          colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(8),
                         boxShadow: [
                           BoxShadow(
-                              color: const Color(0xFF7C3AED)
-                                  .withValues(alpha: 0.45),
+                              color: const Color(0xFFDC2626)
+                                  .withValues(alpha: 0.4),
                               blurRadius: 10,
                               offset: const Offset(0, 4)),
                         ],
                       ),
                       alignment: Alignment.center,
-                      child: confirmando
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : const Text('Confirmar liquidación',
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700)),
+                      child: const Text('Cerrar',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 3,
+                  child: GestureDetector(
+                    onTap: (calculo == null || confirmando)
+                        ? null
+                        : () async {
+                            if (fuente.isEmpty) {
+                              showResult(false,
+                                  'Selecciona la fuente donde ingresó el pago');
+                              return;
+                            }
+                            setS(() => confirmando = true);
+                            final r = await repository
+                                .post('/ajax/liquidar_credito.php', {
+                              'codigo_credito': cod,
+                              'fecha_liquidacion': fechaStr(),
+                              'fuente_cuota': fuente,
+                              'comentarios': comentCtrl.text.trim(),
+                            });
+                            setS(() => confirmando = false);
+                            if (!ctx.mounted) return;
+                            final decoded = decodeJsonMap(r.body);
+                            final ok = r.statusCode == 200 &&
+                                decoded['success'] == true;
+                            if (ok) {
+                              Navigator.pop(ctx);
+                              repository.invalidateCache(
+                                  '/ajax/get_creditos_lista.php');
+                              await fetchCredits('');
+                              if (isMounted) refresh(() {});
+                            }
+                            showResult(
+                                ok,
+                                ok
+                                    ? 'Crédito liquidado correctamente'
+                                    : friendlyError((decoded['error'] ?? r.body)
+                                        .toString()));
+                          },
+                    child: Opacity(
+                      opacity: (calculo == null || confirmando) ? 0.4 : 1,
+                      child: RepaintBoundary(
+                        child: Container(
+                          height: 40,
+                          padding: const EdgeInsets.symmetric(horizontal: 6),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF7C3AED), Color(0xFFA855F7)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: const Color(0xFF7C3AED)
+                                      .withValues(alpha: 0.45),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4)),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: confirmando
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Text('Confirmar liquidación',
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700)),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ]),
-          ],
+              ]),
+            ],
           ),
         );
       }),
@@ -7013,17 +7087,51 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
 
   Widget buildPaginationButton(
           IconData icon, bool enabled, VoidCallback onTap) =>
-      GestureDetector(
-        onTap: enabled ? onTap : null,
-        child: Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: enabled ? btnPrimary : inputFill,
-            borderRadius: BorderRadius.circular(8),
+      _PaginationButton(icon: icon, enabled: enabled, onTap: onTap);
+
+  // Cross-fade + deslizamiento del texto "Pág X de Y" al cambiar de página,
+  // en vez de saltar de golpe al nuevo valor.
+  Widget buildPaginationLabel(String text) => AnimatedSwitcher(
+        duration: const Duration(milliseconds: 260),
+        transitionBuilder: (child, anim) => FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position:
+                Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero)
+                    .animate(anim),
+            child: child,
           ),
-          child: Icon(icon, color: enabled ? Colors.white : textSoft, size: 20),
         ),
+        child: Text(
+          text,
+          key: ValueKey(text),
+          style: TextStyle(fontSize: 12, color: textSoft),
+        ),
+      );
+
+  // Tarjeta contenedora compartida por la paginación de Créditos, Pendientes,
+  // Movimientos y Ahorros — antes cada pantalla envolvía sus botones de forma
+  // distinta (algunas sin tarjeta, otras con); ahora todas usan el mismo marco.
+  Widget buildPaginationBar(List<Widget> children) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: cardSheen,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: const Color(0xFF4F46E5).withValues(alpha: 0.15)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF4F46E5).withValues(alpha: 0.07),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(children: children),
       );
 
   Widget buildSaverCard(Map<String, dynamic> a) => ExpandableSaverCard(
@@ -7063,6 +7171,97 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           ),
         ],
       );
+}
+
+// ── Botón de paginación: press-scale + transición fluida activo/inactivo ────
+// Compartido por Créditos, Pendientes, Movimientos y Ahorros — antes era un
+// GestureDetector plano sin animación, con un cambio de color de golpe al
+// (des)habilitarse.
+class _PaginationButton extends StatefulWidget {
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _PaginationButton({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  State<_PaginationButton> createState() => _PaginationButtonState();
+}
+
+class _PaginationButtonState extends State<_PaginationButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _press = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 100),
+    lowerBound: 0.88,
+    upperBound: 1.0,
+  )..value = 1.0;
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.enabled;
+    return GestureDetector(
+      onTapDown: enabled ? (_) => _press.reverse() : null,
+      onTapUp: enabled
+          ? (_) {
+              _press.forward();
+              widget.onTap();
+            }
+          : null,
+      onTapCancel: enabled ? () => _press.forward() : null,
+      child: ScaleTransition(
+        scale: _press,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            gradient: enabled
+                ? LinearGradient(
+                    colors: [
+                      Color.lerp(btnPrimary, Colors.white, 0.16) ?? btnPrimary,
+                      btnPrimary,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: enabled ? null : inputFill,
+            shape: BoxShape.circle,
+            boxShadow: enabled
+                ? [
+                    BoxShadow(
+                      color: btnPrimary.withValues(alpha: 0.38),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
+          ),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              widget.icon,
+              key: ValueKey(enabled),
+              color: enabled ? Colors.white : textSoft,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ── Animated delete-confirmation dialog ─────────────────────────────────────

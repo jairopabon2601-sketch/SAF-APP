@@ -1965,8 +1965,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                             SizedBox(
                               width: 30,
                               height: 30,
-                              child:
-                                  CustomPaint(painter: SafLogoPainter(Colors.white)),
+                              child: CustomPaint(
+                                  painter: SafLogoPainter(Colors.white)),
                             ),
                             const SizedBox(height: 5),
                             const Text('SAF',
@@ -2142,126 +2142,65 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
               if (totalPags > 1)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: cardSheen,
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                          color:
-                              const Color(0xFF4F46E5).withValues(alpha: 0.15)),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              const Color(0xFF4F46E5).withValues(alpha: 0.07),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(children: [
-                      // Prev button
-                      GestureDetector(
-                        onTap: pag > 1
-                            ? () => refresh(() => savingsCurrentPage = pag - 1)
-                            : null,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            gradient: pag > 1
-                                ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFF3730A3),
-                                      Color(0xFF4F46E5)
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  )
-                                : null,
-                            color: pag > 1 ? null : inputFill,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: pag > 1
-                                ? [
-                                    BoxShadow(
-                                      color: const Color(0xFF4F46E5)
-                                          .withValues(alpha: 0.35),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ]
-                                : null,
+                  child: buildPaginationBar([
+                    // Prev button
+                    buildPaginationButton(Icons.chevron_left_rounded, pag > 1,
+                        () {
+                      refresh(() => savingsCurrentPage = pag - 1);
+                    }),
+                    const SizedBox(width: 10),
+                    // Page info
+                    Expanded(
+                      child: Column(children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 260),
+                          transitionBuilder: (child, anim) => FadeTransition(
+                            opacity: anim,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                      begin: const Offset(0, 0.25),
+                                      end: Offset.zero)
+                                  .animate(anim),
+                              child: child,
+                            ),
                           ),
-                          child: Icon(Icons.chevron_left_rounded,
-                              color: pag > 1 ? Colors.white : textSoft,
-                              size: 22),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      // Page info
-                      Expanded(
-                        child: Column(children: [
-                          Text('Página $pag de $totalPags',
+                          child: Text('Página $pag de $totalPags',
+                              key: ValueKey(pag),
                               style: TextStyle(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w800,
                                   color: textMain)),
-                          const SizedBox(height: 2),
-                          Text(
+                        ),
+                        const SizedBox(height: 2),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 260),
+                          transitionBuilder: (child, anim) => FadeTransition(
+                            opacity: anim,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                      begin: const Offset(0, 0.25),
+                                      end: Offset.zero)
+                                  .animate(anim),
+                              child: child,
+                            ),
+                          ),
+                          child: Text(
                               '${lista.length} ahorradores · ${pagina.length} en esta página',
+                              key: ValueKey('${lista.length}-${pagina.length}'),
                               style: TextStyle(
                                   fontSize: 10,
                                   color: textSoft,
                                   fontWeight: FontWeight.w500)),
-                        ]),
-                      ),
-                      const SizedBox(width: 10),
-                      // Next button
-                      GestureDetector(
-                        onTap: pag < totalPags
-                            ? () => refresh(() => savingsCurrentPage = pag + 1)
-                            : null,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            gradient: pag < totalPags
-                                ? const LinearGradient(
-                                    colors: [
-                                      Color(0xFF3730A3),
-                                      Color(0xFF4F46E5)
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  )
-                                : null,
-                            color: pag < totalPags ? null : inputFill,
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: pag < totalPags
-                                ? [
-                                    BoxShadow(
-                                      color: const Color(0xFF4F46E5)
-                                          .withValues(alpha: 0.35),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 3),
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: Icon(Icons.chevron_right_rounded,
-                              color: pag < totalPags ? Colors.white : textSoft,
-                              size: 22),
                         ),
-                      ),
-                    ]),
-                  ),
+                      ]),
+                    ),
+                    const SizedBox(width: 10),
+                    // Next button
+                    buildPaginationButton(
+                        Icons.chevron_right_rounded, pag < totalPags, () {
+                      refresh(() => savingsCurrentPage = pag + 1);
+                    }),
+                  ]),
                 )
               else
                 const SizedBox(height: 20),

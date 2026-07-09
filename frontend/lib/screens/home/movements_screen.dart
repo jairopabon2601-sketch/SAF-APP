@@ -491,7 +491,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       child: SizedBox(
                         width: 130,
                         height: 130,
-                        child: CustomPaint(painter: SafLogoPainter(Colors.white)),
+                        child:
+                            CustomPaint(painter: SafLogoPainter(Colors.white)),
                       ),
                     ),
                   ),
@@ -810,8 +811,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       if (ingresos + gastos > 0) ...[
                         const SizedBox(height: 14),
                         Builder(builder: (_) {
-                          final ratio = (ingresos / (ingresos + gastos))
-                              .clamp(0.0, 1.0);
+                          final ratio =
+                              (ingresos / (ingresos + gastos)).clamp(0.0, 1.0);
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -825,8 +826,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                   ),
                                   TweenAnimationBuilder<double>(
                                     tween: Tween(begin: 0.0, end: ratio),
-                                    duration:
-                                        const Duration(milliseconds: 900),
+                                    duration: const Duration(milliseconds: 900),
                                     curve: Curves.easeOutCubic,
                                     builder: (_, animRatio, __) =>
                                         FractionallySizedBox(
@@ -1083,19 +1083,22 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                 (c['color'] ?? '#4361EE').toString());
                             return DropdownMenuItem(
                               value: (c['nombre'] ?? '').toString(),
-                              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                      color: color, shape: BoxShape.circle),
-                                ),
-                                const SizedBox(width: 7),
-                                Flexible(
-                                  child: Text((c['nombre'] ?? '').toString(),
-                                      overflow: TextOverflow.ellipsis),
-                                ),
-                              ]),
+                              child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                          color: color, shape: BoxShape.circle),
+                                    ),
+                                    const SizedBox(width: 7),
+                                    Flexible(
+                                      child: Text(
+                                          (c['nombre'] ?? '').toString(),
+                                          overflow: TextOverflow.ellipsis),
+                                    ),
+                                  ]),
                             );
                           }),
                         ],
@@ -1123,7 +1126,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                               value: null, child: Text('Todos')),
                           DropdownMenuItem(
                             value: '2',
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            child:
+                                Row(mainAxisSize: MainAxisSize.min, children: [
                               Container(
                                 width: 8,
                                 height: 8,
@@ -1140,7 +1144,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           ),
                           DropdownMenuItem(
                             value: '3',
-                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            child:
+                                Row(mainAxisSize: MainAxisSize.min, children: [
                               Container(
                                 width: 8,
                                 height: 8,
@@ -1311,7 +1316,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 if (totalPags > 1)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                    child: Row(children: [
+                    child: buildPaginationBar([
                       buildPaginationButton(Icons.chevron_left_rounded, pag > 1,
                           () {
                         refresh(() => movementsPage = pag - 1);
@@ -1319,9 +1324,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Center(
-                          child: Text(
+                          child: buildPaginationLabel(
                             'Pág $pag de $totalPags  ·  ${filtrados.length} registros',
-                            style: TextStyle(fontSize: 12, color: textSoft),
                           ),
                         ),
                       ),
@@ -1873,66 +1877,28 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       Icons.account_balance_wallet_rounded,
       Icons.receipt_long_rounded
     ];
-    // Colores por pestaña, visibles en claro y oscuro:
-    // Cuentas = azul/cian, Movimientos = ámbar/naranja
+    // Colores por pestaña, visibles en claro y oscuro: Cuentas = mismo
+    // degradado índigo/violeta del panel "Total de Saldos" justo debajo,
+    // para que combinen. Movimientos = ámbar/naranja.
     const gradients = [
-      [Color(0xFF1D4ED8), Color(0xFF0EA5E9)],
-      [Color(0xFFB45309), Color(0xFFF59E0B)],
+      [
+        Color(0xFF0F0A3C),
+        Color(0xFF1E1265),
+        Color(0xFF3730A3),
+        Color(0xFF4F46E5),
+      ],
+      [Color(0xFF7C2D12), Color(0xFFD97706), Color(0xFFFBBF24)],
     ];
-    const accents = [Color(0xFF0EA5E9), Color(0xFFF59E0B)];
+    const accents = [Color(0xFF4F46E5), Color(0xFFF59E0B)];
     final active = movementSubTab == index;
     return Expanded(
-      child: GestureDetector(
+      child: _SubTabButton(
+        active: active,
+        icon: icons[index],
+        label: label,
+        gradient: gradients[index],
+        accent: accents[index],
         onTap: () => refresh(() => movementSubTab = index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-          margin: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            gradient: active
-                ? LinearGradient(
-                    colors: gradients[index],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                : null,
-            color: active ? null : Colors.transparent,
-            borderRadius: BorderRadius.circular(9),
-            boxShadow: active
-                ? [
-                    BoxShadow(
-                      color: accents[index].withValues(alpha: 0.38),
-                      blurRadius: 10,
-                      offset: const Offset(0, 3),
-                    )
-                  ]
-                : null,
-          ),
-          alignment: Alignment.center,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Icon(
-                  icons[index],
-                  key: ValueKey(active),
-                  size: 14,
-                  color: active ? Colors.white : textSoft,
-                ),
-              ),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: active ? Colors.white : textSoft,
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -2497,7 +2463,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                               '/ajax/listar_cuentas_gasto.php');
                                           repository.invalidateCache(
                                               '/ajax/listar_movimientos_usuario.php');
-                                          unawaited(refreshAfterMovementChange());
+                                          unawaited(
+                                              refreshAfterMovementChange());
                                         }
                                       }
                                     } catch (e) {
@@ -5427,8 +5394,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           decoration: BoxDecoration(
                             gradient: LinearGradient(colors: [
                               Colors.white.withValues(alpha: 0),
-                              Colors.white.withValues(
-                                  alpha: isDarkTheme ? 0.05 : 0.35),
+                              Colors.white
+                                  .withValues(alpha: isDarkTheme ? 0.05 : 0.35),
                               Colors.white.withValues(alpha: 0),
                             ]),
                           ),
@@ -6014,6 +5981,110 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       );
 }
 
+// ── Sub-tab (Cuentas/Movimientos): press-scale + cross-fade fluido ──────────
+// Antes el degradado pasaba de `null` a `LinearGradient` de golpe (un color
+// "vacío" no interpola bien contra un degradado) — ahora ambos estados usan
+// el mismo degradado, solo cambia el alfa, así que el cross-fade es suave.
+class _SubTabButton extends StatefulWidget {
+  final bool active;
+  final IconData icon;
+  final String label;
+  final List<Color> gradient;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _SubTabButton({
+    required this.active,
+    required this.icon,
+    required this.label,
+    required this.gradient,
+    required this.accent,
+    required this.onTap,
+  });
+
+  @override
+  State<_SubTabButton> createState() => _SubTabButtonState();
+}
+
+class _SubTabButtonState extends State<_SubTabButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _press = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 100),
+    lowerBound: 0.95,
+    upperBound: 1.0,
+  )..value = 1.0;
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fadedGradient =
+        widget.gradient.map((c) => c.withValues(alpha: 0)).toList();
+    return GestureDetector(
+      onTapDown: (_) => _press.reverse(),
+      onTapUp: (_) {
+        _press.forward();
+        widget.onTap();
+      },
+      onTapCancel: () => _press.forward(),
+      child: ScaleTransition(
+        scale: _press,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: widget.active ? widget.gradient : fadedGradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(9),
+            boxShadow: [
+              BoxShadow(
+                color:
+                    widget.accent.withValues(alpha: widget.active ? 0.42 : 0.0),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Icon(
+                  widget.icon,
+                  key: ValueKey(widget.active),
+                  size: 14,
+                  color: widget.active ? Colors.white : textSoft,
+                ),
+              ),
+              const SizedBox(width: 5),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 280),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: widget.active ? Colors.white : textSoft,
+                ),
+                child: Text(widget.label),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Botón de acción con animación de escala al presionar ─────────────────────
 class _AnimatedActionButton extends StatefulWidget {
   final String label;
@@ -6252,154 +6323,190 @@ class _ActionTileState extends State<_ActionTile>
           onTapCancel: () => _press.forward(),
           child: ScaleTransition(
             scale: _press,
-            child: ClipRRect(
-              borderRadius: widget.borderRadius,
-              child: Stack(
-                children: [
-                  // ── Fondo gradiente ──────────────────────
-                  Container(
-                    decoration: BoxDecoration(gradient: widget.gradient),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 18, vertical: 16),
-                    child: Row(
-                      children: [
-                        // Ícono con halo pulsante suave
-                        AnimatedBuilder(
-                          animation: _shimmer,
-                          builder: (_, iconChild) => Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white.withValues(alpha: 0.34),
-                                  Colors.white.withValues(alpha: 0.10),
+            // Sombra de color que respira al mismo ritmo que el halo del
+            // ícono — antes el botón se veía "pegado" sobre el fondo sin
+            // ninguna sombra propia, plano frente al resto de la app.
+            child: AnimatedBuilder(
+              animation: _shimmer,
+              builder: (_, child) => Container(
+                decoration: BoxDecoration(
+                  borderRadius: widget.borderRadius,
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.iconColor
+                          .withValues(alpha: 0.20 + 0.16 * _shimmer.value),
+                      blurRadius: 16 + 8 * _shimmer.value,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: child,
+              ),
+              child: ClipRRect(
+                borderRadius: widget.borderRadius,
+                child: Stack(
+                  children: [
+                    // ── Fondo gradiente ──────────────────────
+                    Container(
+                      decoration: BoxDecoration(gradient: widget.gradient),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 18, vertical: 16),
+                      child: Row(
+                        children: [
+                          // Ícono con halo pulsante suave
+                          AnimatedBuilder(
+                            animation: _shimmer,
+                            builder: (_, iconChild) => Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Colors.white.withValues(alpha: 0.34),
+                                    Colors.white.withValues(alpha: 0.10),
+                                  ],
+                                ),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.45),
+                                    width: 1.4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.white.withValues(
+                                        alpha: 0.10 + 0.18 * _shimmer.value),
+                                    blurRadius: 12 + 6 * _shimmer.value,
+                                  ),
                                 ],
                               ),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.45),
-                                  width: 1.4),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.white.withValues(
-                                      alpha: 0.10 + 0.18 * _shimmer.value),
-                                  blurRadius: 12 + 6 * _shimmer.value,
-                                ),
+                              child: iconChild,
+                            ),
+                            child: Icon(widget.icon,
+                                color: Colors.white, size: 21),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(widget.title,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 0.1,
+                                    )),
+                                const SizedBox(height: 2),
+                                Text(widget.subtitle,
+                                    style: TextStyle(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.72),
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w500,
+                                    )),
                               ],
                             ),
-                            child: iconChild,
                           ),
-                          child:
-                              Icon(widget.icon, color: Colors.white, size: 21),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(widget.title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 0.1,
-                                  )),
-                              const SizedBox(height: 2),
-                              Text(widget.subtitle,
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.72),
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w500,
-                                  )),
-                            ],
-                          ),
-                        ),
-                        if (widget.trailing)
-                          Container(
-                            width: 28,
-                            height: 28,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.16),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.30)),
+                          if (widget.trailing)
+                            Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.16),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color:
+                                        Colors.white.withValues(alpha: 0.30)),
+                              ),
+                              child: Icon(Icons.arrow_forward_rounded,
+                                  color: Colors.white.withValues(alpha: 0.90),
+                                  size: 15),
                             ),
-                            child: Icon(Icons.arrow_forward_rounded,
-                                color: Colors.white.withValues(alpha: 0.90),
-                                size: 15),
+                        ],
+                      ),
+                    ),
+                    // ── Orbe decorativo ──────────────────────
+                    Positioned(
+                      right: -22,
+                      top: -22,
+                      child: IgnorePointer(
+                        child: Container(
+                          width: 90,
+                          height: 90,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: RadialGradient(colors: [
+                              Colors.white.withValues(alpha: 0.16),
+                              Colors.transparent,
+                            ]),
                           ),
-                      ],
-                    ),
-                  ),
-                  // ── Orbe decorativo ──────────────────────
-                  Positioned(
-                    right: -22,
-                    top: -22,
-                    child: IgnorePointer(
-                      child: Container(
-                        width: 90,
-                        height: 90,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: RadialGradient(colors: [
-                            Colors.white.withValues(alpha: 0.16),
-                            Colors.transparent,
-                          ]),
                         ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    left: -16,
-                    bottom: -20,
-                    child: IgnorePointer(
-                      child: Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withValues(alpha: 0.07),
+                    Positioned(
+                      left: -16,
+                      bottom: -20,
+                      child: IgnorePointer(
+                        child: Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white.withValues(alpha: 0.07),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  // ── Shimmer diagonal sweep ───────────────
-                  Positioned.fill(
-                    child: AnimatedBuilder(
-                      animation: _shimmer,
-                      builder: (_, __) {
-                        final t = Curves.easeInOut.transform(_shimmer.value);
-                        return Align(
-                          alignment: Alignment(-2.5 + t * 5.0, 0),
-                          child: FractionallySizedBox(
-                            widthFactor: 0.22,
-                            heightFactor: 2.0,
-                            child: Transform.rotate(
-                              angle: 0.4,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.white.withValues(alpha: 0),
-                                      Colors.white.withValues(alpha: 0.22),
-                                      Colors.white.withValues(alpha: 0),
-                                    ],
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
+                    // ── Shimmer diagonal sweep ───────────────
+                    Positioned.fill(
+                      child: AnimatedBuilder(
+                        animation: _shimmer,
+                        builder: (_, __) {
+                          final t = Curves.easeInOut.transform(_shimmer.value);
+                          return Align(
+                            alignment: Alignment(-2.5 + t * 5.0, 0),
+                            child: FractionallySizedBox(
+                              widthFactor: 0.22,
+                              heightFactor: 2.0,
+                              child: Transform.rotate(
+                                angle: 0.4,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.white.withValues(alpha: 0),
+                                        Colors.white.withValues(alpha: 0.22),
+                                        Colors.white.withValues(alpha: 0),
+                                      ],
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ],
+                    // ── Destello táctil al presionar ─────────
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: AnimatedBuilder(
+                          animation: _press,
+                          builder: (_, __) => Opacity(
+                            opacity:
+                                ((1.0 - _press.value) / 0.04).clamp(0.0, 1.0) *
+                                    0.12,
+                            child: Container(color: Colors.white),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -6528,8 +6635,7 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(18),
-                border:
-                    Border.all(color: stripColor.withValues(alpha: 0.20)),
+                border: Border.all(color: stripColor.withValues(alpha: 0.20)),
                 boxShadow: [
                   BoxShadow(
                     color: stripColor.withValues(alpha: 0.14),
@@ -6693,55 +6799,60 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                                     letterSpacing: -0.2)),
                             const SizedBox(height: 5),
                             Wrap(
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 6,
-                              runSpacing: 2,
-                              children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 7, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                      color: color.withValues(alpha: 0.25),
-                                      width: 0.8),
-                                ),
-                                child: Text(
-                                  cuentaNom.isNotEmpty ? cuentaNom : 'SAF',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    color: color,
-                                    fontWeight: FontWeight.w700,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 6,
+                                runSpacing: 2,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                          color: color.withValues(alpha: 0.25),
+                                          width: 0.8),
+                                    ),
+                                    child: Text(
+                                      cuentaNom.isNotEmpty ? cuentaNom : 'SAF',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        color: color,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              Row(mainAxisSize: MainAxisSize.min, children: [
-                                const Icon(Icons.calendar_today_rounded,
-                                    size: 9, color: Color(0xFFB6C0D5)),
-                                const SizedBox(width: 3),
-                                Text(fecha,
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      color: Color(0xFF9AA7C2),
-                                      fontWeight: FontWeight.w500,
-                                    )),
-                              ]),
-                              if (horaRegistro.isNotEmpty)
-                                Row(mainAxisSize: MainAxisSize.min, children: [
-                                  const Icon(Icons.access_time_rounded,
-                                      size: 9, color: Color(0xFFB6C0D5)),
-                                  const SizedBox(width: 3),
-                                  Text(horaRegistro,
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        color: Color(0xFF9AA7C2),
-                                        fontWeight: FontWeight.w500,
-                                      )),
+                                  Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.calendar_today_rounded,
+                                            size: 9, color: Color(0xFFB6C0D5)),
+                                        const SizedBox(width: 3),
+                                        Text(fecha,
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              color: Color(0xFF9AA7C2),
+                                              fontWeight: FontWeight.w500,
+                                            )),
+                                      ]),
+                                  if (horaRegistro.isNotEmpty)
+                                    Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(Icons.access_time_rounded,
+                                              size: 9,
+                                              color: Color(0xFFB6C0D5)),
+                                          const SizedBox(width: 3),
+                                          Text(horaRegistro,
+                                              style: const TextStyle(
+                                                fontSize: 10,
+                                                color: Color(0xFF9AA7C2),
+                                                fontWeight: FontWeight.w500,
+                                              )),
+                                        ]),
                                 ]),
-                            ]),
                           ],
                         ),
                       ),
