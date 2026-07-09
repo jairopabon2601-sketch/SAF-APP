@@ -46,7 +46,7 @@ class HomeRepository {
 
   Future<List<Map<String, dynamic>>?> loadLocalData(
     String key, {
-    Duration maxAge = const Duration(hours: 1),
+    Duration maxAge = const Duration(days: 30),
   }) =>
       api.loadLocalData(key, maxAge: maxAge);
 

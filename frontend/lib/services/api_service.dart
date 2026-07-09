@@ -287,9 +287,15 @@ class ApiService {
   }
 
   /// Returns cached list if it exists and is younger than [maxAge].
+  // Este caché solo sirve para mostrar algo instantáneo mientras loadData()
+  // pide los datos reales (que siempre se piden, sin excepción) — no hay
+  // riesgo de mostrar información "vieja" como definitiva, así que un
+  // maxAge largo es seguro. Antes eran solo 1 hora, y cualquiera que
+  // dejara la app cerrada más tiempo perdía el atajo y se quedaba viendo
+  // el skeleton los ~3s completos del fetch de red.
   Future<List<Map<String, dynamic>>?> loadLocalData(
     String key, {
-    Duration maxAge = const Duration(hours: 1),
+    Duration maxAge = const Duration(days: 30),
   }) async {
     try {
       final prefs = await _getPrefs();
