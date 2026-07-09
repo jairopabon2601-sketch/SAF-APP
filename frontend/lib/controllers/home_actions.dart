@@ -383,7 +383,16 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                     },
                   ),
                   // ── SEARCH BAR ───────────────────────────────────
-                  Padding(
+                  TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 500),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, t, child) => Opacity(
+                      opacity: t.clamp(0.0, 1.0),
+                      child: Transform.translate(
+                          offset: Offset(0, 12 * (1 - t)), child: child),
+                    ),
+                    child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
                     child: Row(children: [
                       Expanded(
@@ -440,10 +449,18 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                         ),
                       ),
                     ]),
+                    ),
                   ),
                   // ── RESULTS COUNT ────────────────────────────────
                   if (!loading && error.isEmpty)
-                    Padding(
+                    TweenAnimationBuilder<double>(
+                      key: ValueKey('userscount_${filtrados.length}'),
+                      tween: Tween(begin: 0.0, end: 1.0),
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOut,
+                      builder: (_, t, child) =>
+                          Opacity(opacity: t.clamp(0.0, 1.0), child: child),
+                      child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
                       child: Row(children: [
                         Container(
@@ -470,6 +487,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                           ),
                         ),
                       ]),
+                      ),
                     ),
                   // ── LIST ─────────────────────────────────────────
                   Expanded(
@@ -576,7 +594,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
             child: Column(children: [
               // ── Fila única: back + icon + title + Nuevo ────────
               Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-                GestureDetector(
+                _PressScale(
                   onTap: onBack,
                   child: Container(
                     width: 36,
@@ -628,7 +646,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                       ]),
                 ),
                 const SizedBox(width: 8),
-                GestureDetector(
+                _PressScale(
                   onTap: onNew,
                   child: Container(
                     padding:
@@ -671,17 +689,19 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
               const SizedBox(height: 12),
               // ── Stats row ─────────────────────────────────────
               Row(children: [
-                _userStatChip(Icons.people_alt_rounded, totalUsers.toString(),
-                    'Total', const Color(0xFF60A5FA)),
+                _userStatChip(Icons.people_alt_rounded, totalUsers,
+                    'Total', const Color(0xFF60A5FA), index: 0),
                 const SizedBox(width: 8),
                 _userStatChip(Icons.check_circle_outline_rounded,
-                    activeUsers.toString(), 'Activos', const Color(0xFF34D399)),
+                    activeUsers, 'Activos', const Color(0xFF34D399),
+                    index: 1),
                 const SizedBox(width: 8),
                 _userStatChip(
                     Icons.lock_outline_rounded,
-                    (totalUsers - activeUsers).toString(),
+                    totalUsers - activeUsers,
                     'Inactivos',
-                    const Color(0xFFFBBF24)),
+                    const Color(0xFFFBBF24),
+                    index: 2),
               ]),
             ]),
           ),
@@ -691,32 +711,53 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
   }
 
   Widget _userStatChip(
-          IconData icon, String value, String label, Color color) =>
+          IconData icon, int value, String label, Color color,
+          {int index = 0}) =>
       Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+        child: TweenAnimationBuilder<double>(
+          key: ValueKey('userstat_${label}_$value'),
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 500),
+          curve: Interval(
+            (index * 0.12).clamp(0.0, 0.4),
+            (index * 0.12 + 0.6).clamp(0.5, 1.0),
+            curve: Curves.easeOutBack,
           ),
-          child: Row(children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 8),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(value,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5)),
-              Text(label,
-                  style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.60),
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w600)),
+          builder: (_, t, child) => Opacity(
+            opacity: t.clamp(0.0, 1.0),
+            child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+            ),
+            child: Row(children: [
+              Icon(icon, color: color, size: 18),
+              const SizedBox(width: 8),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                TweenAnimationBuilder<double>(
+                  key: ValueKey('userstatval_${label}_$value'),
+                  tween: Tween(begin: 0.0, end: value.toDouble()),
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeOutCubic,
+                  builder: (_, v, __) => Text(v.round().toString(),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5)),
+                ),
+                Text(label,
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.60),
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600)),
+              ]),
             ]),
-          ]),
+          ),
         ),
       );
 
@@ -789,98 +830,117 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
     );
   }
 
-  Widget _usersErrorState(String error, VoidCallback onRetry) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Color(0xFFFEE2E2), Color(0xFFFECDD3)]),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(Icons.cloud_off_rounded,
-                  size: 34, color: Color(0xFFDC2626)),
-            ),
-            const SizedBox(height: 16),
-            Text('Error de conexión',
-                style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: textMain)),
-            const SizedBox(height: 6),
-            Text(error,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: textSoft, fontSize: 12)),
-            const SizedBox(height: 20),
-            GestureDetector(
-              onTap: onRetry,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
+  Widget _usersErrorState(String error, VoidCallback onRetry) =>
+      _stateEntrance(
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                      colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)]),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                        color: homeAccent.withValues(alpha: 0.30),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4))
-                  ],
+                      colors: [Color(0xFFFEE2E2), Color(0xFFFECDD3)]),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.refresh_rounded, color: Colors.white, size: 16),
-                  SizedBox(width: 7),
-                  Text('Reintentar',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13)),
-                ]),
+                child: const Icon(Icons.cloud_off_rounded,
+                    size: 34, color: Color(0xFFDC2626)),
               ),
-            ),
-          ]),
+              const SizedBox(height: 16),
+              Text('Error de conexión',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: textMain)),
+              const SizedBox(height: 6),
+              Text(error,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: textSoft, fontSize: 12)),
+              const SizedBox(height: 20),
+              _PressScale(
+                onTap: onRetry,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)]),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                          color: homeAccent.withValues(alpha: 0.30),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4))
+                    ],
+                  ),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.refresh_rounded, color: Colors.white, size: 16),
+                    SizedBox(width: 7),
+                    Text('Reintentar',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13)),
+                  ]),
+                ),
+              ),
+            ]),
+          ),
         ),
       );
 
-  Widget _usersEmptyState(bool isSearch) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)]),
-                borderRadius: BorderRadius.circular(20),
+  Widget _usersEmptyState(bool isSearch) => _stateEntrance(
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                      colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)]),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(
+                    isSearch
+                        ? Icons.search_off_rounded
+                        : Icons.people_outline_rounded,
+                    size: 34,
+                    color: homeAccent),
               ),
-              child: Icon(
-                  isSearch
-                      ? Icons.search_off_rounded
-                      : Icons.people_outline_rounded,
-                  size: 34,
-                  color: homeAccent),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              isSearch ? 'Sin resultados' : 'Sin usuarios',
-              style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w800, color: textMain),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              isSearch
-                  ? 'Intenta con otro término de búsqueda'
-                  : 'Aún no hay usuarios registrados',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: textSoft, fontSize: 12),
-            ),
-          ]),
+              const SizedBox(height: 16),
+              Text(
+                isSearch ? 'Sin resultados' : 'Sin usuarios',
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: textMain),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                isSearch
+                    ? 'Intenta con otro término de búsqueda'
+                    : 'Aún no hay usuarios registrados',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: textSoft, fontSize: 12),
+              ),
+            ]),
+          ),
         ),
+      );
+
+  // Entrada compartida (fade + scale) para los estados de error/vacío.
+  Widget _stateEntrance(Widget child) => TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.0, end: 1.0),
+        duration: const Duration(milliseconds: 450),
+        curve: Curves.easeOutBack,
+        builder: (_, t, c) => Opacity(
+          opacity: t.clamp(0.0, 1.0),
+          child: Transform.scale(scale: 0.9 + 0.1 * t, child: c),
+        ),
+        child: child,
       );
 
   Future<Map<String, dynamic>> _usuariosRequest(
@@ -2048,7 +2108,7 @@ class _AdminUserTileState extends State<_AdminUserTile>
                     ),
                   ),
                   // Edit button
-                  GestureDetector(
+                  _PressScale(
                     onTap: widget.onEdit,
                     child: Container(
                       width: 36,
@@ -2106,5 +2166,43 @@ class _AdminUserTileState extends State<_AdminUserTile>
               style: TextStyle(
                   color: color, fontSize: 9.5, fontWeight: FontWeight.w700)),
         ]),
+      );
+}
+
+// ── Botón con feedback de presión (escala) reutilizable ─────────────────────
+class _PressScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const _PressScale({required this.child, required this.onTap});
+
+  @override
+  State<_PressScale> createState() => _PressScaleState();
+}
+
+class _PressScaleState extends State<_PressScale>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 100),
+    lowerBound: 0.90,
+    upperBound: 1.0,
+  )..value = 1.0;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTapDown: (_) => _ctrl.reverse(),
+        onTapUp: (_) {
+          _ctrl.forward();
+          widget.onTap();
+        },
+        onTapCancel: () => _ctrl.forward(),
+        child: ScaleTransition(scale: _ctrl, child: widget.child),
       );
 }
