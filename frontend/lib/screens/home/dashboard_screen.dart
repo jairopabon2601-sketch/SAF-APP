@@ -2119,90 +2119,181 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       tween: Tween(begin: 0.0, end: ratio),
       duration: const Duration(milliseconds: 900),
       curve: Curves.easeOutCubic,
-      builder: (_, animRatio, __) => Container(
-        padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
-        decoration: BoxDecoration(
-          color: cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: lineCol),
-          boxShadow: [
-            BoxShadow(
-              color: statusColor.withValues(alpha: 0.07),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                          color: statusColor.withValues(alpha: 0.55),
-                          blurRadius: 6),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  statusLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${(ratio * 100).toStringAsFixed(0)}% ingresos',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: textSoft,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(5),
-              child: Stack(
+      builder: (_, animRatio, __) => AnimatedBuilder(
+        animation: shimmer,
+        builder: (_, __) => Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: lineCol),
+            boxShadow: [
+              BoxShadow(
+                color: statusColor.withValues(alpha: 0.10 + 0.05 * shimmer.value),
+                blurRadius: 16 + 4 * shimmer.value,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Container(
-                    height: 7,
-                    color: const Color(0xFFDC2626).withValues(alpha: 0.18),
+                  // Ícono con halo pulsante detrás — el mismo truco que usa
+                  // el ítem activo de la barra de navegación inferior.
+                  SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: Stack(alignment: Alignment.center, children: [
+                      Container(
+                        width: 22 + 10 * shimmer.value,
+                        height: 22 + 10 * shimmer.value,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: statusColor
+                              .withValues(alpha: 0.16 - 0.10 * shimmer.value),
+                        ),
+                      ),
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Color.lerp(statusColor, Colors.white, 0.18) ??
+                                  statusColor,
+                              statusColor,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: statusColor.withValues(alpha: 0.45),
+                              blurRadius: 7,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          healthy
+                              ? Icons.favorite_rounded
+                              : Icons.warning_rounded,
+                          color: Colors.white,
+                          size: 13,
+                        ),
+                      ),
+                    ]),
                   ),
-                  FractionallySizedBox(
-                    widthFactor: animRatio,
-                    child: Container(
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Color(0xFF059669), Color(0xFF34D399)],
+                  const SizedBox(width: 9),
+                  Text(
+                    statusLabel,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: statusColor,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border:
+                          Border.all(color: statusColor.withValues(alpha: 0.30)),
+                    ),
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.0, end: ratio * 100),
+                      duration: const Duration(milliseconds: 900),
+                      curve: Curves.easeOutCubic,
+                      builder: (_, animPct, __) => Text(
+                        '${animPct.toStringAsFixed(0)}% ingresos',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: statusColor,
                         ),
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _healthLegend(const Color(0xFF059669), 'Ingresos'),
-                _healthLegend(const Color(0xFFDC2626), 'Gastos'),
-              ],
-            ),
-          ],
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Stack(
+                  children: [
+                    Container(
+                      height: 8,
+                      color: const Color(0xFFDC2626).withValues(alpha: 0.16),
+                    ),
+                    FractionallySizedBox(
+                      widthFactor: animRatio.clamp(0.03, 1.0),
+                      child: Container(
+                        height: 8,
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          // Redondea también la punta del relleno (no solo
+                          // las esquinas del contenedor exterior), como un
+                          // capsule — antes terminaba en un corte recto.
+                          borderRadius: BorderRadius.circular(4),
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF059669),
+                              Color(0xFF34D399),
+                              Color(0xFF6EE7B7)
+                            ],
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF34D399)
+                                  .withValues(alpha: 0.35 + 0.2 * shimmer.value),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                        // El brillo va confinado a este relleno (no a toda la
+                        // barra) y concentrado en la punta — antes cruzaba
+                        // también la zona roja y se veía como una franja gris
+                        // fuera de lugar.
+                        child: ClipRect(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: FractionalTranslation(
+                              translation: Offset(1.6 - shimmer.value * 1.6, 0),
+                              child: Container(
+                                width: 16,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(colors: [
+                                    Colors.white.withValues(alpha: 0),
+                                    Colors.white.withValues(alpha: 0.55),
+                                    Colors.white.withValues(alpha: 0),
+                                  ]),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _healthLegend(const Color(0xFF059669), 'Ingresos'),
+                  _healthLegend(const Color(0xFFDC2626), 'Gastos'),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 
+import '../../controllers/home_actions.dart';
 import '../../controllers/home_data_controller.dart';
 import 'credits_screen.dart';
 import 'dashboard_screen.dart';
@@ -1047,11 +1048,26 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         items: [
                           const DropdownMenuItem(
                               value: null, child: Text('Todas')),
-                          ...accounts.map((c) => DropdownMenuItem(
-                                value: (c['nombre'] ?? '').toString(),
-                                child: Text((c['nombre'] ?? '').toString(),
-                                    overflow: TextOverflow.ellipsis),
-                              )),
+                          ...accounts.map((c) {
+                            final color = parseHexColor(
+                                (c['color'] ?? '#4361EE').toString());
+                            return DropdownMenuItem(
+                              value: (c['nombre'] ?? '').toString(),
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                      color: color, shape: BoxShape.circle),
+                                ),
+                                const SizedBox(width: 7),
+                                Flexible(
+                                  child: Text((c['nombre'] ?? '').toString(),
+                                      overflow: TextOverflow.ellipsis),
+                                ),
+                              ]),
+                            );
+                          }),
                         ],
                         onChanged: (v) async {
                           refresh(() {
@@ -1072,10 +1088,43 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         value: movementTypeFilter.isEmpty
                             ? null
                             : movementTypeFilter,
-                        items: const [
-                          DropdownMenuItem(value: null, child: Text('Todos')),
-                          DropdownMenuItem(value: '2', child: Text('Gasto')),
-                          DropdownMenuItem(value: '3', child: Text('Ingreso')),
+                        items: [
+                          const DropdownMenuItem(
+                              value: null, child: Text('Todos')),
+                          DropdownMenuItem(
+                            value: '2',
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                    color: Color(0xFFDC2626),
+                                    shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 7),
+                              const Text('Gasto',
+                                  style: TextStyle(
+                                      color: Color(0xFFDC2626),
+                                      fontWeight: FontWeight.w600)),
+                            ]),
+                          ),
+                          DropdownMenuItem(
+                            value: '3',
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                    color: Color(0xFF16A34A),
+                                    shape: BoxShape.circle),
+                              ),
+                              const SizedBox(width: 7),
+                              const Text('Ingreso',
+                                  style: TextStyle(
+                                      color: Color(0xFF16A34A),
+                                      fontWeight: FontWeight.w600)),
+                            ]),
+                          ),
                         ],
                         onChanged: (v) {
                           refresh(() {
@@ -1202,10 +1251,20 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 rows.add(_dayGroupHeader(group, localIndex));
                 for (final m in group.items) {
                   final i = localIndex++;
+                  // Clave por identidad del movimiento (no por posición): al
+                  // eliminar uno, todo lo que venía después recorría su
+                  // índice y Flutter podía reconciliar mal qué widget
+                  // corresponde a cuál dato, dejando una fila fantasma hasta
+                  // que un refresh completo reconstruía el árbol desde cero.
+                  final movKey = (m['codigo'] ??
+                          m['codigo_movimiento'] ??
+                          m['id'] ??
+                          (desde + i))
+                      .toString();
                   rows.add(Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: _AnimatedMovementCard(
-                      key: ValueKey('mov_${desde + i}'),
+                      key: ValueKey('mov_$movKey'),
                       data: m,
                       index: i,
                       onDelete: () => _confirmEliminarMovimiento(m),
@@ -1477,23 +1536,68 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   }) {
     final active = value != null;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label,
+      Text(label.toUpperCase(),
           style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w600, color: textSoft)),
-      const SizedBox(height: 4),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: textSoft,
+              letterSpacing: 0.6)),
+      const SizedBox(height: 5),
       AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: active ? accent.withValues(alpha: 0.08) : inputFill,
-          borderRadius: BorderRadius.circular(10),
+          gradient: active
+              ? LinearGradient(
+                  colors: [
+                    accent.withValues(alpha: 0.14),
+                    accent.withValues(alpha: 0.05),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: active ? null : inputFill,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
               color: active ? accent.withValues(alpha: 0.45) : lineCol),
+          boxShadow: active
+              ? [
+                  BoxShadow(
+                    color: accent.withValues(alpha: 0.18),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Row(children: [
-          Icon(icon, size: 14, color: active ? accent : textSoft),
-          const SizedBox(width: 6),
+          Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color.lerp(accent, Colors.white, 0.18) ?? accent,
+                  accent,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: active
+                  ? [
+                      BoxShadow(
+                          color: accent.withValues(alpha: 0.40),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2)),
+                    ]
+                  : null,
+            ),
+            child: Icon(icon, size: 13, color: Colors.white),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<ValueType>(
@@ -1503,7 +1607,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 onChanged: onChanged,
                 dropdownColor: dialogBg,
                 style: TextStyle(
-                    fontSize: 12, color: textMain, fontFamily: 'sans-serif'),
+                    fontSize: 12.5,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                    color: textMain,
+                    fontFamily: 'sans-serif'),
                 icon: Icon(Icons.keyboard_arrow_down_rounded,
                     size: 18, color: active ? accent : textSoft),
               ),
@@ -1522,10 +1629,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   }) {
     final active = value != null;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label,
+      Text(label.toUpperCase(),
           style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w600, color: textSoft)),
-      const SizedBox(height: 4),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: textSoft,
+              letterSpacing: 0.6)),
+      const SizedBox(height: 5),
       GestureDetector(
         onTap: () async {
           final picked = await showLightDatePicker(
@@ -1538,18 +1648,60 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          height: 38,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            color: active ? accent.withValues(alpha: 0.08) : inputFill,
-            borderRadius: BorderRadius.circular(10),
+            gradient: active
+                ? LinearGradient(
+                    colors: [
+                      accent.withValues(alpha: 0.14),
+                      accent.withValues(alpha: 0.05),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: active ? null : inputFill,
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
                 color: active ? accent.withValues(alpha: 0.45) : lineCol),
+            boxShadow: active
+                ? [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.18),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(children: [
-            Icon(Icons.calendar_today_rounded,
-                size: 14, color: active ? accent : textSoft),
-            const SizedBox(width: 6),
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color.lerp(accent, Colors.white, 0.18) ?? accent,
+                    accent,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: active
+                    ? [
+                        BoxShadow(
+                            color: accent.withValues(alpha: 0.40),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2)),
+                      ]
+                    : null,
+              ),
+              child: const Icon(Icons.calendar_today_rounded,
+                  size: 12, color: Colors.white),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 value != null
@@ -1558,8 +1710,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         '${value.year}'
                     : 'Seleccione',
                 style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+                    fontSize: 12.5,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                     color: active ? textMain : textSoft),
               ),
             ),
@@ -2295,6 +2447,21 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                                 : friendlyError(d['msg'] ??
                                                     d['mensaje'] ??
                                                     'No se pudo ajustar el saldo'));
+                                        if (ok &&
+                                            diferencia.abs().round() > 0) {
+                                          // Pintar de una vez; la recarga de
+                                          // red reconcilia después. Mismo
+                                          // movimiento que crea el endpoint:
+                                          // ingreso si sube, gasto si baja.
+                                          applyLocalMovement(
+                                            codigoCuenta: codigoCuenta,
+                                            tipoMovimiento:
+                                                diferencia > 0 ? '3' : '2',
+                                            valor: diferencia.abs(),
+                                            fecha: fecha,
+                                            descripcion: 'Ajuste de cuenta',
+                                          );
+                                        }
                                         if (ok) {
                                           repository.invalidateCache(
                                               '/ajax/listar_cuentas_gasto.php');
@@ -2800,6 +2967,33 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                       return;
                                     }
                                     if (ctx.mounted) Navigator.pop(ctx);
+                                    // Pintar de una vez las dos patas de la
+                                    // transferencia (mismas descripciones que
+                                    // arma transferir_cuentas.php); la
+                                    // recarga de red reconcilia después.
+                                    final descBase = descCtrl.text.trim();
+                                    final valorTransfer =
+                                        numberValue(valorCtrl.text.trim());
+                                    applyLocalMovement(
+                                      codigoCuenta: origenCod!,
+                                      tipoMovimiento: '2',
+                                      valor: valorTransfer,
+                                      fecha: selectedFecha,
+                                      descripcion: descBase.isNotEmpty
+                                          ? descBase
+                                          : 'Transferencia a '
+                                              '${destinoNom ?? 'cuenta destino'}',
+                                    );
+                                    applyLocalMovement(
+                                      codigoCuenta: destinoCod!,
+                                      tipoMovimiento: '3',
+                                      valor: valorTransfer,
+                                      fecha: selectedFecha,
+                                      descripcion: descBase.isNotEmpty
+                                          ? descBase
+                                          : 'Transferencia desde '
+                                              '${origenNom ?? 'cuenta origen'}',
+                                    );
                                     repository.invalidateCache(
                                         '/ajax/listar_cuentas_gasto.php');
                                     repository.invalidateCache(
@@ -3392,6 +3586,16 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                                   d['mensaje'] ??
                                                   'No se pudo guardar el movimiento'));
                                       if (ok) {
+                                        // Pintar de una vez con lo local; la
+                                        // recarga de red de abajo reconcilia.
+                                        applyLocalMovement(
+                                          codigoCuenta: selectedCuenta!,
+                                          tipoMovimiento: selectedTipo!,
+                                          valor: numberValue(
+                                              valorCtrl.text.trim()),
+                                          fecha: selectedFecha,
+                                          descripcion: descCtrl.text.trim(),
+                                        );
                                         repository.invalidateCache(
                                             '/ajax/listar_cuentas_gasto.php');
                                         repository.invalidateCache(
@@ -5693,7 +5897,6 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     );
 
     if (confirmed != true) return;
-    debugPrint('[SAF] eliminar movimiento keys: ${m.keys.toList()} cod=$cod');
     if (cod.isEmpty) {
       showResult(false, 'No se pudo identificar el movimiento a eliminar');
       return;
@@ -5723,7 +5926,13 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               serverExpenses =
                   (serverExpenses - valorMov).clamp(0, double.infinity);
             }
+            invalidateComputedCache();
           });
+          // Sin esto, la caché en disco (la que loadData() muestra primero
+          // en un hot restart, antes de que la red termine de reconciliar)
+          // se quedaba con el movimiento ya eliminado — por eso a veces
+          // reaparecía justo después de un hot restart.
+          unawaited(repository.saveLocalData('movimientos', movements));
           showResult(true, 'Movimiento eliminado correctamente');
           final usuario = (repository.user?['codigo_usuario'] ?? '').toString();
           if (usuario.isNotEmpty) {

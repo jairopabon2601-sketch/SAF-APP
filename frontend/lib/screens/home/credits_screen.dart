@@ -542,32 +542,76 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         if (creditSubTab == 0)
           Container(
             margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: cardBg,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: lineCol),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4))
+                    color: homeNavy.withValues(alpha: 0.07),
+                    blurRadius: 18,
+                    offset: const Offset(0, 5))
               ],
             ),
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Filtrar resultados',
-                  style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: textSoft,
-                      letterSpacing: 0.3)),
-              const SizedBox(height: 10),
+            child: Column(children: [
+              // Header con degradado — igual al resto de cards "Filtros".
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF0B0F2E),
+                      Color(0xFF1E3A8A),
+                      Color(0xFF3B82F6),
+                    ],
+                    stops: [0.0, 0.55, 1.0],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
+                ),
+                child: Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(9)),
+                    child: const Icon(Icons.tune_rounded,
+                        size: 14, color: Colors.white),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text('Filtrar resultados',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: 0.2)),
+                ]),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
               TextField(
                 decoration: InputDecoration(
                   hintText: 'Buscar por cliente o código...',
-                  hintStyle: TextStyle(fontSize: 12, color: textSoft),
-                  prefixIcon:
-                      Icon(Icons.search_rounded, size: 18, color: textSoft),
+                  hintStyle: TextStyle(fontSize: 12.5, color: textSoft),
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.all(9),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF60A5FA), Color(0xFF3B82F6)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.search_rounded,
+                          size: 15, color: Colors.white),
+                    ),
+                  ),
                   suffixIcon: creditsBuscar.isNotEmpty
                       ? GestureDetector(
                           onTap: () async {
@@ -590,15 +634,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: lineCol),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: lineCol),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                     borderSide:
                         const BorderSide(color: Color(0xFF4338CA), width: 1.5),
                   ),
@@ -634,26 +678,60 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                        Row(children: [
-                          Icon(Icons.person_outline_rounded,
-                              size: 12, color: textMain),
-                          const SizedBox(width: 4),
-                          Text('Asesor',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: textMain)),
-                        ]),
-                        const SizedBox(height: 4),
+                        Text('ASESOR',
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: textSoft,
+                                letterSpacing: 0.6)),
+                        const SizedBox(height: 5),
                         Container(
-                          height: 38,
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          height: 44,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
                           decoration: BoxDecoration(
-                            color: inputFill,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: lineCol),
+                            gradient: creditAdvisorFilter.isNotEmpty
+                                ? LinearGradient(
+                                    colors: [
+                                      const Color(0xFF8B5CF6)
+                                          .withValues(alpha: 0.14),
+                                      const Color(0xFF8B5CF6)
+                                          .withValues(alpha: 0.05),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  )
+                                : null,
+                            color: creditAdvisorFilter.isEmpty
+                                ? inputFill
+                                : null,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: creditAdvisorFilter.isNotEmpty
+                                    ? const Color(0xFF8B5CF6)
+                                        .withValues(alpha: 0.45)
+                                    : lineCol),
                           ),
-                          child: DropdownButtonHideUnderline(
+                          child: Row(children: [
+                            Container(
+                              width: 26,
+                              height: 26,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFFA78BFA),
+                                    Color(0xFF8B5CF6),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.person_outline_rounded,
+                                  size: 13, color: Colors.white),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
                               value: advisors.any((a) =>
                                       (a['sigla'] ?? '').toString() ==
@@ -664,8 +742,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               dropdownColor: dialogBg,
                               hint: Text('Todos',
                                   style:
-                                      TextStyle(fontSize: 11, color: textSoft)),
-                              style: TextStyle(fontSize: 12, color: textMain),
+                                      TextStyle(fontSize: 12, color: textSoft)),
+                              style: TextStyle(fontSize: 12.5, color: textMain),
                               icon: Icon(Icons.keyboard_arrow_down_rounded,
                                   size: 16, color: textSoft),
                               items: [
@@ -715,6 +793,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               },
                             ),
                           ),
+                            ),
+                          ]),
                         ),
                       ])),
                 if (isAdmin) const SizedBox(width: 10),
@@ -722,26 +802,60 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      Row(children: [
-                        Icon(Icons.radio_button_checked_rounded,
-                            size: 12, color: textMain),
-                        const SizedBox(width: 4),
-                        Text('Estado',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: textMain)),
-                      ]),
-                      const SizedBox(height: 4),
+                      Text('ESTADO',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: textSoft,
+                              letterSpacing: 0.6)),
+                      const SizedBox(height: 5),
                       Container(
-                        height: 38,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        height: 44,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         decoration: BoxDecoration(
-                          color: inputFill,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: lineCol),
+                          gradient: creditStatusFilter.isNotEmpty
+                              ? LinearGradient(
+                                  colors: [
+                                    const Color(0xFF3B82F6)
+                                        .withValues(alpha: 0.14),
+                                    const Color(0xFF3B82F6)
+                                        .withValues(alpha: 0.05),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                )
+                              : null,
+                          color: creditStatusFilter.isEmpty ? inputFill : null,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: creditStatusFilter.isNotEmpty
+                                  ? const Color(0xFF3B82F6)
+                                      .withValues(alpha: 0.45)
+                                  : lineCol),
                         ),
-                        child: DropdownButtonHideUnderline(
+                        child: Row(children: [
+                          Container(
+                            width: 26,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF60A5FA),
+                                  Color(0xFF3B82F6),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                                Icons.radio_button_checked_rounded,
+                                size: 13,
+                                color: Colors.white),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
                             value: creditStatusFilter.isEmpty
                                 ? null
@@ -750,8 +864,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             dropdownColor: dialogBg,
                             hint: Text('Todos',
                                 style:
-                                    TextStyle(fontSize: 11, color: textSoft)),
-                            style: TextStyle(fontSize: 12, color: textMain),
+                                    TextStyle(fontSize: 12, color: textSoft)),
+                            style: TextStyle(fontSize: 12.5, color: textMain),
                             icon: Icon(Icons.keyboard_arrow_down_rounded,
                                 size: 16, color: textSoft),
                             items: [
@@ -825,6 +939,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             },
                           ),
                         ),
+                          ),
+                        ]),
                       ),
                     ])),
               ]),
@@ -892,6 +1008,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     letterSpacing: 0.3)),
                           ]),
                   ),
+                ),
+              ),
+                    ],
                 ),
               ),
             ]),

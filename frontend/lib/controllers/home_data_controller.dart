@@ -250,52 +250,86 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       {String? desde, String? hasta, int intentoTotal = 0}) async {
     final dStr = desde ?? '';
     final hStr = hasta ?? '';
+    // La página 1 reporta el total de páginas; la clausura lo captura.
+    var totalPaginasDetectadas = 1;
+
+    // Página individual del endpoint global; null si falla o no es válida.
+    Future<List<Map<String, dynamic>>?> fetchPagina(int pagina) async {
+      final r = await repository.post('/ajax/listar_movimientos_usuario.php', {
+        'usuario': usuario,
+        'desde': dStr,
+        'hasta': hStr,
+        'pagina': pagina.toString(),
+      }).timeout(const Duration(seconds: 15));
+      if (r.statusCode != 200) return null;
+      final d = decodeJsonMap(r.body);
+      if (d['resultado'] != 1 && d['resultado'] != '1') return null;
+      final raw = d['movimientos'];
+      if (raw is! List) return null;
+      if (pagina == 1) {
+        totalPaginasDetectadas =
+            int.tryParse(d['total_paginas']?.toString() ?? '1') ?? 1;
+      }
+      return raw
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
 
     // Use global endpoint: single JOIN query, globally sorted by fecha DESC,
     // codigo DESC. Hasta 2 intentos: la BD del hosting a veces bota la
     // conexión y el endpoint falla de forma transitoria.
+    //
+    // La página 1 se pide sola (trae total_paginas) y el resto en lotes
+    // paralelos: con historiales grandes (1600+ movimientos = 33 páginas de
+    // 50) pedirlas en serie tardaba ~1s por página, ~31s por recarga — la
+    // causa de que la lista "nunca" se refrescara rápido tras crear o
+    // eliminar un movimiento.
     for (var intento = 0; intento < 2; intento++) {
-      bool globalOk = false;
       try {
-        final globalAll = <Map<String, dynamic>>[];
-        var pagina = 1;
-        var totalPaginas = 1;
-        do {
-          final r =
-              await repository.post('/ajax/listar_movimientos_usuario.php', {
-            'usuario': usuario,
-            'desde': dStr,
-            'hasta': hStr,
-            'pagina': pagina.toString(),
-          }).timeout(const Duration(seconds: 15));
-          if (r.statusCode != 200) break;
-          final d = decodeJsonMap(r.body);
-          if (d['resultado'] != 1 && d['resultado'] != '1') break;
-          final raw = d['movimientos'];
-          if (raw is! List) break;
-          globalOk = true; // valid response received
-          for (final item in raw.whereType<Map>()) {
-            globalAll.add(Map<String, dynamic>.from(item));
+        final primera = await fetchPagina(1);
+        if (primera != null) {
+          // Tope de seguridad: un total_paginas mal reportado no debe
+          // disparar cientos de peticiones.
+          final totalPaginas = totalPaginasDetectadas.clamp(1, 100);
+          final paginas = <int, List<Map<String, dynamic>>>{1: primera};
+          var falloAlguna = false;
+          const lote = 6;
+          for (var desde = 2;
+              desde <= totalPaginas && !falloAlguna;
+              desde += lote) {
+            final hastaLote =
+                (desde + lote - 1).clamp(desde, totalPaginas);
+            final resultados = await Future.wait([
+              for (var p = desde; p <= hastaLote; p++)
+                fetchPagina(p).catchError((_) => null),
+            ]);
+            for (var j = 0; j < resultados.length; j++) {
+              final res = resultados[j];
+              if (res == null) {
+                falloAlguna = true;
+              } else {
+                paginas[desde + j] = res;
+              }
+            }
           }
-          if (raw.isEmpty) break;
-          totalPaginas =
-              int.tryParse(d['total_paginas']?.toString() ?? '1') ?? 1;
-          pagina++;
-          // Tope de seguridad: sin esto, un total_paginas mal reportado por
-          // el servidor dejaría este bucle corriendo indefinidamente en
-          // segundo plano (ahora que ya no lo cubre el timeout de loadData).
-        } while (pagina <= totalPaginas && pagina <= 100);
 
-        if (globalOk) {
-          movements = globalAll;
-          invalidateComputedCache();
-          unawaited(repository.saveLocalData('movimientos', movements));
-          _refreshFallbackTotalsIfNeeded();
-          movementsSettled = true;
-          // Repintar: si el timeout general de loadData ya venció, nadie
-          // más va a refrescar y los movimientos quedarían invisibles.
-          if (isMounted) refresh(() {});
-          return;
+          if (!falloAlguna) {
+            // Reconstruir en orden de página para conservar el ORDER BY
+            // global (fecha DESC, codigo DESC) del servidor.
+            final globalAll = <Map<String, dynamic>>[
+              for (var p = 1; p <= totalPaginas; p++) ...?paginas[p],
+            ];
+            movements = globalAll;
+            invalidateComputedCache();
+            unawaited(repository.saveLocalData('movimientos', movements));
+            _refreshFallbackTotalsIfNeeded();
+            movementsSettled = true;
+            // Repintar: si el timeout general de loadData ya venció, nadie
+            // más va a refrescar y los movimientos quedarían invisibles.
+            if (isMounted) refresh(() {});
+            return;
+          }
         }
       } catch (e) {
         debugPrint('[SAF] listar_movimientos_usuario intento $intento: $e');
@@ -394,6 +428,62 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     if (isMounted) refresh(() {});
   }
 
+  /// Inserta un movimiento en memoria apenas el servidor confirma el
+  /// guardado, sin esperar la recarga de red (que sigue corriendo en
+  /// segundo plano vía refreshAfterMovementChange para reconciliar):
+  /// misma sensación instantánea que la web, que repinta con lo que ya
+  /// tiene. Actualiza también saldo de la cuenta y totales locales.
+  void applyLocalMovement({
+    required String codigoCuenta,
+    required String tipoMovimiento, // '2'=gasto, '3'/'1'=ingreso
+    required double valor,
+    required String fecha,
+    required String descripcion,
+  }) {
+    final cuenta = accounts.firstWhere(
+      (c) => (c['codigo'] ?? c['codigo_cuenta'] ?? '').toString() ==
+          codigoCuenta,
+      orElse: () => <String, dynamic>{},
+    );
+    final esIngreso = tipoMovimiento != '2';
+    final ahoraBogota =
+        DateTime.now().toUtc().subtract(const Duration(hours: 5));
+    String dos(int n) => n.toString().padLeft(2, '0');
+    // Código provisional: numérico y enorme para que ordene de primero
+    // dentro de su fecha (la lista ordena fecha DESC, codigo DESC) y no
+    // colisione con códigos reales; el refresh de red lo reemplaza.
+    final mov = <String, dynamic>{
+      'codigo': DateTime.now().millisecondsSinceEpoch.toString(),
+      'fecha': fecha,
+      'tipo_movimiento': tipoMovimiento,
+      'valor': valor,
+      'descripcion': descripcion,
+      'codigo_cuenta': codigoCuenta,
+      'cuenta_nombre': cuenta['nombre'],
+      'cuenta_color': cuenta['color'],
+      'fecha_registro': '${ahoraBogota.year}-${dos(ahoraBogota.month)}-'
+          '${dos(ahoraBogota.day)} ${dos(ahoraBogota.hour)}:'
+          '${dos(ahoraBogota.minute)}:${dos(ahoraBogota.second)}',
+    };
+    refresh(() {
+      movements.insert(0, mov);
+      if (cuenta.isNotEmpty) {
+        final saldo = numberValue(cuenta['saldo_actual'] ?? 0);
+        cuenta['saldo_actual'] = esIngreso ? saldo + valor : saldo - valor;
+      }
+      if (esIngreso) {
+        serverIncome += valor;
+      } else {
+        serverExpenses += valor;
+      }
+      invalidateComputedCache();
+    });
+    // Igual que al eliminar: sin persistir, un hot restart mostraría por un
+    // instante la caché vieja (sin este movimiento) antes de que la red
+    // reconciliara.
+    unawaited(repository.saveLocalData('movimientos', movements));
+  }
+
   // Si loadData() tuvo que estimar serverIncome/serverExpenses con la suma
   // local (porque el endpoint de totales falló) antes de que `movements`
   // hubiera llegado, aquí ya está la lista real — recalcula para que el
@@ -435,9 +525,6 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       pagina++;
     } while (pagina <= totalPaginas && pagina <= 100);
 
-    if (resultado.isNotEmpty) {
-      debugPrint('[SAF] mov cuenta $codigoCuenta sample: ${resultado.first}');
-    }
     return resultado;
   }
 
@@ -911,8 +998,6 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           return;
         }
       }
-      debugPrint(
-          '[SAF] get_estadistica_fuente status=${r.statusCode} body=${r.body.substring(0, r.body.length.clamp(0, 300))}');
     } catch (e) {
       debugPrint('[SAF] estadistica fuente: $e');
     }
@@ -938,9 +1023,6 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList();
-          debugPrint(
-              '[SAF] json_total_creditos_valores keys: ${raw.first.keys.toList()}');
-          debugPrint('[SAF] json_total_creditos_valores first: ${raw.first}');
           creditStatistics = raw;
           unawaited(repository.saveLocalData('creditos', creditStatistics));
         }
@@ -1007,7 +1089,6 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     ];
     final first = credits.first;
     final allKeys = first.keys.toList();
-    debugPrint('[SAF] creditosLista keys: $allKeys  first: $first');
 
     final fk =
         fuenteKeys.firstWhere((k) => allKeys.contains(k), orElse: () => '');
@@ -1032,8 +1113,6 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         .toList();
     result.sort((a, b) =>
         (b['total_salidas'] as double).compareTo(a['total_salidas'] as double));
-    debugPrint(
-        '[SAF] fallback estadistica: ${result.length} fuentes, total=${result.fold(0.0, (s, r) => s + (r["total_salidas"] as double))}');
     return result;
   }
 
@@ -1137,15 +1216,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         lista.sort((a, b) =>
             a['etiqueta'].toString().compareTo(b['etiqueta'].toString()));
         debtors = lista;
-        debugPrint(
-            '[SAF] deudores desde local: ${lista.length} — primer item: ${lista.first}');
         return;
       }
-    }
-    debugPrint(
-        '[SAF] tryBuildDebtorsFromLocal: creditosLista=${credits.length}, ahorradores=${savers.length}');
-    if (credits.isNotEmpty) {
-      debugPrint('[SAF] creditosLista[0] keys: ${credits.first.keys.toList()}');
     }
   }
 
