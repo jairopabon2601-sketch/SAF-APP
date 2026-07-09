@@ -481,6 +481,21 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                     ),
                   ),
                 ),
+                // Marca de agua SAF — branding sutil, no compite con la info.
+                Positioned(
+                  right: -18,
+                  bottom: -14,
+                  child: IgnorePointer(
+                    child: Opacity(
+                      opacity: 0.07,
+                      child: SizedBox(
+                        width: 130,
+                        height: 130,
+                        child: CustomPaint(painter: SafLogoPainter(Colors.white)),
+                      ),
+                    ),
+                  ),
+                ),
                 // Horizontal shimmer line
                 Positioned(
                   left: 0,
@@ -558,6 +573,21 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.3)),
                         const Spacer(),
+                        SizedBox(
+                          width: 15,
+                          height: 15,
+                          child: CustomPaint(
+                              painter: SafLogoPainter(
+                                  Colors.white.withValues(alpha: 0.55))),
+                        ),
+                        const SizedBox(width: 6),
+                        Text('SAF',
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.55),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1)),
+                        const SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
