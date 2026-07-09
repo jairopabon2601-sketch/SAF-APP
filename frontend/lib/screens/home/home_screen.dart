@@ -23,9 +23,12 @@ class _HomeScreenState extends HomeController<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // El cliente pidió bajarle la velocidad al barrido de luz en general
+    // (antes 1000ms de ida/vuelta se sentía muy rápido y saturaba la UX en
+    // varias pantallas). 2600ms da un barrido notoriamente más calmado.
     shimmer = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 2600),
     )..repeat(reverse: true);
     loadData();
   }

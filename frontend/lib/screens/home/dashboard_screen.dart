@@ -10,6 +10,12 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     final ingresos = totalIncome;
     final egresos = totalExpenses;
     final balance = ingresos - egresos;
+    // Mientras serverIncome/serverExpenses solo sean una estimación local
+    // (fallback) y los movimientos reales aún no hayan terminado de cargar,
+    // el valor puede ser 0 sin serlo de verdad — mejor mostrar skeleton que
+    // un "$0" engañoso. `movementsSettled` acota esto (nunca queda infinito,
+    // ver home_data_controller.dart).
+    final totalsPending = serverTotalsIsFallback && !movementsSettled;
     // Mismo ORDER BY que la pantalla Movimientos / la web: fecha DESC, código ASC.
     String movDate(Map<String, dynamic> m) {
       final v = (m['fecha'] ?? '').toString();
@@ -74,6 +80,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                             color: const Color(0xFF00B86B),
                             ratioValue: total > 0 ? ingresos / total : null,
                             index: 0,
+                            isLoading: totalsPending,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -87,6 +94,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                             color: const Color(0xFFDC003A),
                             ratioValue: total > 0 ? egresos / total : null,
                             index: 1,
+                            isLoading: totalsPending,
                           ),
                         ),
                       ],
@@ -110,6 +118,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                                 ? const Color(0xFFFFB3B3)
                                 : const Color(0xFF7FFFCC),
                             index: 2,
+                            isLoading: totalsPending,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -195,7 +204,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                   var i = 0;
                   void flush() {
                     if (grupo.isEmpty) return;
-                    rows.add(buildDayGroupHeader(fechaActual!, grupo));
+                    rows.add(
+                        buildDayGroupHeader(fechaActual!, grupo, index: i));
                     for (final m in grupo) {
                       rows.add(Padding(
                         padding: const EdgeInsets.only(bottom: 8),
@@ -2849,6 +2859,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     Color? valueColor,
     double? ratioValue,
     int index = 0,
+    bool isLoading = false,
   }) {
     // 4-stop gradient: tint → base → shade → deep
     final cA = Color.lerp(color, Colors.white, 0.20)!;
@@ -3026,25 +3037,36 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               ),
             ),
             const SizedBox(height: 4),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                value,
-                style: TextStyle(
-                  color: valueColor ?? Colors.white,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.5,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.20),
-                      blurRadius: 8,
-                    ),
-                  ],
+            if (isLoading)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  width: 74,
+                  height: 19,
+                  color: Colors.white.withValues(
+                      alpha: 0.16 + 0.10 * shimmer.value),
+                ),
+              )
+            else
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: TextStyle(
+                    color: valueColor ?? Colors.white,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.20),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
             if (ratioValue != null) ...[
               const SizedBox(height: 9),
               TweenAnimationBuilder<double>(

@@ -147,7 +147,14 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // cargar en toda la sesión. La tab de Movimientos y "Actividad reciente"
     // ya condicionan su propio skeleton a que `movements` llegue, así que no
     // hace falta bloquear el resto del arranque por esto.
-    unawaited(_fetchMovimientosTodasCuentas(codigoUsuario));
+    // Pequeño retraso: en frío se disparan 5-6 peticiones a la vez (cuentas,
+    // ahorros, créditos, totales, movimientos) contra un hosting compartido
+    // que a veces rechaza/corta conexiones simultáneas — esta es la más
+    // pesada (JOIN paginado), así que arranca un instante después para no
+    // competir por el mismo cupo de conexiones justo al arranque.
+    unawaited(Future.delayed(const Duration(milliseconds: 400), () {
+      if (isMounted) return _fetchMovimientosTodasCuentas(codigoUsuario);
+    }));
 
     // Fetch fresh data from network. fetchAccounts corre junto al resto:
     // nada aquí depende realmente de que las cuentas terminen primero
@@ -178,15 +185,31 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       // suma local — mismas cifras que la web — en lugar de mostrar ceros.
       final localIncome = totalIncome;
       final localExpenses = totalExpenses;
+      final usedFallback = !serverTotalsLoaded;
       if (isMounted) {
         refresh(() {
-          if (!serverTotalsLoaded) {
+          if (usedFallback) {
             serverIncome = localIncome;
             serverExpenses = localExpenses;
             serverTotalsLoaded = true;
+            // Movimientos corre unawaited y puede seguir vacío aquí — esta
+            // suma es solo un placeholder hasta que _fetchMovimientosTodasCuentas
+            // termine y la recalcule con los datos reales.
+            serverTotalsIsFallback = true;
           }
           loadingData = false;
         });
+      }
+      if (usedFallback) {
+        // El servidor falló las 2 veces que ya lo intentó _fetchTotalesResumen
+        // (típico justo tras un resume en frío, cuando la red aún se está
+        // reestableciendo). Reintenta una vez más pasado un momento para que
+        // el dashboard termine mostrando el total real del servidor, no solo
+        // la suma local aproximada.
+        unawaited(Future.delayed(const Duration(seconds: 4), () async {
+          if (!isMounted) return;
+          await _fetchTotalesResumen(codigoUsuario);
+        }));
       }
     }
   }
@@ -224,7 +247,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   }
 
   Future<void> _fetchMovimientosTodasCuentas(String usuario,
-      {String? desde, String? hasta}) async {
+      {String? desde, String? hasta, int intentoTotal = 0}) async {
     final dStr = desde ?? '';
     final hStr = hasta ?? '';
 
@@ -267,6 +290,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           movements = globalAll;
           invalidateComputedCache();
           unawaited(repository.saveLocalData('movimientos', movements));
+          _refreshFallbackTotalsIfNeeded();
+          movementsSettled = true;
           // Repintar: si el timeout general de loadData ya venció, nadie
           // más va a refrescar y los movimientos quedarían invisibles.
           if (isMounted) refresh(() {});
@@ -323,11 +348,60 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     });
     // Si el fallback tampoco trajo nada (red caída), conservar lo que haya
     // en memoria/caché en lugar de pisar los movimientos con una lista vacía.
-    if (all.isEmpty && movements.isNotEmpty) return;
+    if (all.isEmpty && movements.isNotEmpty) {
+      movementsSettled = true;
+      if (isMounted) refresh(() {});
+      return;
+    }
+    if (all.isEmpty && accounts.isNotEmpty && intentoTotal < 3) {
+      // Ni el endpoint global (2 intentos) ni el fallback por cuenta trajeron
+      // nada, y sí hay cuentas — con hosting compartido esto suele ser una
+      // saturación transitoria justo al arranque (5-6 peticiones a la vez),
+      // no que de verdad no haya movimientos. Reintenta con backoff creciente
+      // en vez de resignarse a "Sin movimientos" para toda la sesión.
+      await Future.delayed(Duration(seconds: 3 * (intentoTotal + 1)));
+      if (!isMounted) {
+        movementsSettled = true;
+        return;
+      }
+      return _fetchMovimientosTodasCuentas(usuario,
+          desde: desde, hasta: hasta, intentoTotal: intentoTotal + 1);
+    }
     movements = all;
     invalidateComputedCache();
     unawaited(repository.saveLocalData('movimientos', movements));
+    _refreshFallbackTotalsIfNeeded();
+    movementsSettled = true;
     if (isMounted) refresh(() {});
+  }
+
+  /// Refresco liviano tras registrar/editar un movimiento, transferir entre
+  /// cuentas o ajustar un saldo — antes esos flujos llamaban a loadData()
+  /// completo (cuentas + ahorros + créditos + totales + movimientos + tasas
+  /// + fuentes + asesores + deudores), por lo que guardar UN movimiento
+  /// siempre se sentía lento sin importar qué tan rápido respondiera el
+  /// servidor para ese movimiento puntual. Esto solo refresca lo que en
+  /// verdad cambió: el saldo de las cuentas, la lista de movimientos y los
+  /// totales de ingresos/gastos.
+  Future<void> refreshAfterMovementChange() async {
+    final codigoUsuario = (repository.user?['codigo_usuario'] ?? '').toString();
+    if (codigoUsuario.isEmpty) return;
+    await Future.wait([
+      fetchAccounts(codigoUsuario),
+      _fetchMovimientosTodasCuentas(codigoUsuario),
+      _fetchTotalesResumen(codigoUsuario),
+    ]);
+    if (isMounted) refresh(() {});
+  }
+
+  // Si loadData() tuvo que estimar serverIncome/serverExpenses con la suma
+  // local (porque el endpoint de totales falló) antes de que `movements`
+  // hubiera llegado, aquí ya está la lista real — recalcula para que el
+  // dashboard deje de mostrar $0 apenas los movimientos terminen de cargar.
+  void _refreshFallbackTotalsIfNeeded() {
+    if (!serverTotalsIsFallback) return;
+    serverIncome = totalIncome;
+    serverExpenses = totalExpenses;
   }
 
   Future<List<Map<String, dynamic>>> fetchAccountMovements(
@@ -536,6 +610,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
                 serverExpenses = g;
                 serverIncome = ing;
                 serverTotalsLoaded = true;
+                serverTotalsIsFallback = false;
                 invalidateComputedCache();
               });
             }
@@ -737,32 +812,60 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> fetchCredits(String filtro) async {
     final estadoSeleccionado = creditStatusFilter;
+    // "Atrasados" no es un codigo_estado del servidor: es un crédito Activo
+    // (estado=1) cuya proxima_fecha ya venció. Se pide la lista completa de
+    // activos y se filtra/pagina acá mismo — si se paginara primero en el
+    // servidor, cada página traería una mezcla de al día/atrasados y el
+    // conteo total mostrado no correspondería a los atrasados reales.
+    final isAtrasadosFilter = estadoSeleccionado == 'atrasado';
     // No-admin: siempre filtra por su propio codigo_origen (ID de asesor)
     final asesorCodigo = isAdmin
         ? creditAdvisorCode(creditAdvisorFilter)
         : codigoOrigen;
 
     // Lista de créditos — endpoint dedicado con JSON + paginación
+    double? atrasadosPagado;
+    double? atrasadosPendiente;
     try {
       final r = await repository
           .post('/ajax/get_creditos_lista.php', {
-        'estado': estadoSeleccionado,
+        'estado': isAtrasadosFilter ? '1' : estadoSeleccionado,
         // La web conserva la sigla (JP, VB, etc.), mientras este endpoint
         // dedicado filtra por codigo_asesor numérico.
         'asesor': asesorCodigo,
-        'pagina': creditsPage.toString(),
-        'por_pagina': creditsPageSize.toString(),
+        'pagina': isAtrasadosFilter ? '1' : creditsPage.toString(),
+        'por_pagina': isAtrasadosFilter ? '1000' : creditsPageSize.toString(),
         if (creditsBuscar.isNotEmpty) 'buscar': creditsBuscar,
       })
           .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final decoded = jsonDecode(r.body);
         if (decoded is Map && decoded['datos'] is List) {
-          creditsTotal = int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
-          credits = (decoded['datos'] as List)
+          var lista = (decoded['datos'] as List)
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList();
+          if (isAtrasadosFilter) {
+            lista = lista.where(isCreditoVencido).toList();
+            creditsTotal = lista.length;
+            // "Total Pagado/Pendiente" se calculan aquí sobre el listado ya
+            // filtrado (no solo la página visible) — el endpoint oficial de
+            // totales no entiende "atrasado" (ver más abajo) y devolvería
+            // las cifras de todos los créditos, no solo los vencidos.
+            atrasadosPagado = lista.fold<double>(
+                0, (sum, c) => sum + numberValue(c['total_pagado'] ?? 0));
+            atrasadosPendiente = lista.fold<double>(
+                0, (sum, c) => sum + numberValue(c['saldo_pendiente'] ?? 0));
+            final start = (creditsPage - 1) * creditsPageSize;
+            credits = start < lista.length
+                ? lista.sublist(
+                    start, (start + creditsPageSize).clamp(0, lista.length))
+                : <Map<String, dynamic>>[];
+          } else {
+            creditsTotal =
+                int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
+            credits = lista;
+          }
           unawaited(repository.saveLocalData('creditos_lista', credits));
         }
       }
@@ -770,13 +873,26 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       debugPrint('[SAF] creditos lista: $e');
     }
 
-    // La cabecera de la web usa json_total_creditos_valores. El cálculo
-    // incluido en get_creditos_lista.php puede diferir por ajustes de cuotas,
-    // por lo que nunca debe sobrescribir estos totales oficiales.
-    await _fetchTotalesCreditos(
-      asesorCodigo: asesorCodigo,
-      estado: estadoSeleccionado,
-    );
+    if (isAtrasadosFilter) {
+      // El endpoint oficial de totales (abajo) filtra por codigo_estado
+      // numérico — "atrasado" no es un estado del servidor, así que ese
+      // filtro se ignoraría y traería el total de TODOS los créditos.
+      if (isMounted) {
+        refresh(() {
+          creditsPaidTotal = atrasadosPagado ?? 0;
+          creditsPendingTotal = atrasadosPendiente ?? 0;
+          creditsDataLoaded = true;
+        });
+      }
+    } else {
+      // La cabecera de la web usa json_total_creditos_valores. El cálculo
+      // incluido en get_creditos_lista.php puede diferir por ajustes de
+      // cuotas, por lo que nunca debe sobrescribir estos totales oficiales.
+      await _fetchTotalesCreditos(
+        asesorCodigo: asesorCodigo,
+        estado: estadoSeleccionado,
+      );
+    }
 
     // Estadística por fuente — endpoint dedicado con campos fijos
     try {

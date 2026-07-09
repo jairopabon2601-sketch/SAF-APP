@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../controllers/home_actions.dart';
 import '../../screens/home/home_dependencies.dart';
+import 'cached_avatar.dart';
 
 Uint8List _toJpegBytes(Uint8List source) {
   var decoded = img.decodeImage(source);
@@ -57,6 +58,7 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
       _ProfileSheetContent(
         fullName: fullName,
         photoUrl: photoUrl,
+        photoCacheKey: photoCacheKey,
         email: email,
         avatarFallback: buildAvatarFallback(fullName.split(' ').first),
         showGestionUsuarios: isAdmin,
@@ -76,6 +78,7 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
 class _ProfileSheetContent extends StatefulWidget {
   final String fullName;
   final String photoUrl;
+  final String photoCacheKey;
   final String email;
   final Widget avatarFallback;
   final bool showGestionUsuarios;
@@ -87,6 +90,7 @@ class _ProfileSheetContent extends StatefulWidget {
   const _ProfileSheetContent({
     required this.fullName,
     required this.photoUrl,
+    required this.photoCacheKey,
     required this.email,
     required this.avatarFallback,
     required this.showGestionUsuarios,
@@ -347,16 +351,15 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
                                               ),
                                             ),
                                           )
-                                        : (_currentPhotoUrl.isNotEmpty
-                                            ? Image.network(
-                                                _currentPhotoUrl,
-                                                fit: BoxFit.cover,
-                                                width: 96,
-                                                height: 96,
-                                                errorBuilder: (_, __, ___) =>
-                                                    widget.avatarFallback,
-                                              )
-                                            : widget.avatarFallback),
+                                        : SizedBox(
+                                            width: 96,
+                                            height: 96,
+                                            child: CachedAvatarImage(
+                                              url: _currentPhotoUrl,
+                                              cacheKey: widget.photoCacheKey,
+                                              fallback: widget.avatarFallback,
+                                            ),
+                                          ),
                                   ),
                                 ),
                               ),

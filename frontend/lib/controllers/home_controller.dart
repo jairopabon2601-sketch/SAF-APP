@@ -39,6 +39,18 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
   double serverExpenses = 0;
   double serverIncome = 0;
   bool serverTotalsLoaded = false;
+  // true cuando serverIncome/serverExpenses vienen de la suma local de
+  // `movements` (fallback porque el endpoint de totales falló) y no del
+  // servidor. Movimientos se carga en paralelo sin bloquear el arranque, así
+  // que en ese momento puede seguir vacío — cuando llegue de verdad hay que
+  // recalcular en lugar de dejar los totales pegados en 0 toda la sesión.
+  bool serverTotalsIsFallback = false;
+  // true una vez que _fetchMovimientosTodasCuentas terminó su cadena completa
+  // de reintentos (con éxito o no) — acotado por los mismos límites de esa
+  // función (máx. 3 reintentos con backoff), nunca queda en false para
+  // siempre. Sirve para saber cuándo dejar de mostrar skeleton en las cards
+  // de totales aunque el servidor nunca haya confirmado el dato real.
+  bool movementsSettled = false;
   double filteredExpenses = 0;
   double filteredIncome = 0;
   bool filteredTotalsLoaded = false;

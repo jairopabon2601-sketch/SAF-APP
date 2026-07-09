@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:http/http.dart' as http;
 
 import '../services/api_service.dart';
@@ -47,4 +49,11 @@ class HomeRepository {
     Duration maxAge = const Duration(hours: 1),
   }) =>
       api.loadLocalData(key, maxAge: maxAge);
+
+  Future<void> saveImageCache(String key, Uint8List bytes) =>
+      api.saveImageCache(key, bytes);
+
+  Future<Uint8List?> loadImageCache(String key) => api.loadImageCache(key);
+
+  Uint8List? getMemImageCache(String key) => api.getMemImageCache(key);
 }

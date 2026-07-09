@@ -1,6 +1,7 @@
 import '../../controllers/home_actions.dart';
 import '../../controllers/home_data_controller.dart';
 import '../../screens/home/home_dependencies.dart';
+import 'cached_avatar.dart';
 import 'home_dialogs.dart';
 
 extension HomeAppBar<T extends StatefulWidget> on HomeController<T> {
@@ -82,12 +83,11 @@ extension HomeAppBar<T extends StatefulWidget> on HomeController<T> {
                   ],
                 ),
                 child: ClipOval(
-                  child: photoUrl.isNotEmpty
-                      ? Image.network(photoUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              buildAvatarFallback(fullName.split(' ').first))
-                      : buildAvatarFallback(fullName.split(' ').first),
+                  child: CachedAvatarImage(
+                    url: photoUrl,
+                    cacheKey: photoCacheKey,
+                    fallback: buildAvatarFallback(fullName.split(' ').first),
+                  ),
                 ),
               ),
             ),

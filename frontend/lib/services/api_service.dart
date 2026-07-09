@@ -286,6 +286,49 @@ class ApiService {
     return null;
   }
 
+  // ── Image cache (foto de perfil) ──────────────────────────────────
+  // Image.network no persiste nada entre arranques de la app: cada vez que
+  // se abre, la foto de perfil se vuelve a descargar desde cero aunque no
+  // haya cambiado. Guardarla una vez en disco (SharedPreferences, como el
+  // resto de la caché local de esta app) hace que en los siguientes
+  // arranques se muestre instantánea mientras se refresca en segundo plano.
+  //
+  // Leer SharedPreferences sigue siendo async, así que sin este mapa en
+  // memoria el primer build() del avatar no tenía los bytes listos todavía
+  // y se veía un parpadeo del fallback (la inicial) — más notorio tras un
+  // hot restart. `preloadImageCache` se llama en main() antes de runApp()
+  // para que el primer frame ya tenga la foto disponible sin esperar nada.
+  final Map<String, Uint8List> _memImageCache = {};
+
+  Uint8List? getMemImageCache(String key) => _memImageCache[key];
+
+  Future<void> preloadImageCache(String key) async {
+    if (key.isEmpty || _memImageCache.containsKey(key)) return;
+    final bytes = await loadImageCache(key);
+    if (bytes != null) _memImageCache[key] = bytes;
+  }
+
+  Future<void> saveImageCache(String key, Uint8List bytes) async {
+    _memImageCache[key] = bytes;
+    try {
+      final prefs = await _getPrefs();
+      await prefs.setString('imgcache_$key', base64Encode(bytes));
+    } catch (_) {}
+  }
+
+  Future<Uint8List?> loadImageCache(String key) async {
+    final mem = _memImageCache[key];
+    if (mem != null) return mem;
+    try {
+      final prefs = await _getPrefs();
+      final raw = prefs.getString('imgcache_$key');
+      if (raw == null) return null;
+      return base64Decode(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> setBaseUrl(String url) async {
     _baseUrl = url;
     final prefs = await _getPrefs();

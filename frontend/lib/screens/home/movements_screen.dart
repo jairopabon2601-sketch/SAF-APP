@@ -11,6 +11,23 @@ import 'savings_screen.dart';
 DateTime nowBogota() =>
     DateTime.now().toUtc().subtract(const Duration(hours: 5));
 
+/// Hora exacta de digitación de un movimiento (campo `fecha_registro`,
+/// 'yyyy-MM-dd HH:mm:ss'), formateada como "1:51 a. m.". Los movimientos
+/// anteriores a este cambio no tienen ese dato (llega null/vacío desde el
+/// backend) — en ese caso no se muestra nada en vez de un "00:00" falso.
+String formatHoraRegistro(dynamic fechaRegistro) {
+  final raw = (fechaRegistro ?? '').toString().trim();
+  if (raw.isEmpty || raw == 'null') return '';
+  final match = RegExp(r'(\d{2}):(\d{2})').firstMatch(raw);
+  if (match == null) return '';
+  final h = int.tryParse(match.group(1)!);
+  final m = int.tryParse(match.group(2)!);
+  if (h == null || m == null) return '';
+  final h12 = h % 12 == 0 ? 12 : h % 12;
+  final periodo = h < 12 ? 'a. m.' : 'p. m.';
+  return '$h12:${m.toString().padLeft(2, '0')} $periodo';
+}
+
 /// Convierte una fecha 'yyyy-MM-dd' en una etiqueta legible: "Hoy", "Ayer"
 /// o "d Mes" (con año si no es el actual). Compartido entre Movimientos
 /// (encabezados de grupo por día) e Inicio (actividad reciente).
@@ -1182,7 +1199,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               final rows = <Widget>[];
               var localIndex = 0;
               for (final group in groups) {
-                rows.add(_dayGroupHeader(group));
+                rows.add(_dayGroupHeader(group, localIndex));
                 for (final m in group.items) {
                   final i = localIndex++;
                   rows.add(Padding(
@@ -1272,13 +1289,19 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     return groups;
   }
 
-  Widget _dayGroupHeader(_MovementDayGroup group) =>
-      buildDayGroupHeader(group.fecha, group.items);
+  Widget _dayGroupHeader(_MovementDayGroup group, int index) =>
+      buildDayGroupHeader(group.fecha, group.items, index: index);
 
   /// Banner de grupo por día: gradiente navy→azul con shimmer, badge de
   /// calendario y chip sólido verde/rojo con el neto del día. Compartido
   /// con "Actividad reciente" en Inicio.
-  Widget buildDayGroupHeader(String fecha, List<Map<String, dynamic>> items) {
+  ///
+  /// [index] debe ser el índice de la primera card de ese grupo (misma base
+  /// que usan las `_AnimatedMovementCard`) — así el banner entra al mismo
+  /// tiempo que sus movimientos en vez de aparecer instantáneo mientras las
+  /// cards (que sí tienen demora escalonada) todavía no se ven.
+  Widget buildDayGroupHeader(String fecha, List<Map<String, dynamic>> items,
+      {int index = 0}) {
     final ingresos = items
         .where(movementIsIncome)
         .fold(0.0, (s, m) => s + numberValue(m['valor'] ?? 0));
@@ -1289,7 +1312,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     final netoGrad = neto >= 0
         ? const [Color(0xFF059669), Color(0xFF34D399)]
         : const [Color(0xFFB91C1C), Color(0xFFEF4444)];
-    return Padding(
+    final content = Padding(
       padding: const EdgeInsets.fromLTRB(2, 12, 2, 8),
       child: AnimatedBuilder(
         animation: shimmer,
@@ -1410,6 +1433,37 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           ),
         ),
       ),
+    );
+
+    // Misma base de demora que _AnimatedMovementCard ((index*65).clamp(0,380)
+    // + 520ms de entrada) para que el banner del día aparezca junto con su
+    // primera card, no antes. _AnimatedMovementCard usa DOS curvas distintas
+    // (easeOut para el fade, easeOutCubic para el slide) sobre el mismo
+    // progreso — usar una sola curva (easeOutCubic) para ambos hacía que la
+    // opacidad del banner subiera más rápido que la de la card (easeOut es
+    // menos "adelantada"), por eso se veía el banner listo primero aunque
+    // la duración total ya coincidiera. Progreso lineal aquí + cada curva
+    // aplicada por separado, igual que hace la card internamente.
+    final delayMs = (index * 65).clamp(0, 380);
+    final totalMs = delayMs + 520;
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('daygroup_${fecha}_$index'),
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: totalMs),
+      curve: Interval(delayMs / totalMs, 1.0),
+      builder: (_, t, child) {
+        final progress = t.clamp(0.0, 1.0);
+        final fadeT = Curves.easeOut.transform(progress);
+        final slideT = Curves.easeOutCubic.transform(progress);
+        return Opacity(
+          opacity: fadeT,
+          child: Transform.translate(
+            offset: Offset(0, 10 * (1 - slideT)),
+            child: RepaintBoundary(child: child),
+          ),
+        );
+      },
+      child: content,
     );
   }
 
@@ -2246,7 +2300,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                               '/ajax/listar_cuentas_gasto.php');
                                           repository.invalidateCache(
                                               '/ajax/listar_movimientos_usuario.php');
-                                          unawaited(loadData());
+                                          unawaited(refreshAfterMovementChange());
                                         }
                                       }
                                     } catch (e) {
@@ -2750,9 +2804,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                         '/ajax/listar_cuentas_gasto.php');
                                     repository.invalidateCache(
                                         '/ajax/listar_movimientos_usuario.php');
-                                    await loadData();
                                     showResult(true,
                                         'Transferencia realizada correctamente.');
+                                    unawaited(refreshAfterMovementChange());
                                   } catch (e) {
                                     debugPrint('[SAF] transferir: $e');
                                     if (ctx.mounted) {
@@ -3342,7 +3396,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                             '/ajax/listar_cuentas_gasto.php');
                                         repository.invalidateCache(
                                             '/ajax/listar_movimientos_usuario.php');
-                                        unawaited(loadData());
+                                        unawaited(refreshAfterMovementChange());
                                       }
                                     }
                                   } catch (e) {
@@ -6201,6 +6255,7 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
     final valor = numberValue(m['valor'] ?? 0);
     final rawFecha = (m['fecha'] ?? '').toString();
     final fecha = rawFecha.length >= 10 ? rawFecha.substring(0, 10) : rawFecha;
+    final horaRegistro = formatHoraRegistro(m['fecha_registro']);
 
     final stripColor =
         isIngreso ? const Color(0xFF059669) : const Color(0xFFDC2626);
@@ -6398,7 +6453,11 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                                     color: textMain,
                                     letterSpacing: -0.2)),
                             const SizedBox(height: 5),
-                            Row(children: [
+                            Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              runSpacing: 2,
+                              children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 7, vertical: 2),
@@ -6420,16 +6479,29 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 7),
-                              const Icon(Icons.calendar_today_rounded,
-                                  size: 9, color: Color(0xFFB6C0D5)),
-                              const SizedBox(width: 3),
-                              Text(fecha,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Color(0xFF9AA7C2),
-                                    fontWeight: FontWeight.w500,
-                                  )),
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                                const Icon(Icons.calendar_today_rounded,
+                                    size: 9, color: Color(0xFFB6C0D5)),
+                                const SizedBox(width: 3),
+                                Text(fecha,
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      color: Color(0xFF9AA7C2),
+                                      fontWeight: FontWeight.w500,
+                                    )),
+                              ]),
+                              if (horaRegistro.isNotEmpty)
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                                  const Icon(Icons.access_time_rounded,
+                                      size: 9, color: Color(0xFFB6C0D5)),
+                                  const SizedBox(width: 3),
+                                  Text(horaRegistro,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        color: Color(0xFF9AA7C2),
+                                        fontWeight: FontWeight.w500,
+                                      )),
+                                ]),
                             ]),
                           ],
                         ),

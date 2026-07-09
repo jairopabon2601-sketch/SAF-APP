@@ -184,6 +184,15 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
     return '';
   }
 
+  // Clave estable para la caché de la foto de perfil — a diferencia de
+  // photoUrl (que trae un `?v=timestamp` que cambia con cada subida), esto
+  // no cambia entre sesiones, así que main() puede precargar la foto en
+  // memoria antes de runApp() sin depender de que photoUrl ya esté resuelto.
+  String get photoCacheKey {
+    final u = repository.user;
+    return (u?['codigo_usuario'] ?? '').toString();
+  }
+
   // ── Actions ─────────────────────────────────────────────────────
   void logout() async {
     await repository.logout();

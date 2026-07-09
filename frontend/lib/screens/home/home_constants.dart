@@ -8,6 +8,24 @@ const homeAccent = Color(0xFF4361EE);
 const homeCyan = Color(0xFF00D2FF);
 const homeBackground = Color(0xFFF0F2FA);
 
+/// Un crédito está "atrasado" cuando sigue activo y su próxima cuota ya
+/// venció. No es un `codigo_estado` propio del servidor — se deriva de
+/// `estado` + `proxima_fecha`, igual que hace la tarjeta de crédito para
+/// pintarse en rojo. Centralizado aquí para que el filtro "Atrasados" de
+/// Créditos use exactamente el mismo criterio que la UI ya muestra.
+bool isCreditoVencido(Map<String, dynamic> c) {
+  final estado = (c['estado'] ?? 'Activo').toString();
+  final activo = estado.toLowerCase().contains('activ');
+  if (!activo) return false;
+  final proxima = (c['proxima_fecha'] ?? '').toString();
+  if (proxima.isEmpty) return false;
+  try {
+    return DateTime.parse(proxima).isBefore(DateTime.now());
+  } catch (_) {
+    return false;
+  }
+}
+
 // ── Tema claro/oscuro ────────────────────────────────────────────
 // Preferencia persistida por dispositivo; se carga antes de runApp.
 final ValueNotifier<bool> appThemeDark = ValueNotifier<bool>(false);

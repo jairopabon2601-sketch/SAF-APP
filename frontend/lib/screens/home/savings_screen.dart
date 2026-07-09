@@ -430,10 +430,17 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
     bool loadingAnios = false;
     List<Map<String, dynamic>> aniosOpts = [];
 
-    // Refrescar el catálogo antes de abrir. El selector debe usar únicamente
+    // El refresco del catálogo se dispara DESPUÉS de abrir el diálogo (ver
+    // saversRefreshed más abajo), no antes: bloquear el showDialog con este
+    // await hacía que el botón "Agregar Ahorro" se sintiera colgado cuando
+    // el servidor tardaba en responder. El selector debe usar únicamente
     // ahorradores, no la lista global de deudores/créditos.
-    repository.invalidateCache('/ajax/listado_select.php');
-    await fetchSavers();
+    bool saversRefreshed = false;
+    Future<void> refreshAhorradores(StateSetter setS) async {
+      repository.invalidateCache('/ajax/listado_select.php');
+      await fetchSavers();
+      setS(() {});
+    }
 
     List<Map<String, dynamic>> currentAhorradorOptions() {
       final seen = <String>{};
@@ -496,6 +503,10 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
         if (!aniosLoaded && !loadingAnios) loadAnios(setS);
+        if (!saversRefreshed) {
+          saversRefreshed = true;
+          refreshAhorradores(setS);
+        }
         return AppAnimatedDialog(
           child: Dialog(
             backgroundColor: dialogBg,

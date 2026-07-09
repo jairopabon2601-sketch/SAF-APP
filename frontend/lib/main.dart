@@ -15,6 +15,14 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ApiService().init();
   await loadThemePreference();
+  // Precarga la foto de perfil en memoria antes de runApp(): leer el disco
+  // (SharedPreferences) sigue siendo async, así que sin esto el primer
+  // build() del avatar no tenía los bytes listos y se veía un parpadeo del
+  // fallback (la inicial) — muy notorio justo después de un hot restart.
+  final codigoUsuario = ApiService().user?['codigo_usuario']?.toString();
+  if (codigoUsuario != null && codigoUsuario.isNotEmpty) {
+    await ApiService().preloadImageCache(codigoUsuario);
+  }
 
   final prefs = await SharedPreferences.getInstance();
   final onboardingDone = prefs.getBool('onboarding_done') ?? false;
