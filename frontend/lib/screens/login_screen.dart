@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../utils/responsive.dart';
 import 'forgot_password_screen.dart';
+import 'home/home_constants.dart';
 
 // ── Particle ──────────────────────────────────────────────────────────────────
 class _Particle {
@@ -297,6 +298,18 @@ class _LoginScreenState extends State<LoginScreen>
       final r = await _api.login(_emailCtrl.text.trim(), _passwordCtrl.text);
       if (!mounted) return;
       if (r['success'] == true) {
+        // Aplica el tema del usuario que acaba de iniciar sesión ANTES de
+        // navegar a Home — si no, se ve por un instante el tema del usuario
+        // anterior (guardado localmente) hasta que loadData() termine de
+        // sincronizar en segundo plano. Con timeout corto (4s) para no
+        // demorar el login si el servidor está lento.
+        final codigoUsuario =
+            (_api.user?['codigo_usuario'] ?? '').toString();
+        final dark = await _api.fetchThemePreference(codigoUsuario);
+        if (dark != null && dark != appThemeDark.value) {
+          await setThemeDark(dark);
+        }
+        if (!mounted) return;
         Navigator.of(context).pushReplacementNamed('/home');
       } else {
         setState(() =>

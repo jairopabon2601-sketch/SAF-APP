@@ -129,6 +129,30 @@ class ApiService {
     }
   }
 
+  /// Consulta la preferencia de tema (oscuro/claro) guardada en el servidor
+  /// para [usuario]. Se llama justo después del login, antes de navegar a
+  /// Home — así el tema correcto ya está aplicado desde el primer frame en
+  /// vez de mostrar por un instante el tema del usuario anterior (guardado
+  /// localmente) y recién corregirse cuando loadData() termine de
+  /// sincronizar en segundo plano.
+  /// Retorna null si no hay red o el servidor no responde a tiempo — en ese
+  /// caso se conserva la copia local, sin bloquear el login por esto.
+  Future<bool?> fetchThemePreference(String usuario) async {
+    if (usuario.isEmpty) return null;
+    try {
+      final r = await post('/ajax/preferencia_tema.php', {
+        'accion': 'get',
+        'usuario': usuario,
+      }).timeout(const Duration(seconds: 4));
+      if (r.statusCode != 200) return null;
+      final d = jsonDecode(r.body);
+      if (d is! Map || d['success'] != true) return null;
+      return d['tema_oscuro'] == 1 || d['tema_oscuro'] == '1';
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> logout() async {
     _token = null;
     _user = null;

@@ -674,10 +674,14 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                     height: 7,
                     color: const Color(0xFFDC2626).withValues(alpha: 0.18)),
                 FractionallySizedBox(
-                  widthFactor: animRatio,
+                  widthFactor: animRatio.clamp(0.03, 1.0),
                   child: Container(
                     height: 7,
+                    clipBehavior: Clip.antiAlias,
                     decoration: const BoxDecoration(
+                      // Punta redondeada tipo cápsula, igual que la barra de
+                      // "Salud" del dashboard principal.
+                      borderRadius: BorderRadius.all(Radius.circular(3.5)),
                       gradient: LinearGradient(
                           colors: [Color(0xFF059669), Color(0xFF34D399)]),
                     ),
