@@ -171,8 +171,15 @@ class _SafAnimatedBottomNavigationBarState
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOutCubic,
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1B4B),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0A1438), Color(0xFF0D1B4B), Color(0xFF13245C)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border(
+          top: BorderSide(color: selColor.withValues(alpha: 0.35), width: 1),
+        ),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0D1B4B).withValues(alpha: 0.92),
@@ -180,40 +187,53 @@ class _SafAnimatedBottomNavigationBarState
             offset: const Offset(0, -8),
           ),
           BoxShadow(
-            color: selColor.withValues(alpha: 0.26),
+            color: selColor.withValues(alpha: 0.30),
             blurRadius: 64,
             spreadRadius: -4,
             offset: const Offset(0, -12),
           ),
         ],
       ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 68,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  // ── Sliding pill with shimmer ───────────────────────
-                  _buildPill(n),
-                  // ── Tab items ───────────────────────────────────────
-                  _buildTabRow(n),
-                  // ── Particle burst overlay ──────────────────────────
-                  AnimatedBuilder(
-                    animation: _particleCtrl,
-                    builder: (_, __) {
-                      final v = _particleCtrl.value;
-                      return v > 0 && v < 1
-                          ? _buildParticleBurst(
-                              _burstIndex, v, constraints.maxWidth, n)
-                          : const SizedBox.shrink();
-                    },
-                  ),
-                ],
-              );
-            },
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 68,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // ── Realce superior tipo "glass" ──────────────────
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        height: 1,
+                        color: Colors.white.withValues(alpha: 0.06),
+                      ),
+                    ),
+                    // ── Sliding pill with shimmer ───────────────────────
+                    _buildPill(n),
+                    // ── Tab items ───────────────────────────────────────
+                    _buildTabRow(n),
+                    // ── Particle burst overlay ──────────────────────────
+                    AnimatedBuilder(
+                      animation: _particleCtrl,
+                      builder: (_, __) {
+                        final v = _particleCtrl.value;
+                        return v > 0 && v < 1
+                            ? _buildParticleBurst(
+                                _burstIndex, v, constraints.maxWidth, n)
+                            : const SizedBox.shrink();
+                      },
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -235,33 +255,59 @@ class _SafAnimatedBottomNavigationBarState
             widthFactor: 1 / n,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-              child: Stack(children: [
-                // Base gradient pill
-                Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        c.withValues(alpha: 0.34),
-                        c.withValues(alpha: 0.13),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: c.withValues(alpha: 0.55),
-                      width: 1,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: c.withValues(alpha: 0.38),
-                        blurRadius: 22,
-                        spreadRadius: -2,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Stack(children: [
+                  // Base gradient pill
+                  AnimatedBuilder(
+                    animation: _glowAnim,
+                    builder: (_, __) => Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            c.withValues(alpha: 0.34 + _glowAnim.value * 0.08),
+                            c.withValues(alpha: 0.13),
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                        ),
+                        border: Border.all(
+                          color: c.withValues(alpha: 0.55),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: c.withValues(alpha: 0.38),
+                            blurRadius: 22,
+                            spreadRadius: -2,
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ]),
+                  // Barrido de brillo suave, sincronizado con el glow del ícono.
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _glowAnim,
+                        builder: (_, __) => Transform.translate(
+                          offset: Offset((_glowAnim.value * 2 - 1) * 60, 0),
+                          child: Container(
+                            width: 30,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: [
+                                Colors.white.withValues(alpha: 0),
+                                Colors.white.withValues(alpha: 0.10),
+                                Colors.white.withValues(alpha: 0),
+                              ]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
             ),
           ),
         );
