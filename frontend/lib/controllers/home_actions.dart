@@ -4,6 +4,13 @@ import '../screens/home/home_dependencies.dart';
 import '../screens/home/credits_screen.dart';
 import '../widgets/home/home_dialogs.dart';
 
+// Cuentas sin foto propia: la columna no siempre queda vacía. Algunas traen
+// "0" (valor por defecto) y otras el isotipo de SAF (asignado como
+// placeholder genérico) en vez de una foto real — ambos casos se tratan
+// como "sin foto" para mostrar el avatar de iniciales en su lugar.
+bool isNoPhotoValue(String raw) =>
+    raw == 'null' || raw == '0' || raw == 'saf_isotipo.png';
+
 extension HomeActions<T extends StatefulWidget> on HomeController<T> {
   void invalidateComputedCache() {
     cachedBalanceTotal = null;
@@ -15,6 +22,95 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
   String advisorName(String codigoOSigla) {
     final sigla = creditAdvisorInitials(codigoOSigla).trim().toUpperCase();
     return advisorNames[sigla] ?? sigla;
+  }
+
+  // Avatar de asesor compartido por los filtros de Ahorros y Créditos:
+  // intenta la foto real de tbl_asesores (ya viene en `advisors` vía
+  // fetchAdvisors, la misma fuente que usa photoUrl para el perfil propio)
+  // y si no hay foto o falla la carga, cae al avatar de iniciales con
+  // degradado indigo. Sin sigla (p.ej. "Todos") muestra un ícono de grupo.
+  Widget advisorAvatarMini(String sigla, {double size = 22}) {
+    if (sigla.isEmpty || sigla == '0') {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: textSoft.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(size * 0.32),
+        ),
+        child: Icon(Icons.groups_rounded, size: size * 0.6, color: textSoft),
+      );
+    }
+    final nombre = advisorName(sigla);
+    final parts = nombre.trim().split(RegExp(r'\s+'));
+    final i1 = parts.isNotEmpty && parts[0].isNotEmpty
+        ? parts[0][0].toUpperCase()
+        : 'A';
+    final i2 = parts.length > 1
+        ? parts[parts.length >= 3 ? 2 : 1][0].toUpperCase()
+        : '';
+    final fallback = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF818CF8),
+            Color(0xFF4361EE),
+            Color(0xFF3730A3),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(size * 0.32),
+      ),
+      child: Center(
+        child: Text('$i1$i2',
+            style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: size * 0.41,
+                letterSpacing: 0.3)),
+      ),
+    );
+
+    final fila = advisors.firstWhere(
+      (a) =>
+          (a['sigla'] ?? '').toString().trim().toUpperCase() ==
+          sigla.toUpperCase(),
+      orElse: () => <String, dynamic>{},
+    );
+    var url = '';
+    for (final k in [
+      'foto',
+      'imagen',
+      'avatar',
+      'photo',
+      'fotografia',
+      'foto_perfil',
+      'imagen_perfil',
+      'picture',
+      'img'
+    ]) {
+      final raw = (fila[k] ?? '').toString().trim();
+      if (raw.isNotEmpty && !isNoPhotoValue(raw)) {
+        url = raw.startsWith('http')
+            ? raw
+            : 'https://www.jorgemario.co/ext/saf/img/icons/$raw';
+        break;
+      }
+    }
+    if (url.isEmpty) return fallback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.32),
+      child: Image.network(
+        url,
+        width: size,
+        height: size,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
+      ),
+    );
   }
 
   String creditAdvisorCode(String sigla) {
@@ -174,7 +270,11 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
         'img'
       ]) {
         final raw = (src[k] ?? '').toString().trim();
-        if (raw.isNotEmpty && raw != 'null') {
+        // Las cuentas sin foto propia a veces guardan "0" (valor por
+        // defecto de la columna) o el isotipo de SAF como placeholder
+        // genérico, en vez de vacío/null — sin este filtro se arma una URL
+        // que "carga" pero no es una foto real, en lugar de caer a iniciales.
+        if (raw.isNotEmpty && !isNoPhotoValue(raw)) {
           final bust = photoCacheBust != null ? '?v=$photoCacheBust' : '';
           if (raw.startsWith('http')) return '$raw$bust';
           return 'https://www.jorgemario.co/ext/saf/img/icons/$raw$bust';
@@ -393,62 +493,62 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                           offset: Offset(0, 12 * (1 - t)), child: child),
                     ),
                     child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
-                    child: Row(children: [
-                      Expanded(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: cardBg,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: homeAccent.withValues(alpha: 0.08),
-                                blurRadius: 16,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                            border: Border.all(color: lineCol),
-                          ),
-                          child: TextField(
-                            onChanged: (v) => setS(() => query = v.trim()),
-                            style: TextStyle(color: textMain, fontSize: 14),
-                            decoration: InputDecoration(
-                              hintText: 'Buscar usuario, perfil o estado',
-                              hintStyle: const TextStyle(
-                                  color: Color(0xFFB0BBCC), fontSize: 13),
-                              prefixIcon: Container(
-                                margin: const EdgeInsets.all(10),
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF4361EE),
-                                      Color(0xFF00D2FF)
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(10),
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+                      child: Row(children: [
+                        Expanded(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: homeAccent.withValues(alpha: 0.08),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 4),
                                 ),
-                                child: const Icon(Icons.search_rounded,
-                                    color: Colors.white, size: 17),
+                              ],
+                              border: Border.all(color: lineCol),
+                            ),
+                            child: TextField(
+                              onChanged: (v) => setS(() => query = v.trim()),
+                              style: TextStyle(color: textMain, fontSize: 14),
+                              decoration: InputDecoration(
+                                hintText: 'Buscar usuario, perfil o estado',
+                                hintStyle: const TextStyle(
+                                    color: Color(0xFFB0BBCC), fontSize: 13),
+                                prefixIcon: Container(
+                                  margin: const EdgeInsets.all(10),
+                                  width: 34,
+                                  height: 34,
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [
+                                        Color(0xFF4361EE),
+                                        Color(0xFF00D2FF)
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Icon(Icons.search_rounded,
+                                      color: Colors.white, size: 17),
+                                ),
+                                suffixIcon: query.isNotEmpty
+                                    ? GestureDetector(
+                                        onTap: () => setS(() => query = ''),
+                                        child: Icon(Icons.close_rounded,
+                                            color: textSoft, size: 18),
+                                      )
+                                    : null,
+                                border: InputBorder.none,
+                                contentPadding:
+                                    const EdgeInsets.symmetric(vertical: 14),
                               ),
-                              suffixIcon: query.isNotEmpty
-                                  ? GestureDetector(
-                                      onTap: () => setS(() => query = ''),
-                                      child: Icon(Icons.close_rounded,
-                                          color: textSoft, size: 18),
-                                    )
-                                  : null,
-                              border: InputBorder.none,
-                              contentPadding:
-                                  const EdgeInsets.symmetric(vertical: 14),
                             ),
                           ),
                         ),
-                      ),
-                    ]),
+                      ]),
                     ),
                   ),
                   // ── RESULTS COUNT ────────────────────────────────
@@ -461,32 +561,32 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                       builder: (_, t, child) =>
                           Opacity(opacity: t.clamp(0.0, 1.0), child: child),
                       child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-                      child: Row(children: [
-                        Container(
-                          width: 4,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF4361EE), Color(0xFF00D2FF)],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                        child: Row(children: [
+                          Container(
+                            width: 4,
+                            height: 14,
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF4361EE), Color(0xFF00D2FF)],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                              borderRadius: BorderRadius.circular(2),
                             ),
-                            borderRadius: BorderRadius.circular(2),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          query.isEmpty
-                              ? '${usuarios.length} usuarios registrados'
-                              : '${filtrados.length} de ${usuarios.length} resultados',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: textSoft,
-                            fontWeight: FontWeight.w600,
+                          const SizedBox(width: 8),
+                          Text(
+                            query.isEmpty
+                                ? '${usuarios.length} usuarios registrados'
+                                : '${filtrados.length} de ${usuarios.length} resultados',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: textSoft,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ]),
+                        ]),
                       ),
                     ),
                   // ── LIST ─────────────────────────────────────────
@@ -689,11 +789,12 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
               const SizedBox(height: 12),
               // ── Stats row ─────────────────────────────────────
               Row(children: [
-                _userStatChip(Icons.people_alt_rounded, totalUsers,
-                    'Total', const Color(0xFF60A5FA), index: 0),
+                _userStatChip(Icons.people_alt_rounded, totalUsers, 'Total',
+                    const Color(0xFF60A5FA),
+                    index: 0),
                 const SizedBox(width: 8),
-                _userStatChip(Icons.check_circle_outline_rounded,
-                    activeUsers, 'Activos', const Color(0xFF34D399),
+                _userStatChip(Icons.check_circle_outline_rounded, activeUsers,
+                    'Activos', const Color(0xFF34D399),
                     index: 1),
                 const SizedBox(width: 8),
                 _userStatChip(
@@ -710,8 +811,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
     );
   }
 
-  Widget _userStatChip(
-          IconData icon, int value, String label, Color color,
+  Widget _userStatChip(IconData icon, int value, String label, Color color,
           {int index = 0}) =>
       Expanded(
         child: TweenAnimationBuilder<double>(
@@ -830,8 +930,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
     );
   }
 
-  Widget _usersErrorState(String error, VoidCallback onRetry) =>
-      _stateEntrance(
+  Widget _usersErrorState(String error, VoidCallback onRetry) => _stateEntrance(
         Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
@@ -914,9 +1013,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
               Text(
                 isSearch ? 'Sin resultados' : 'Sin usuarios',
                 style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: textMain),
+                    fontSize: 15, fontWeight: FontWeight.w800, color: textMain),
               ),
               const SizedBox(height: 6),
               Text(
@@ -1952,6 +2049,33 @@ class _AdminUserTileState extends State<_AdminUserTile>
     return email.isNotEmpty ? email[0].toUpperCase() : '?';
   }
 
+  // El listado admin (gestion_usuarios.php) trae la foto real del perfil
+  // ligado (asesor/deudor) bajo distintos nombres de columna según la
+  // consulta guardada en tbl_conf_consultas — se prueban las mismas claves
+  // que ya usa photoUrl para el perfil propio. "0" es el valor por defecto
+  // cuando nunca se subió foto, así que se trata igual que vacío.
+  String _photoUrlFor(Map<String, dynamic> user) {
+    for (final k in [
+      'foto',
+      'imagen',
+      'avatar',
+      'photo',
+      'fotografia',
+      'foto_perfil',
+      'imagen_perfil',
+      'picture',
+      'img'
+    ]) {
+      final raw = (user[k] ?? '').toString().trim();
+      if (raw.isNotEmpty && !isNoPhotoValue(raw)) {
+        return raw.startsWith('http')
+            ? raw
+            : 'https://www.jorgemario.co/ext/saf/img/icons/$raw';
+      }
+    }
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = widget.user;
@@ -1966,6 +2090,7 @@ class _AdminUserTileState extends State<_AdminUserTile>
         estadoRaw.toLowerCase() == 'activo' ||
         estadoRaw.toLowerCase() == 'true';
     final initials = _initials(email);
+    final photoUrl = _photoUrlFor(user);
 
     const activeGrad = LinearGradient(
       colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A), Color(0xFF3B82F6)],
@@ -2025,24 +2150,34 @@ class _AdminUserTileState extends State<_AdminUserTile>
                   ClipRRect(
                     borderRadius: BorderRadius.circular(13),
                     child: Stack(children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          gradient: activo ? activeGrad : inactiveGrad,
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          initials,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.5,
+                      Builder(builder: (_) {
+                        final initialsBox = Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            gradient: activo ? activeGrad : inactiveGrad,
+                            borderRadius: BorderRadius.circular(13),
                           ),
-                        ),
-                      ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            initials,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        );
+                        if (photoUrl.isEmpty) return initialsBox;
+                        return Image.network(
+                          photoUrl,
+                          width: 46,
+                          height: 46,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => initialsBox,
+                        );
+                      }),
                       Positioned.fill(
                         child: AnimatedBuilder(
                           animation: _shimmer,

@@ -715,26 +715,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                           : lineCol),
                                 ),
                                 child: Row(children: [
-                                  Container(
-                                    width: 26,
-                                    height: 26,
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFFA78BFA),
-                                          Color(0xFF8B5CF6),
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: const Icon(
-                                        Icons.person_outline_rounded,
-                                        size: 13,
-                                        color: Colors.white),
-                                  ),
-                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<String>(
@@ -757,9 +737,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                         items: [
                                           DropdownMenuItem(
                                               value: null,
-                                              child: Text('Todos',
-                                                  style: TextStyle(
-                                                      color: textMain))),
+                                              child: Row(children: [
+                                                advisorAvatarMini('', size: 20),
+                                                const SizedBox(width: 8),
+                                                Expanded(
+                                                    child: Text('Todos',
+                                                        style: TextStyle(
+                                                            color: textMain))),
+                                              ])),
                                           ...advisors.map((a) {
                                             final sigla = (a['sigla'] ??
                                                     a['codigo_asesor'] ??
@@ -781,11 +766,18 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                                 : sigla;
                                             return DropdownMenuItem(
                                                 value: sigla,
-                                                child: Text(display,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                        color: textMain)));
+                                                child: Row(children: [
+                                                  advisorAvatarMini(sigla,
+                                                      size: 20),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(
+                                                      child: Text(display,
+                                                          overflow: TextOverflow
+                                                              .ellipsis,
+                                                          style: TextStyle(
+                                                              color:
+                                                                  textMain))),
+                                                ]));
                                           }),
                                         ],
                                         onChanged: (v) async {
@@ -1450,14 +1442,39 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         ? 'dd/mm/aaaa'
         : '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
+    // Punto de color que identifica la fuente/cuenta — el mismo color que
+    // ya se usa en las barras de "Balance por Fuente" (tbl_cuentas.color),
+    // para que el filtro y el gráfico se lean como lo mismo.
+    Widget fuenteDot(Color color) => Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+        );
+
     // Fuentes = cuentas registradas (igual que la web)
     final fuenteItems = <DropdownMenuItem<String>>[
-      const DropdownMenuItem(value: '0', child: Text('Todas las fuentes')),
+      DropdownMenuItem(
+        value: '0',
+        child: Row(children: [
+          fuenteDot(textSoft.withValues(alpha: 0.45)),
+          const SizedBox(width: 8),
+          const Expanded(child: Text('Todas las fuentes')),
+        ]),
+      ),
       ...accounts.map((c) {
         final label = (c['nombre'] ?? '').toString();
         final codigo = (c['codigo'] ?? '0').toString();
+        final color = parseHexColor(c['color']?.toString().isNotEmpty == true
+            ? c['color'].toString()
+            : '94A3B8');
         return DropdownMenuItem(
-            value: codigo, child: Text(label, overflow: TextOverflow.ellipsis));
+          value: codigo,
+          child: Row(children: [
+            fuenteDot(color),
+            const SizedBox(width: 8),
+            Expanded(child: Text(label, overflow: TextOverflow.ellipsis)),
+          ]),
+        );
       }),
     ];
 
@@ -1653,18 +1670,57 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // Estado
             DropdownButtonFormField<String>(
-              initialValue:
-                  sourceStatisticsStatus.isEmpty ? '' : sourceStatisticsStatus,
+              // El valor puede haber quedado guardado de una sesión previa
+              // con una opción que ya no existe (p.ej. el antiguo '3' de
+              // "Pendientes") — sin este resguardo, Flutter lanza una
+              // excepción de valor no encontrado que deja la pantalla en
+              // blanco con un loop infinito de errores de layout.
+              initialValue: const {'', '1', '2', 'atrasado'}
+                      .contains(sourceStatisticsStatus)
+                  ? sourceStatisticsStatus
+                  : '',
               decoration: fieldDeco('Estado', Icons.filter_list_rounded),
               dropdownColor: dialogBg,
+              isExpanded: true,
               icon: Icon(Icons.keyboard_arrow_down_rounded,
                   size: 18, color: hintCol),
               style: TextStyle(fontSize: 13, color: textMain),
-              items: const [
-                DropdownMenuItem(value: '', child: Text('Todos')),
-                DropdownMenuItem(value: '1', child: Text('Activos')),
-                DropdownMenuItem(value: '2', child: Text('Pagados')),
-                DropdownMenuItem(value: '3', child: Text('Pendientes')),
+              items: [
+                DropdownMenuItem(
+                  value: '',
+                  child: Row(children: [
+                    fuenteDot(textSoft.withValues(alpha: 0.45)),
+                    const SizedBox(width: 8),
+                    const Expanded(child: Text('Todos')),
+                  ]),
+                ),
+                DropdownMenuItem(
+                  value: '1',
+                  child: Row(children: [
+                    fuenteDot(const Color(0xFF16A34A)),
+                    const SizedBox(width: 8),
+                    const Expanded(child: Text('Activos')),
+                  ]),
+                ),
+                DropdownMenuItem(
+                  value: '2',
+                  child: Row(children: [
+                    fuenteDot(const Color(0xFF3B82F6)),
+                    const SizedBox(width: 8),
+                    const Expanded(child: Text('Pagados')),
+                  ]),
+                ),
+                // "Atrasado" no es un codigo_estado del servidor: es un
+                // crédito Activo cuya próxima cuota ya venció (igual que
+                // el filtro "Atrasados" del listado de Créditos).
+                DropdownMenuItem(
+                  value: 'atrasado',
+                  child: Row(children: [
+                    fuenteDot(const Color(0xFFDC2626)),
+                    const SizedBox(width: 8),
+                    const Expanded(child: Text('Atrasados')),
+                  ]),
+                ),
               ],
               onChanged: (v) {
                 refresh(() => sourceStatisticsStatus = v ?? '');
@@ -1710,6 +1766,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               initialValue: sourceStatisticsAccount,
               decoration: fieldDeco('Fuente', Icons.account_balance_outlined),
               dropdownColor: dialogBg,
+              // Los items ahora llevan un punto de color + Expanded(Text) —
+              // sin isExpanded:true, Flutter mide el ancho intrínseco sin
+              // acotar y el Expanded revienta con un error de layout en
+              // cascada (RenderBox was not laid out) que deja la pantalla
+              // en blanco con un loop infinito de excepciones.
+              isExpanded: true,
               icon: Icon(Icons.keyboard_arrow_down_rounded,
                   size: 18, color: hintCol),
               style: TextStyle(fontSize: 13, color: textMain),
@@ -1790,7 +1852,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         else ...[
           _barChartSection(
             title: 'Salidas por fuente (Créditos otorgados)',
-            barColor: const Color(0xFF3B3B8A),
+            barColor: const Color(0xFFDC2626),
             data: creditStatistics,
             labelFn: labelOf,
             valueFn: salidasOf,
@@ -4000,7 +4062,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 width: 74,
                 height: 19,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14 + 0.08 * shimmer.value),
+                  color: Colors.white
+                      .withValues(alpha: 0.14 + 0.08 * shimmer.value),
                   borderRadius: BorderRadius.circular(6),
                 ),
               ),

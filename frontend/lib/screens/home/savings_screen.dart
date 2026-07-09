@@ -1739,6 +1739,17 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
     // créditos/movimientos también terminen de cargar para pintar algo.
     if (loadingData && savers.isEmpty) return _savingsSkeleton();
 
+    // `advisors` trae la foto real de tbl_asesores para el filtro de abajo;
+    // normalmente ya está cargada desde el arranque, pero si esta pestaña se
+    // abre antes de que termine, la pide sin bloquear el resto de la UI.
+    if (advisors.isEmpty && !advisorsFetchInFlight) {
+      advisorsFetchInFlight = true;
+      fetchAdvisors().whenComplete(() {
+        advisorsFetchInFlight = false;
+        if (isMounted) refresh(() {});
+      });
+    }
+
     final navy = textMain;
 
     // Años disponibles: solo 2025 y año actual
@@ -2033,8 +2044,14 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                 items: asesores
                     .map((s) => DropdownMenuItem(
                           value: s,
-                          child: Text(s == '0' ? 'Todos' : advisorName(s),
-                              overflow: TextOverflow.ellipsis),
+                          child: Row(children: [
+                            advisorAvatarMini(s),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(s == '0' ? 'Todos' : advisorName(s),
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                          ]),
                         ))
                     .toList(),
                 onChanged: (v) {
