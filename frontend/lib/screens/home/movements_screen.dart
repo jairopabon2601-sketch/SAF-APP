@@ -53,7 +53,13 @@ class _MovementDayGroup {
 
 extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   Widget buildMovementsScreen() {
-    if (loadingData) return _movementsSkeleton();
+    // Esta pestaña solo necesita cuentas + movimientos. Antes esperaba a
+    // que loadData() completara cada sección (ahorradores, créditos, etc.)
+    // antes de pintar algo; ahora, en cuanto cuentas/movimientos llegan (de
+    // caché o de red) se muestran, sin esperar al resto de datos no relacionados.
+    if (loadingData && accounts.isEmpty && movements.isEmpty) {
+      return _movementsSkeleton();
+    }
 
     final filtrados = filteredMovements;
     final activeAccounts =
@@ -390,31 +396,39 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               offset: Offset(0, 28 * (1 - t)),
               child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
             ),
-            child: Container(
-              margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-              clipBehavior: Clip.hardEdge,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF060D26),
-                    Color(0xFF0D1B4B),
-                    Color(0xFF163B8C),
+            child: AnimatedBuilder(
+              animation: shimmer,
+              builder: (_, heroChild) => Container(
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                clipBehavior: Clip.hardEdge,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF060D26),
+                      Color(0xFF0D1B4B),
+                      Color(0xFF163B8C),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                      color: const Color(0xFF6366F1)
+                          .withValues(alpha: 0.30 + 0.16 * shimmer.value)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: const Color(0xFF1E40AF)
+                            .withValues(alpha: 0.45 + 0.16 * shimmer.value),
+                        blurRadius: 28 + 10 * shimmer.value,
+                        spreadRadius: -4,
+                        offset: const Offset(0, 14)),
+                    BoxShadow(
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.18),
+                        blurRadius: 48,
+                        offset: const Offset(0, 6)),
                   ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                      color: const Color(0xFF1E40AF).withValues(alpha: 0.55),
-                      blurRadius: 32,
-                      spreadRadius: -4,
-                      offset: const Offset(0, 14)),
-                  BoxShadow(
-                      color: const Color(0xFF6366F1).withValues(alpha: 0.18),
-                      blurRadius: 48,
-                      offset: const Offset(0, 6)),
-                ],
+                child: heroChild,
               ),
               child: Stack(children: [
                 // Orb top-right
@@ -896,7 +910,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               opacity: t.clamp(0.0, 1.0),
               child: Transform.translate(
                 offset: Offset(0, 14 * (1 - t)),
-                child: child,
+                child: RepaintBoundary(child: child),
               ),
             ),
             child: Container(
@@ -5041,7 +5055,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         opacity: v.clamp(0.0, 1.0),
         child: Transform.translate(
           offset: Offset(0, 16 * (1 - v)),
-          child: child,
+          child: RepaintBoundary(child: child),
         ),
       ),
       child: GestureDetector(

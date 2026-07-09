@@ -220,8 +220,8 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
         );
       }
       if (d['resultado'] != 1) {
-        final mensaje = (d['mensaje'] ?? 'No se pudo actualizar la foto')
-            .toString();
+        final mensaje =
+            (d['mensaje'] ?? 'No se pudo actualizar la foto').toString();
         debugPrint('[SAF] uploadPhoto: $mensaje');
         return (filename: null, error: mensaje);
       }
@@ -305,17 +305,19 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
       });
       try {
         final data = await _fetchUsuariosAdmin(forceRefresh: true);
-        if (ctx.mounted)
+        if (ctx.mounted) {
           setS(() {
             usuarios = data;
             loading = false;
           });
+        }
       } catch (e) {
-        if (ctx.mounted)
+        if (ctx.mounted) {
           setS(() {
             error = e.toString().replaceFirst('Exception: ', '');
             loading = false;
           });
+        }
       }
     }
 
@@ -326,17 +328,19 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
           if (!started) {
             started = true;
             _fetchUsuariosAdmin().then<void>((data) {
-              if (ctx.mounted)
+              if (ctx.mounted) {
                 setS(() {
                   usuarios = data;
                   loading = false;
                 });
+              }
             }).catchError((Object e) {
-              if (ctx.mounted)
+              if (ctx.mounted) {
                 setS(() {
                   error = e.toString().replaceFirst('Exception: ', '');
                   loading = false;
                 });
+              }
             });
           }
 
@@ -480,8 +484,9 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                                       onEdit: () async {
                                         final saved =
                                             await _showUserForm(filtrados[i]);
-                                        if (saved && ctx.mounted)
+                                        if (saved && ctx.mounted) {
                                           await reload(setS, ctx);
+                                        }
                                       },
                                     ),
                                   ),
@@ -955,8 +960,9 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                 if (editing) {
                   final resp = await _usuariosRequest(
                       {'accion': 'detalle', 'codigo_usuario': codigoUsuario});
-                  if (resp['datos'] is Map)
+                  if (resp['datos'] is Map) {
                     detail = Map<String, dynamic>.from(resp['datos'] as Map);
+                  }
                 }
 
                 final initEmail = (detail['usuario'] ??
@@ -987,11 +993,12 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                   });
                 }
               } catch (e) {
-                if (ctx.mounted)
+                if (ctx.mounted) {
                   setS(() {
                     loadError = e.toString().replaceFirst('Exception: ', '');
                     loadingData = false;
                   });
+                }
               }
             });
           }
@@ -1307,10 +1314,11 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                             );
                           }),
                         );
-                        if (picked != null)
+                        if (picked != null) {
                           setS(() {
                             origen = (picked['codigo'] ?? '').toString();
                           });
+                        }
                       },
                 child: Container(
                   padding:
@@ -1648,11 +1656,12 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                                   if (selected.isEmpty) return;
                                   try {
                                     final result = await loadOrigins(selected);
-                                    if (ctx.mounted)
+                                    if (ctx.mounted) {
                                       setS(() {
                                         origenes = result;
                                         loadingOrigenes = false;
                                       });
+                                    }
                                   } catch (e) {
                                     if (ctx.mounted) {
                                       setS(() => loadingOrigenes = false);
@@ -1702,16 +1711,18 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                                           'codigo_tipo_usuario': tipo,
                                           'codigo_origen': origen,
                                         });
-                                        if (ctx.mounted)
+                                        if (ctx.mounted) {
                                           Navigator.pop(ctx, true);
+                                        }
                                         showResult(
                                             true,
                                             editing
                                                 ? 'Usuario actualizado exitosamente'
                                                 : 'Usuario registrado exitosamente');
                                       } catch (e) {
-                                        if (ctx.mounted)
+                                        if (ctx.mounted) {
                                           setS(() => saving = false);
+                                        }
                                         showResult(false, friendlyError(e));
                                       }
                                     },
@@ -1866,8 +1877,9 @@ class _AdminUserTileState extends State<_AdminUserTile>
     final parts =
         local.split(RegExp(r'[._\-0-9]+')).where((p) => p.isNotEmpty).toList();
     if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-    if (parts.isNotEmpty && parts[0].length >= 2)
+    if (parts.isNotEmpty && parts[0].length >= 2) {
       return parts[0].substring(0, 2).toUpperCase();
+    }
     return email.isNotEmpty ? email[0].toUpperCase() : '?';
   }
 

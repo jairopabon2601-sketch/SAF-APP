@@ -85,6 +85,7 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
   List<int> allowedScreenIndices = [0, 1, 2, 3];
   bool menuOptionsLoaded = false;
   bool creditsDataLoaded = false; // true cuando creditsPaidTotal/Pending están listos
+  bool advisorsFetchInFlight = false; // evita relanzar fetchAdvisors() en cada rebuild
 
   /// Convierte índice de tab visible → índice de pantalla real.
   int screenIndexAt(int displayIndex) {

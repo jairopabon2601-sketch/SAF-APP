@@ -311,6 +311,96 @@ Widget appCancelButton(String label, VoidCallback? onTap,
       ),
     );
 
+/// Header estándar para los diálogos de formulario (Nuevo Movimiento,
+/// Transferir, Configurar Ahorro, Crear Ahorrador, etc.): gradiente de 3
+/// paradas, ícono en caja con borde/glow, título+subtítulo y botón de
+/// cerrar. Unifica el estilo — antes cada diálogo definía su propio header
+/// con distinto número de paradas de color y sin borde/sombra en el ícono.
+Widget appDialogHeader({
+  required IconData icon,
+  required String title,
+  required String subtitle,
+  required List<Color> gradientColors,
+  VoidCallback? onClose,
+}) {
+  final grad = gradientColors.length >= 3
+      ? gradientColors
+      : [
+          gradientColors.first,
+          Color.lerp(gradientColors.first, gradientColors.last, 0.5)!,
+          gradientColors.last,
+        ];
+  return ClipRRect(
+    borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+    child: Stack(children: [
+      Container(
+        padding: const EdgeInsets.fromLTRB(20, 18, 16, 18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: grad,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Row(children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    blurRadius: 10),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.70),
+                        fontSize: 11)),
+              ],
+            ),
+          ),
+          appCloseX(onClose),
+        ]),
+      ),
+      // Orbe decorativo — mismo lenguaje visual que el resto de la app
+      Positioned(
+        right: -18,
+        top: -18,
+        child: IgnorePointer(
+          child: Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(colors: [
+                Colors.white.withValues(alpha: 0.14),
+                Colors.transparent,
+              ]),
+            ),
+          ),
+        ),
+      ),
+    ]),
+  );
+}
+
 IconData accountIcon(String accountType) {
   final normalized = accountType.toLowerCase();
   if (normalized.contains('efectivo') || normalized.contains('caja')) {

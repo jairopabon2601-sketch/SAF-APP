@@ -25,7 +25,9 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       return;
     }
     try {
-      final r = await repository.post('/ajax/cargar_opciones.php', {});
+      final r = await repository
+          .post('/ajax/cargar_opciones.php', {})
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         if (d['resultado'] == 1 && d['opciones'] is List) {
@@ -138,6 +140,15 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     final hasCachedData = cachedCuentas != null;
     if (hasCachedData && isMounted) refresh(() => loadingData = false);
 
+    // Movimientos aparte, sin esperar: una cuenta con mucho historial puede
+    // tener decenas de páginas (15s cada una, en serie) y por sí sola agotar
+    // el timeout de 30s de abajo — eso abortaba el bloque completo antes de
+    // llegar a fetchRates/fetchSources/fetchAdvisors, dejando esos datos sin
+    // cargar en toda la sesión. La tab de Movimientos y "Actividad reciente"
+    // ya condicionan su propio skeleton a que `movements` llegue, así que no
+    // hace falta bloquear el resto del arranque por esto.
+    unawaited(_fetchMovimientosTodasCuentas(codigoUsuario));
+
     // Fetch fresh data from network. fetchAccounts corre junto al resto:
     // nada aquí depende realmente de que las cuentas terminen primero
     // (el endpoint global de movimientos no las necesita), así que
@@ -147,7 +158,6 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     try {
       await Future.wait([
         fetchAccounts(codigoUsuario),
-        _fetchMovimientosTodasCuentas(codigoUsuario),
         fetchSavers(anio),
         fetchCredits(codigoUsuario),
         _fetchTotalesResumen(codigoUsuario),
@@ -184,7 +194,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   Future<void> fetchAccounts(String filtro) async {
     try {
       final r = await repository
-          .cachedPost('/ajax/listar_cuentas_gasto.php', {'filtro': filtro});
+          .cachedPost('/ajax/listar_cuentas_gasto.php', {'filtro': filtro})
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = jsonDecode(r.body);
         List<dynamic>? list;
@@ -247,7 +258,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           totalPaginas =
               int.tryParse(d['total_paginas']?.toString() ?? '1') ?? 1;
           pagina++;
-        } while (pagina <= totalPaginas);
+          // Tope de seguridad: sin esto, un total_paginas mal reportado por
+          // el servidor dejaría este bucle corriendo indefinidamente en
+          // segundo plano (ahora que ya no lo cubre el timeout de loadData).
+        } while (pagina <= totalPaginas && pagina <= 100);
 
         if (globalOk) {
           movements = globalAll;
@@ -345,7 +359,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           raw.whereType<Map>().map((e) => Map<String, dynamic>.from(e)));
       totalPaginas = int.tryParse(d['total_paginas']?.toString() ?? '1') ?? 1;
       pagina++;
-    } while (pagina <= totalPaginas);
+    } while (pagina <= totalPaginas && pagina <= 100);
 
     if (resultado.isNotEmpty) {
       debugPrint('[SAF] mov cuenta $codigoCuenta sample: ${resultado.first}');
@@ -456,11 +470,13 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       if (cod.isNotEmpty) filtro += ' and m.codigo_cuenta="$cod"';
     }
     try {
-      final r = await repository.post('/ajax/listado_json_campos.php', {
+      final r = await repository
+          .post('/ajax/listado_json_campos.php', {
         'codigo_consulta': 'json_total_gastos_ingresos',
         'filtro': filtro,
         'agrupacion': '',
-      });
+      })
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         if (d['resultado'] == 1 &&
@@ -551,11 +567,13 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     }
 
     try {
-      final r = await repository.post('/ajax/listado_json_campos.php', {
+      final r = await repository
+          .post('/ajax/listado_json_campos.php', {
         'codigo_consulta': 'json_total_creditos_valores',
         'filtro': condiciones.join(' AND '),
         'agrupacion': '',
-      });
+      })
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         if (d['resultado'] == 1 &&
@@ -596,7 +614,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           DateTime.now().toUtc().subtract(const Duration(hours: 5));
       final today =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final r = await repository.cachedPost('/ajax/listado_ahorros.php', {
+      final r = await repository
+          .cachedPost('/ajax/listado_ahorros.php', {
         'anio_ahorro': anio ?? savingsYearFilter,
         // La pantalla filtra por sigla localmente. Para no reemplazar la
         // colección completa con un solo asesor, las recargas normales traen
@@ -604,7 +623,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         'filtro_asesor': isAsesor
             ? codigoOrigen
             : (asesor == null ? '0' : creditAdvisorCode(asesor)),
-      });
+      })
+          .timeout(const Duration(seconds: 10));
       final loadedSavers = <Map<String, dynamic>>[];
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
@@ -619,15 +639,16 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
       // listado_ahorros.php solo incluye personas con un ahorro asociado.
       // Fusionamos el catálogo para mostrar también los recién registrados.
-      final catalogResponse =
-          await repository.cachedPost('/ajax/listado_select.php', {
+      final catalogResponse = await repository
+          .cachedPost('/ajax/listado_select.php', {
         'tabla': 'tbl_ahorradores',
         'valor': 'codigo',
         'etiqueta':
             'concat(nombres,CHAR(124),apellidos,CHAR(124),codigo_asesor)',
         'filtro': '1',
         'campos_orden': 'nombres,apellidos',
-      });
+      })
+          .timeout(const Duration(seconds: 10));
       if (catalogResponse.statusCode == 200) {
         final rawCatalog = jsonDecode(catalogResponse.body);
         if (rawCatalog is List) {
@@ -723,7 +744,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
     // Lista de créditos — endpoint dedicado con JSON + paginación
     try {
-      final r = await repository.post('/ajax/get_creditos_lista.php', {
+      final r = await repository
+          .post('/ajax/get_creditos_lista.php', {
         'estado': estadoSeleccionado,
         // La web conserva la sigla (JP, VB, etc.), mientras este endpoint
         // dedicado filtra por codigo_asesor numérico.
@@ -731,7 +753,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         'pagina': creditsPage.toString(),
         'por_pagina': creditsPageSize.toString(),
         if (creditsBuscar.isNotEmpty) 'buscar': creditsBuscar,
-      });
+      })
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final decoded = jsonDecode(r.body);
         if (decoded is Map && decoded['datos'] is List) {
@@ -757,9 +780,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
     // Estadística por fuente — endpoint dedicado con campos fijos
     try {
-      final r = await repository.cachedPost(
-          '/ajax/get_estadistica_fuente.php', {},
-          ttl: const Duration(minutes: 10));
+      final r = await repository
+          .cachedPost('/ajax/get_estadistica_fuente.php', {},
+              ttl: const Duration(minutes: 10))
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final decoded = jsonDecode(r.body);
         if (decoded is List && decoded.isNotEmpty) {
@@ -786,8 +810,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
     // Fallback 2: query original json_total_creditos_valores (campos variables pero nunca vacío)
     try {
-      final r = await repository.cachedPost('/ajax/listado_json_campos.php',
-          {'codigo_consulta': 'json_total_creditos_valores', 'filtro': filtro});
+      final r = await repository
+          .cachedPost('/ajax/listado_json_campos.php',
+              {'codigo_consulta': 'json_total_creditos_valores', 'filtro': filtro})
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         final list = d['datos'];
@@ -903,9 +929,11 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       statisticsData = [];
     });
     try {
-      final r = await repository.cachedPost('/ajax/listado_json_campos.php',
-          {'codigo_consulta': codigo, 'filtro': '', 'agrupacion': ''},
-          ttl: const Duration(minutes: 10));
+      final r = await repository
+          .cachedPost('/ajax/listado_json_campos.php',
+              {'codigo_consulta': codigo, 'filtro': '', 'agrupacion': ''},
+              ttl: const Duration(minutes: 10))
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         final list = d['datos'] ?? d['resultado_datos'] ?? d['data'];
@@ -1085,9 +1113,11 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> fetchRates() async {
     try {
-      final r = await repository.cachedPost('/ajax/listado_json_campos.php',
-          {'codigo_consulta': 'json_tasas', 'filtro': '', 'agrupacion': ''},
-          ttl: const Duration(hours: 1));
+      final r = await repository
+          .cachedPost('/ajax/listado_json_campos.php',
+              {'codigo_consulta': 'json_tasas', 'filtro': '', 'agrupacion': ''},
+              ttl: const Duration(hours: 1))
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         final list = d['datos'] ?? d['data'] ?? d['tasas'];
@@ -1105,9 +1135,11 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> fetchSources() async {
     try {
-      final r = await repository.cachedPost('/ajax/listado_json_campos.php',
-          {'codigo_consulta': 'json_fuentes', 'filtro': '', 'agrupacion': ''},
-          ttl: const Duration(hours: 1));
+      final r = await repository
+          .cachedPost('/ajax/listado_json_campos.php',
+              {'codigo_consulta': 'json_fuentes', 'filtro': '', 'agrupacion': ''},
+              ttl: const Duration(hours: 1))
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         List? list;
         try {
@@ -1234,8 +1266,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> fetchAdvisors() async {
     try {
-      final r = await repository.cachedPost('/ajax/get_asesores.php', {},
-          ttl: const Duration(hours: 1));
+      final r = await repository
+          .cachedPost('/ajax/get_asesores.php', {},
+              ttl: const Duration(hours: 1))
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final decoded = jsonDecode(r.body);
         if (decoded is List && decoded.isNotEmpty) {

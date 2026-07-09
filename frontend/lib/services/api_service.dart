@@ -198,6 +198,13 @@ class ApiService {
     }
   }
 
+  // Sin esto, una petición colgada (hosting compartido lento, red caída a
+  // medias) esperaba al timeout por defecto del socket — mucho más largo
+  // que lo que cualquier pantalla está dispuesta a esperar — antes de que
+  // los `.timeout()` de más arriba en la pila pudieran actuar. Con este
+  // límite, toda petición falla rápido y el fallback/caché entra a jugar.
+  static const Duration _requestTimeout = Duration(seconds: 15);
+
   Future<http.Response> post(String endpoint, Map<String, dynamic> body) async {
     final uri = Uri.parse('$_baseUrl$endpoint');
     final headers = <String, String>{
@@ -206,11 +213,13 @@ class ApiService {
     };
     if (_token != null) headers['Authorization'] = 'Bearer $_token';
     if (_sessionCookie != null) headers['Cookie'] = _sessionCookie!;
-    return http.post(
-      uri,
-      headers: headers,
-      body: body.map((k, v) => MapEntry(k, v.toString())),
-    );
+    return http
+        .post(
+          uri,
+          headers: headers,
+          body: body.map((k, v) => MapEntry(k, v.toString())),
+        )
+        .timeout(_requestTimeout);
   }
 
   Future<http.Response> get(String endpoint) async {
@@ -218,7 +227,7 @@ class ApiService {
     final headers = <String, String>{'Accept': 'application/json'};
     if (_token != null) headers['Authorization'] = 'Bearer $_token';
     if (_sessionCookie != null) headers['Cookie'] = _sessionCookie!;
-    return http.get(uri, headers: headers);
+    return http.get(uri, headers: headers).timeout(_requestTimeout);
   }
 
   Map<String, dynamic> _parseResponse(http.Response response) {

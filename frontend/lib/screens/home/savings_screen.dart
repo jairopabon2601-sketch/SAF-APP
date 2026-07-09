@@ -46,49 +46,16 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Header
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(20)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.settings_rounded,
-                              color: Colors.white, size: 22),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Configurar Ahorro',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w800)),
-                              Text('Nuevo período de ahorro',
-                                  style: TextStyle(
-                                      color: Colors.white70, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        appCloseX(saving ? null : () => Navigator.pop(ctx)),
-                      ],
-                    ),
+                  appDialogHeader(
+                    icon: Icons.settings_rounded,
+                    title: 'Configurar Ahorro',
+                    subtitle: 'Nuevo período de ahorro',
+                    gradientColors: const [
+                      Color(0xFF0D1B4B),
+                      Color(0xFF1E3A8A),
+                      Color(0xFF4361EE),
+                    ],
+                    onClose: saving ? null : () => Navigator.pop(ctx),
                   ),
 
                   // Campos
@@ -546,50 +513,16 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // ── Header ───────────────────────────────────────
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(20)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.savings_rounded,
-                              color: Colors.white, size: 22),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Crear Ahorro',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  )),
-                              Text('Registrar nuevo ahorro',
-                                  style: TextStyle(
-                                      color: Colors.white70, fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        appCloseX(saving ? null : () => Navigator.pop(ctx)),
-                      ],
-                    ),
+                  appDialogHeader(
+                    icon: Icons.savings_rounded,
+                    title: 'Crear Ahorro',
+                    subtitle: 'Registrar nuevo ahorro',
+                    gradientColors: const [
+                      Color(0xFF0D1B4B),
+                      Color(0xFF1E3A8A),
+                      Color(0xFF4361EE),
+                    ],
+                    onClose: saving ? null : () => Navigator.pop(ctx),
                   ),
 
                   // ── Campos ───────────────────────────────────────
@@ -1220,52 +1153,16 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // ── Header gradiente ──────────────────────────────
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(20)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.person_add_rounded,
-                              color: Colors.white, size: 22),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Crear Ahorrador',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  )),
-                              Text('Registrar nuevo ahorrador',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 11,
-                                  )),
-                            ],
-                          ),
-                        ),
-                        appCloseX(saving ? null : () => Navigator.pop(ctx)),
-                      ],
-                    ),
+                  appDialogHeader(
+                    icon: Icons.person_add_rounded,
+                    title: 'Crear Ahorrador',
+                    subtitle: 'Registrar nuevo ahorrador',
+                    gradientColors: const [
+                      Color(0xFF0D1B4B),
+                      Color(0xFF1E3A8A),
+                      Color(0xFF4361EE),
+                    ],
+                    onClose: saving ? null : () => Navigator.pop(ctx),
                   ),
 
                   // ── Formulario ────────────────────────────────────
@@ -1827,7 +1724,9 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
   //  AHORRADORES TAB
   // ══════════════════════════════════════════════════════════════
   Widget buildSavingsScreen() {
-    if (loadingData) return _savingsSkeleton();
+    // Esta pestaña solo depende de ahorradores: no esperar a que
+    // créditos/movimientos también terminen de cargar para pintar algo.
+    if (loadingData && savers.isEmpty) return _savingsSkeleton();
 
     final navy = textMain;
 
@@ -2222,7 +2121,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                       opacity: v.clamp(0.0, 1.0),
                       child: Transform.translate(
                         offset: Offset(0, 24 * (1 - v.clamp(0.0, 1.0))),
-                        child: child,
+                        child: RepaintBoundary(child: child),
                       ),
                     ),
                     child: buildSaverCard(pagina[i]),
@@ -4631,7 +4530,7 @@ class _ExpandableSaverCardState extends State<ExpandableSaverCard>
                                   opacity: t.clamp(0.0, 1.0),
                                   child: Transform.translate(
                                     offset: Offset(0, 14 * (1 - t)),
-                                    child: child,
+                                    child: RepaintBoundary(child: child),
                                   ),
                                 ),
                                 child: _mesChip(a, meses[i]),

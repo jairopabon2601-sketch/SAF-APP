@@ -9,7 +9,11 @@ import 'savings_screen.dart';
 
 extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
   Widget buildCreditsScreen() {
-    if (loadingData) return _creditsSkeleton();
+    // No esperar a que ahorradores/movimientos terminen de cargar: esta
+    // pestaña solo depende de créditos y solicitudes pendientes.
+    if (loadingData && credits.isEmpty && pendingRequests.isEmpty) {
+      return _creditsSkeleton();
+    }
 
     // Totales globales (todos los registros del filtro, no solo la página actual)
     final totalPagado = creditsPaidTotal;
@@ -309,7 +313,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               opacity: entryT.clamp(0.0, 1.0),
               child: Transform.translate(
                 offset: Offset(0, 18 * (1 - entryT)),
-                child: entryChild,
+                child: RepaintBoundary(child: entryChild),
               ),
             ),
             child: AnimatedBuilder(
@@ -611,6 +615,19 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 },
               ),
               const SizedBox(height: 10),
+              if (isAdmin && advisors.isEmpty && !advisorsFetchInFlight)
+                Builder(builder: (_) {
+                  // El listado de asesores del filtro puede quedar vacío si
+                  // el fetch de bootstrap falló/expiró (servidor lento). Sin
+                  // este reintento, el dropdown se queda en "Todos" para
+                  // siempre hasta reiniciar la app.
+                  advisorsFetchInFlight = true;
+                  fetchAdvisors().whenComplete(() {
+                    advisorsFetchInFlight = false;
+                    if (isMounted) refresh(() {});
+                  });
+                  return const SizedBox.shrink();
+                }),
               Row(children: [
                 if (isAdmin)
                   Expanded(
@@ -3179,7 +3196,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         opacity: v.clamp(0.0, 1.0),
         child: Transform.translate(
           offset: Offset(0, 22 * (1 - v)),
-          child: child,
+          child: RepaintBoundary(child: child),
         ),
       ),
       child: GestureDetector(
@@ -3659,7 +3676,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                   _miniActionBtn(
                                       Icons.verified_outlined,
                                       'Paz y Salvo',
-                                      const Color(0xFF2563EB),
+                                      const Color(0xFF0D9488),
                                       () => _showPazYSalvoDialog(c)))),
                           const SizedBox(width: 6),
                           _staggerIn(
@@ -3910,7 +3927,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             scale: 0.85 + 0.15 * t,
             child: Transform.translate(
               offset: Offset(0, 10 * (1 - t)),
-              child: child,
+              child: RepaintBoundary(child: child),
             ),
           ),
         ),
@@ -4140,7 +4157,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         opacity: v.clamp(0.0, 1.0),
         child: Transform.translate(
           offset: Offset(0, 22 * (1 - v)),
-          child: child,
+          child: RepaintBoundary(child: child),
         ),
       ),
       child: GestureDetector(
@@ -4422,38 +4439,48 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               const SizedBox(height: 10),
                               Container(height: 1, color: cardBorder),
                               const SizedBox(height: 10),
-                              Row(
-                                  mainAxisAlignment: MainAxisAlignment.end,
+                              IntrinsicHeight(
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
+                                    if (tieneAsesor && !rechazado)
+                                      Expanded(
+                                        child: _miniActionBtn(
+                                            Icons.cancel_outlined,
+                                            'Rechazar',
+                                            const Color(0xFFDC2626),
+                                            () => _rechazarSolicitud(p)),
+                                      )
+                                    else if (rechazado)
+                                      Expanded(
+                                        child: _miniActionBtn(
+                                            Icons.check_circle_outline_rounded,
+                                            'Aprobar',
+                                            const Color(0xFF16A34A),
+                                            () => _aprobarSolicitud(p)),
+                                      )
+                                    else ...[
+                                      Expanded(
+                                        child: _miniActionBtn(
+                                            Icons.check_circle_outline_rounded,
+                                            'Aprobar',
+                                            const Color(0xFF16A34A),
+                                            () => _aprobarSolicitud(p)),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: _miniActionBtn(
+                                            Icons.cancel_outlined,
+                                            'Rechazar',
+                                            const Color(0xFFDC2626),
+                                            () => _rechazarSolicitud(p)),
+                                      ),
+                                    ],
+                                    const SizedBox(width: 8),
                                     _miniIconBtn(Icons.edit_rounded, homeNavy,
                                         () => _showEditarSolicitudDialog(p)),
-                                    const SizedBox(width: 8),
-                                    if (tieneAsesor && !rechazado)
-                                      _accionBtn(
-                                          Icons.cancel_outlined,
-                                          'Rechazar',
-                                          const Color(0xFFDC2626),
-                                          () => _rechazarSolicitud(p))
-                                    else if (rechazado)
-                                      _accionBtn(
-                                          Icons.check_circle_outline_rounded,
-                                          'Aprobar',
-                                          const Color(0xFF16A34A),
-                                          () => _aprobarSolicitud(p))
-                                    else ...[
-                                      _accionBtn(
-                                          Icons.check_circle_outline_rounded,
-                                          'Aprobar',
-                                          const Color(0xFF16A34A),
-                                          () => _aprobarSolicitud(p)),
-                                      const SizedBox(width: 8),
-                                      _accionBtn(
-                                          Icons.cancel_outlined,
-                                          'Rechazar',
-                                          const Color(0xFFDC2626),
-                                          () => _rechazarSolicitud(p)),
-                                    ],
                                   ]),
+                              ),
                             ]),
                         crossFadeState: expanded
                             ? CrossFadeState.showSecond
@@ -5184,40 +5211,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     }
   }
 
-  Widget _accionBtn(
-      IconData icon, String label, Color color, VoidCallback onTap) {
-    final colorDark = Color.lerp(color, Colors.black, 0.22) ?? color;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [color, colorDark],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-                color: colorDark.withValues(alpha: 0.45),
-                blurRadius: 10,
-                offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 13, color: Colors.white),
-          const SizedBox(width: 5),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white)),
-        ]),
-      ),
-    );
-  }
-
   Future<void> _showCuotasDialog(Map<String, dynamic> credito) async {
     final cod = credito['cod']?.toString() ?? '';
     final cliente = (credito['cliente'] ?? '').toString();
@@ -5856,18 +5849,25 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             ]),
           ),
           actions: [
-            appCancelButton('Cerrar', () => Navigator.pop(ctx)),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3B3B8A),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-              ),
-              onPressed: saving
-                  ? null
-                  : () async {
-                      final val = double.tryParse(valorCtrl.text.trim()) ?? 0;
+            Row(children: [
+              Expanded(
+                  child: appCancelButton('Cerrar', () => Navigator.pop(ctx))),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 42,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B3B8A),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            final val =
+                                double.tryParse(valorCtrl.text.trim()) ?? 0;
                       if (val <= 0) {
                         showResult(false,
                             'Ingresa el valor del pago antes de continuar');
@@ -5908,15 +5908,18 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           ok
                               ? 'Pago registrado correctamente'
                               : friendlyError(r.body));
-                    },
-              child: saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Text('Grabar'),
-            ),
+                          },
+                    child: saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('Grabar'),
+                  ),
+                ),
+              ),
+            ]),
           ],
         );
       }),
@@ -6072,52 +6075,63 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             ]),
           ),
           actions: [
-            appCancelButton('Cancelar', () => Navigator.pop(ctx)),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3B3B8A),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+            Row(children: [
+              Expanded(
+                  child: appCancelButton(
+                      'Cancelar', () => Navigator.pop(ctx))),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 42,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B3B8A),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            setS(() => saving = true);
+                            final r = await repository
+                                .post('/ajax/editar_cuota.php', {
+                              'codigo_cuota': codigoCuota,
+                              'valor_pago': valorCtrl.text.trim(),
+                              'fecha_pago': fechaStr(),
+                            });
+                            setS(() => saving = false);
+                            if (!ctx.mounted) return;
+                            bool ok = false;
+                            try {
+                              final d = jsonDecode(r.body);
+                              ok = r.statusCode == 200 &&
+                                  (d['resultado'] == 1 ||
+                                      d['resultado'] == '1');
+                            } catch (_) {
+                              ok = false;
+                            }
+                            if (ok) {
+                              Navigator.pop(ctx);
+                              onSaved();
+                            }
+                            showResult(
+                                ok,
+                                ok
+                                    ? 'Cuota actualizada correctamente'
+                                    : friendlyError(r.body));
+                          },
+                    child: saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('Guardar cambios'),
+                  ),
+                ),
               ),
-              onPressed: saving
-                  ? null
-                  : () async {
-                      setS(() => saving = true);
-                      final r =
-                          await repository.post('/ajax/editar_cuota.php', {
-                        'codigo_cuota': codigoCuota,
-                        'valor_pago': valorCtrl.text.trim(),
-                        'fecha_pago': fechaStr(),
-                      });
-                      setS(() => saving = false);
-                      if (!ctx.mounted) return;
-                      bool ok = false;
-                      try {
-                        final d = jsonDecode(r.body);
-                        ok = r.statusCode == 200 &&
-                            (d['resultado'] == 1 || d['resultado'] == '1');
-                      } catch (_) {
-                        ok = false;
-                      }
-                      if (ok) {
-                        Navigator.pop(ctx);
-                        onSaved();
-                      }
-                      showResult(
-                          ok,
-                          ok
-                              ? 'Cuota actualizada correctamente'
-                              : friendlyError(r.body));
-                    },
-              child: saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Text('Guardar cambios'),
-            ),
+            ]),
           ],
         );
       }),

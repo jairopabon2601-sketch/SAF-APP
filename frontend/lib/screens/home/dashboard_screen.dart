@@ -2273,7 +2273,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
         opacity: entryT.clamp(0.0, 1.0),
         child: Transform.translate(
           offset: Offset(0, 24 * (1 - entryT)),
-          child: cardChild,
+          child: RepaintBoundary(child: cardChild),
         ),
       ),
       child: AnimatedBuilder(
@@ -2664,7 +2664,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           ),
           builder: (_, t, child) => Opacity(
             opacity: t.clamp(0.0, 1.0),
-            child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
+            child: Transform.scale(
+                scale: 0.85 + 0.15 * t, child: RepaintBoundary(child: child)),
           ),
           child: Material(
             color: Colors.transparent,
@@ -3127,7 +3128,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
         opacity: t.clamp(0.0, 1.0),
         child: Transform.translate(
           offset: Offset(0, 18 * (1 - t)),
-          child: child,
+          child: RepaintBoundary(child: child),
         ),
       ),
       child: AnimatedBuilder(

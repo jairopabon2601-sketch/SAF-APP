@@ -187,7 +187,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
                     opacity: v.clamp(0.0, 1.0),
                     child: Transform.translate(
                         offset: Offset(0, 12 * (1 - v.clamp(0.0, 1.0))),
-                        child: child),
+                        child: RepaintBoundary(child: child)),
                   ),
                   child: GestureDetector(
                     onTap: () {
@@ -552,7 +552,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
                   opacity: v.clamp(0.0, 1.0),
                   child: Transform.translate(
                     offset: Offset(0, 20 * (1 - v.clamp(0.0, 1.0))),
-                    child: child,
+                    child: RepaintBoundary(child: child),
                   ),
                 ),
                 child: _estCard(cols, visibles[i], inicio + i + 1),
