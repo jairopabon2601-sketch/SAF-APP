@@ -1804,6 +1804,10 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
       required String value,
       required List<DropdownMenuItem<String>> items,
       required ValueChanged<String?> onChanged,
+      // Cuando los items ya traen su propio avatar/ícono (p.ej. el filtro
+      // de Asesor con foto), el ícono fijo de la izquierda queda repetido
+      // — se puede omitir para esos casos.
+      bool showIcon = true,
     }) =>
         Expanded(
             child: Container(
@@ -1820,8 +1824,10 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
             ],
           ),
           child: Row(children: [
-            Icon(icon, size: 15, color: textSoft),
-            const SizedBox(width: 6),
+            if (showIcon) ...[
+              Icon(icon, size: 15, color: textSoft),
+              const SizedBox(width: 6),
+            ],
             Expanded(
                 child: DropdownButton<String>(
               value: value,
@@ -2033,6 +2039,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
               dropFilter(
                 label: 'Asesor',
                 icon: Icons.person_outline_rounded,
+                showIcon: false,
                 value: asesores.contains(
                         creditAdvisorInitials(savingsAdvisorFilter)
                             .trim()
