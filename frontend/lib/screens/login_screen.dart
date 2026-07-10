@@ -847,34 +847,57 @@ class _LoginScreenState extends State<LoginScreen>
                                       // Email — mismo campo siempre; solo
                                       // cambia si se puede editar o no. Así
                                       // no "salta" de un estilo a otro entre
-                                      // pasos.
-                                      _GlowField(
-                                        ctrl: _emailCtrl,
-                                        label: 'Correo electrónico',
-                                        icon: Icons.email_outlined,
-                                        enabled: _step == 0,
-                                        keyboardType:
-                                            TextInputType.emailAddress,
-                                        textInputAction: TextInputAction.done,
-                                        onSubmitted: (_) => _goToPasswordStep(),
-                                        suffixIcon: _step == 1
-                                            ? IconButton(
-                                                icon: const Icon(
-                                                    Icons.edit_outlined,
-                                                    color: Color(0xFF8BA7E8),
-                                                    size: 19),
-                                                onPressed: _backToEmailStep,
-                                              )
-                                            : null,
-                                        validator: (v) {
-                                          if (v == null || v.trim().isEmpty) {
-                                            return 'Ingresa tu correo';
-                                          }
-                                          if (!v.contains('@')) {
-                                            return 'Correo inválido';
-                                          }
-                                          return null;
-                                        },
+                                      // pasos. El botón de editar va FUERA
+                                      // del campo (en un Stack encima) en vez
+                                      // de como suffixIcon: un TextFormField
+                                      // con enabled:false bloquea también los
+                                      // toques dentro de su propia decoración
+                                      // (incluido el suffixIcon), así que
+                                      // dentro del campo el botón quedaba
+                                      // muerto.
+                                      Stack(
+                                        alignment: Alignment.centerRight,
+                                        children: [
+                                          _GlowField(
+                                            ctrl: _emailCtrl,
+                                            label: 'Correo electrónico',
+                                            icon: Icons.email_outlined,
+                                            enabled: _step == 0,
+                                            // Placeholder sin interacción:
+                                            // solo reserva el espacio que
+                                            // ocupa el botón de editar (que
+                                            // vive aparte, superpuesto) para
+                                            // que un correo largo no quede
+                                            // debajo de él.
+                                            suffixIcon: _step == 1
+                                                ? const SizedBox(width: 40)
+                                                : null,
+                                            keyboardType:
+                                                TextInputType.emailAddress,
+                                            textInputAction:
+                                                TextInputAction.done,
+                                            onSubmitted: (_) =>
+                                                _goToPasswordStep(),
+                                            validator: (v) {
+                                              if (v == null ||
+                                                  v.trim().isEmpty) {
+                                                return 'Ingresa tu correo';
+                                              }
+                                              if (!v.contains('@')) {
+                                                return 'Correo inválido';
+                                              }
+                                              return null;
+                                            },
+                                          ),
+                                          if (_step == 1)
+                                            IconButton(
+                                              icon: const Icon(
+                                                  Icons.edit_outlined,
+                                                  color: Color(0xFF8BA7E8),
+                                                  size: 19),
+                                              onPressed: _backToEmailStep,
+                                            ),
+                                        ],
                                       ),
 
                                       const SizedBox(height: 22),

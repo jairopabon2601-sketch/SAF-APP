@@ -1454,7 +1454,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           decoration: BoxDecoration(shape: BoxShape.circle, color: color),
         );
 
-    // Fuentes = cuentas registradas (igual que la web)
+    // Fuentes = las que realmente aparecen en los créditos (creditStatistics,
+    // ya cargado por get_estadistica_fuente.php), NO las cuentas personales
+    // del usuario logueado (`accounts`, del tab Movimientos). tbl_cuentas
+    // guarda una fila POR USUARIO con el mismo nombre pero codigo distinto
+    // (p.ej. "Bancolombia" del admin = codigo 2, la de un asesor = codigo
+    // 24) — filtrar con el codigo personal de un asesor no encontraba nada,
+    // aunque la fuente correcta sí tuviera créditos.
     final fuenteItems = <DropdownMenuItem<String>>[
       DropdownMenuItem(
         value: '0',
@@ -1464,11 +1470,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           const Expanded(child: Text('Todas las fuentes')),
         ]),
       ),
-      ...accounts.map((c) {
-        final label = (c['nombre'] ?? '').toString();
-        final codigo = (c['codigo'] ?? '0').toString();
-        final color = parseHexColor(c['color']?.toString().isNotEmpty == true
-            ? c['color'].toString()
+      ...creditStatistics
+          .where((d) => d['codigo'] != null && d['fuente'] != 'Sin fuente')
+          .map((d) {
+        final label = (d['fuente'] ?? '').toString();
+        final codigo = d['codigo'].toString();
+        final color = parseHexColor(d['color']?.toString().isNotEmpty == true
+            ? d['color'].toString()
             : '94A3B8');
         return DropdownMenuItem(
           value: codigo,
@@ -1766,7 +1774,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
 
             // Fuente
             DropdownButtonFormField<String>(
-              initialValue: sourceStatisticsAccount,
+              // Igual que el resguardo de "Estado": si el valor guardado ya
+              // no existe entre las fuentes actuales (p.ej. creditStatistics
+              // aún no había cargado cuando se seleccionó, o cambió de
+              // usuario), Flutter lanza una excepción de valor no encontrado
+              // que deja la pantalla en blanco con un loop de errores.
+              initialValue:
+                  fuenteItems.any((i) => i.value == sourceStatisticsAccount)
+                      ? sourceStatisticsAccount
+                      : '0',
               decoration: fieldDeco('Fuente', Icons.account_balance_outlined),
               dropdownColor: dialogBg,
               // Los items ahora llevan un punto de color + Expanded(Text) —

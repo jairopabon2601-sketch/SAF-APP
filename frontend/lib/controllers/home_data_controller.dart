@@ -25,24 +25,29 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       return;
     }
     try {
-      final r = await repository
-          .post('/ajax/cargar_opciones.php', {})
-          .timeout(const Duration(seconds: 10));
+      final r = await repository.post(
+          '/ajax/cargar_opciones.php', {}).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         if (d['resultado'] == 1 && d['opciones'] is List) {
           final opciones = d['opciones'] as List;
           final allowed = <int>[0]; // Inicio siempre visible
           for (final op in opciones.whereType<Map>()) {
-            final n = (op['nombre'] ?? '').toString().toLowerCase()
-                .replaceAll('é', 'e').replaceAll('á', 'a')
-                .replaceAll('ó', 'o').replaceAll('í', 'i')
+            final n = (op['nombre'] ?? '')
+                .toString()
+                .toLowerCase()
+                .replaceAll('é', 'e')
+                .replaceAll('á', 'a')
+                .replaceAll('ó', 'o')
+                .replaceAll('í', 'i')
                 .replaceAll('ú', 'u');
-            if ((n.contains('credito') || n.contains('prestamo')) && !allowed.contains(1)) {
+            if ((n.contains('credito') || n.contains('prestamo')) &&
+                !allowed.contains(1)) {
               allowed.add(1);
             }
             if (n.contains('ahorro') && !allowed.contains(2)) allowed.add(2);
-            if ((n.contains('gasto') || n.contains('movimiento')) && !allowed.contains(3)) {
+            if ((n.contains('gasto') || n.contains('movimiento')) &&
+                !allowed.contains(3)) {
               allowed.add(3);
             }
           }
@@ -216,9 +221,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> fetchAccounts(String filtro) async {
     try {
-      final r = await repository
-          .cachedPost('/ajax/listar_cuentas_gasto.php', {'filtro': filtro})
-          .timeout(const Duration(seconds: 10));
+      final r = await repository.cachedPost('/ajax/listar_cuentas_gasto.php',
+          {'filtro': filtro}).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = jsonDecode(r.body);
         List<dynamic>? list;
@@ -308,8 +312,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           for (var desde = 2;
               desde <= totalPaginas && !falloAlguna;
               desde += lote) {
-            final hastaLote =
-                (desde + lote - 1).clamp(desde, totalPaginas);
+            final hastaLote = (desde + lote - 1).clamp(desde, totalPaginas);
             final resultados = await Future.wait([
               for (var p = desde; p <= hastaLote; p++)
                 fetchPagina(p).catchError((_) => null),
@@ -459,8 +462,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     required String descripcion,
   }) {
     final cuenta = accounts.firstWhere(
-      (c) => (c['codigo'] ?? c['codigo_cuenta'] ?? '').toString() ==
-          codigoCuenta,
+      (c) =>
+          (c['codigo'] ?? c['codigo_cuenta'] ?? '').toString() == codigoCuenta,
       orElse: () => <String, dynamic>{},
     );
     final esIngreso = tipoMovimiento != '2';
@@ -638,7 +641,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // Igual que la web: solo condiciona por fecha si el usuario eligió fechas
     String filtro = 'm.usuario="$usuario"';
     if (filterFrom != null && filterTo != null) {
-      filtro += ' and m.fecha between "${fmt(filterFrom!)}" and "${fmt(filterTo!)}"';
+      filtro +=
+          ' and m.fecha between "${fmt(filterFrom!)}" and "${fmt(filterTo!)}"';
     } else if (filterFrom != null) {
       filtro += ' and m.fecha >= "${fmt(filterFrom!)}"';
     } else if (filterTo != null) {
@@ -658,13 +662,11 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       if (cod.isNotEmpty) filtro += ' and m.codigo_cuenta="$cod"';
     }
     try {
-      final r = await repository
-          .post('/ajax/listado_json_campos.php', {
+      final r = await repository.post('/ajax/listado_json_campos.php', {
         'codigo_consulta': 'json_total_gastos_ingresos',
         'filtro': filtro,
         'agrupacion': '',
-      })
-          .timeout(const Duration(seconds: 10));
+      }).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         if (d['resultado'] == 1 &&
@@ -765,13 +767,11 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     }
 
     try {
-      final r = await repository
-          .post('/ajax/listado_json_campos.php', {
+      final r = await repository.post('/ajax/listado_json_campos.php', {
         'codigo_consulta': 'json_total_creditos_valores',
         'filtro': condiciones.join(' AND '),
         'agrupacion': '',
-      })
-          .timeout(const Duration(seconds: 10));
+      }).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         if (d['resultado'] == 1 &&
@@ -808,12 +808,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   Future<void> fetchSavers([String? anio, String? asesor]) async {
     try {
       final previousSavers = List<Map<String, dynamic>>.from(savers);
-      final now =
-          DateTime.now().toUtc().subtract(const Duration(hours: 5));
+      final now = DateTime.now().toUtc().subtract(const Duration(hours: 5));
       final today =
           '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      final r = await repository
-          .cachedPost('/ajax/listado_ahorros.php', {
+      final r = await repository.cachedPost('/ajax/listado_ahorros.php', {
         'anio_ahorro': anio ?? savingsYearFilter,
         // La pantalla filtra por sigla localmente. Para no reemplazar la
         // colección completa con un solo asesor, las recargas normales traen
@@ -821,8 +819,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         'filtro_asesor': isAsesor
             ? codigoOrigen
             : (asesor == null ? '0' : creditAdvisorCode(asesor)),
-      })
-          .timeout(const Duration(seconds: 10));
+      }).timeout(const Duration(seconds: 10));
       final loadedSavers = <Map<String, dynamic>>[];
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
@@ -837,16 +834,15 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
       // listado_ahorros.php solo incluye personas con un ahorro asociado.
       // Fusionamos el catálogo para mostrar también los recién registrados.
-      final catalogResponse = await repository
-          .cachedPost('/ajax/listado_select.php', {
+      final catalogResponse =
+          await repository.cachedPost('/ajax/listado_select.php', {
         'tabla': 'tbl_ahorradores',
         'valor': 'codigo',
         'etiqueta':
             'concat(nombres,CHAR(124),apellidos,CHAR(124),codigo_asesor)',
         'filtro': '1',
         'campos_orden': 'nombres,apellidos',
-      })
-          .timeout(const Duration(seconds: 10));
+      }).timeout(const Duration(seconds: 10));
       if (catalogResponse.statusCode == 200) {
         final rawCatalog = jsonDecode(catalogResponse.body);
         if (rawCatalog is List) {
@@ -860,15 +856,11 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
                 (item.values.isNotEmpty ? item.values.last : '').toString();
             final parts = encoded.split('|');
             final nombre = parts.take(2).join(' ').trim().toUpperCase();
-            final codigoAsesor =
-                parts.length > 2 ? parts[2].trim() : '';
+            final codigoAsesor = parts.length > 2 ? parts[2].trim() : '';
             Map<String, dynamic>? previous;
             for (final saver in previousSavers) {
               if ((saver['codigo_ahorrador'] ?? '').toString() == codigo ||
-                  (saver['ahorrador'] ?? '')
-                          .toString()
-                          .trim()
-                          .toUpperCase() ==
+                  (saver['ahorrador'] ?? '').toString().trim().toUpperCase() ==
                       nombre) {
                 previous = saver;
                 break;
@@ -876,10 +868,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
             }
             final loadedIndex = loadedSavers.indexWhere((saver) =>
                 (saver['codigo_ahorrador'] ?? '').toString() == codigo ||
-                (saver['ahorrador'] ?? '')
-                        .toString()
-                        .trim()
-                        .toUpperCase() ==
+                (saver['ahorrador'] ?? '').toString().trim().toUpperCase() ==
                     nombre);
             if (loadedIndex >= 0) {
               loadedSavers[loadedIndex]['codigo_ahorrador'] = codigo;
@@ -942,16 +931,14 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // conteo total mostrado no correspondería a los atrasados reales.
     final isAtrasadosFilter = estadoSeleccionado == 'atrasado';
     // No-admin: siempre filtra por su propio codigo_origen (ID de asesor)
-    final asesorCodigo = isAdmin
-        ? creditAdvisorCode(creditAdvisorFilter)
-        : codigoOrigen;
+    final asesorCodigo =
+        isAdmin ? creditAdvisorCode(creditAdvisorFilter) : codigoOrigen;
 
     // Lista de créditos — endpoint dedicado con JSON + paginación
     double? atrasadosPagado;
     double? atrasadosPendiente;
     try {
-      final r = await repository
-          .post('/ajax/get_creditos_lista.php', {
+      final r = await repository.post('/ajax/get_creditos_lista.php', {
         'estado': isAtrasadosFilter ? '1' : estadoSeleccionado,
         // La web conserva la sigla (JP, VB, etc.), mientras este endpoint
         // dedicado filtra por codigo_asesor numérico.
@@ -959,8 +946,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         'pagina': isAtrasadosFilter ? '1' : creditsPage.toString(),
         'por_pagina': isAtrasadosFilter ? '1000' : creditsPageSize.toString(),
         if (creditsBuscar.isNotEmpty) 'buscar': creditsBuscar,
-      })
-          .timeout(const Duration(seconds: 10));
+      }).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final decoded = jsonDecode(r.body);
         if (decoded is Map && decoded['datos'] is List) {
@@ -1026,7 +1012,11 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // Estadística por fuente — endpoint dedicado con campos fijos
     try {
       final r = await repository
-          .cachedPost('/ajax/get_estadistica_fuente.php', {},
+          .cachedPost(
+              '/ajax/get_estadistica_fuente.php',
+              // Sin esto, un asesor veía las estadísticas de TODA la
+              // empresa en vez de solo las suyas.
+              {'asesor': asesorCodigo},
               ttl: const Duration(minutes: 10))
           .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
@@ -1053,10 +1043,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
     // Fallback 2: query original json_total_creditos_valores (campos variables pero nunca vacío)
     try {
-      final r = await repository
-          .cachedPost('/ajax/listado_json_campos.php',
-              {'codigo_consulta': 'json_total_creditos_valores', 'filtro': filtro})
-          .timeout(const Duration(seconds: 10));
+      final r = await repository.cachedPost('/ajax/listado_json_campos.php', {
+        'codigo_consulta': 'json_total_creditos_valores',
+        'filtro': filtro
+      }).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         final list = d['datos'];
@@ -1081,6 +1071,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     String fmt(DateTime? d) => d == null
         ? ''
         : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    // No-admin: siempre sus propios créditos, igual que fetchCredits — sin
+    // esto, un asesor veía las estadísticas de toda la empresa.
+    final asesorCodigo =
+        isAdmin ? creditAdvisorCode(creditAdvisorFilter) : codigoOrigen;
     try {
       repository.invalidateCache('/ajax/get_estadistica_fuente.php');
       final r = await repository.post('/ajax/get_estadistica_fuente.php', {
@@ -1088,6 +1082,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         'fecha_desde': fmt(sourceStatisticsFrom),
         'fecha_hasta': fmt(sourceStatisticsTo),
         'fuente': sourceStatisticsAccount,
+        'asesor': asesorCodigo,
       }).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final decoded = jsonDecode(r.body);
@@ -1366,8 +1361,13 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   Future<void> fetchSources() async {
     try {
       final r = await repository
-          .cachedPost('/ajax/listado_json_campos.php',
-              {'codigo_consulta': 'json_fuentes', 'filtro': '', 'agrupacion': ''},
+          .cachedPost(
+              '/ajax/listado_json_campos.php',
+              {
+                'codigo_consulta': 'json_fuentes',
+                'filtro': '',
+                'agrupacion': ''
+              },
               ttl: const Duration(hours: 1))
           .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
@@ -1378,7 +1378,9 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
             list = raw;
           } else if (raw is Map) {
             final d = Map<String, dynamic>.from(raw);
-            list = d['datos'] ?? d['data'] ?? d['fuentes'] ??
+            list = d['datos'] ??
+                d['data'] ??
+                d['fuentes'] ??
                 d.values.whereType<List>().firstOrNull;
           }
         } catch (_) {}
