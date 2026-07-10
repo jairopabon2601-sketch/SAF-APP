@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/biometric_service.dart';
 import '../utils/responsive.dart';
 import 'forgot_password_screen.dart';
 import 'home/home_constants.dart';
@@ -186,9 +188,19 @@ class _LoginScreenState extends State<LoginScreen>
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final ApiService _api = ApiService();
+  final BiometricService _biometrics = BiometricService();
   bool _obscure = true;
   bool _loading = false;
   String? _error;
+
+  // Paso 0 = solo correo, paso 1 = contraseña (+ Face ID si ya está
+  // habilitado para ese correo). Separado del correo/contraseña "de una",
+  // como pidió el cliente.
+  int _step = 0;
+  bool _biometricAvailable = false;
+  bool _biometricEnabledForEmail = false;
+  bool _biometricChecking = false;
+  String _biometricLabel = 'Face ID';
 
   late AnimationController _entryCtrl,
       _pulseCtrl,
@@ -286,10 +298,111 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _loadLastEmail() async {
     final email = await _api.getLastEmail();
     if (email != null && mounted) setState(() => _emailCtrl.text = email);
+    final supported = await _biometrics.isDeviceSupported;
+    if (!mounted) return;
+    setState(() => _biometricAvailable = supported);
+    if (supported) await _refreshBiometricEnabledState();
   }
 
-  Future<void> _login() async {
+  Future<void> _refreshBiometricEnabledState() async {
+    final email = _emailCtrl.text.trim();
+    final enabled = email.isNotEmpty && await _biometrics.isEnabledFor(email);
+    final label = await _biometrics.biometricLabel;
+    if (!mounted) return;
+    setState(() {
+      _biometricEnabledForEmail = enabled;
+      _biometricLabel = label;
+    });
+  }
+
+  // Paso 1 (correo) → paso 2 (contraseña). Antes email y contraseña
+  // aparecían juntos; el cliente pidió separarlo en dos pasos.
+  Future<void> _goToPasswordStep() async {
     if (!_formKey.currentState!.validate()) return;
+    setState(() => _error = null);
+    await _refreshBiometricEnabledState();
+    if (!mounted) return;
+    setState(() => _step = 1);
+    // Si ya hay Face ID habilitado para este correo, lo ofrece de una vez
+    // en vez de obligar a tocar el botón — igual se puede cancelar y
+    // escribir la contraseña.
+    if (_biometricEnabledForEmail) {
+      unawaited(_loginWithBiometrics());
+    }
+  }
+
+  void _backToEmailStep() {
+    setState(() {
+      _step = 0;
+      _error = null;
+      _passwordCtrl.clear();
+    });
+  }
+
+  Future<void> _loginWithBiometrics() async {
+    if (_biometricChecking || _loading) return;
+    setState(() {
+      _biometricChecking = true;
+      _error = null;
+    });
+    try {
+      final ok = await _biometrics.authenticate(
+        reason: 'Inicia sesión en SAF con $_biometricLabel',
+      );
+      if (!ok) return;
+      final saved = await _biometrics.getSavedCredentials();
+      if (saved == null) return;
+      _emailCtrl.text = saved.email;
+      _passwordCtrl.text = saved.password;
+      await _login(skipBiometricPrompt: true);
+    } finally {
+      if (mounted) setState(() => _biometricChecking = false);
+    }
+  }
+
+  /// Tras un login manual exitoso, si el equipo soporta Face ID/huella y
+  /// esta cuenta todavía no lo tiene activado, ofrece guardarlo para la
+  /// próxima vez — sin esto, no hay otra forma de que el usuario active
+  /// el ingreso biométrico.
+  Future<void> _maybeOfferEnableBiometrics() async {
+    if (!_biometricAvailable) return;
+    final email = _emailCtrl.text.trim();
+    if (await _biometrics.isEnabledFor(email)) return;
+    if (!mounted) return;
+    final accept = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0D1830),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text('¿Usar $_biometricLabel la próxima vez?',
+            style: const TextStyle(color: Colors.white, fontSize: 17)),
+        content: Text(
+          'Vas a poder entrar sin escribir tu contraseña cada vez.',
+          style:
+              TextStyle(color: const Color(0xFF8BA7E8).withValues(alpha: 0.9)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Ahora no',
+                style: TextStyle(color: Color(0xFF8BA7E8))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Activar $_biometricLabel',
+                style: const TextStyle(
+                    color: Color(0xFF9DA8FF), fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (accept == true) {
+      await _biometrics.enable(email, _passwordCtrl.text);
+    }
+  }
+
+  Future<void> _login({bool skipBiometricPrompt = false}) async {
+    if (_step == 1 && !_formKey.currentState!.validate()) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -298,13 +411,14 @@ class _LoginScreenState extends State<LoginScreen>
       final r = await _api.login(_emailCtrl.text.trim(), _passwordCtrl.text);
       if (!mounted) return;
       if (r['success'] == true) {
+        if (!skipBiometricPrompt) await _maybeOfferEnableBiometrics();
+        if (!mounted) return;
         // Aplica el tema del usuario que acaba de iniciar sesión ANTES de
         // navegar a Home — si no, se ve por un instante el tema del usuario
         // anterior (guardado localmente) hasta que loadData() termine de
         // sincronizar en segundo plano. Con timeout corto (4s) para no
         // demorar el login si el servidor está lento.
-        final codigoUsuario =
-            (_api.user?['codigo_usuario'] ?? '').toString();
+        final codigoUsuario = (_api.user?['codigo_usuario'] ?? '').toString();
         final dark = await _api.fetchThemePreference(codigoUsuario);
         if (dark != null && dark != appThemeDark.value) {
           await setThemeDark(dark);
@@ -482,7 +596,8 @@ class _LoginScreenState extends State<LoginScreen>
                                                 width: 1.2,
                                               ),
                                             ),
-                                            padding: EdgeInsets.all(glassR * 0.20),
+                                            padding:
+                                                EdgeInsets.all(glassR * 0.20),
                                             child: const CustomPaint(
                                                 painter: _SafLogoPainter(
                                                     Colors.white)),
@@ -699,11 +814,14 @@ class _LoginScreenState extends State<LoginScreen>
                                                 ),
                                                 const SizedBox(height: 5),
                                                 Text(
-                                                    'Ingresa tus credenciales para continuar',
+                                                    _step == 0
+                                                        ? 'Ingresa tu correo para continuar'
+                                                        : 'Ingresa tu contraseña para continuar',
                                                     style: TextStyle(
                                                         color:
                                                             Color(0xFF8BA7E8),
-                                                        fontSize: context.sp(12.5))),
+                                                        fontSize:
+                                                            context.sp(12.5))),
                                               ],
                                             ),
                                           ),
@@ -726,53 +844,138 @@ class _LoginScreenState extends State<LoginScreen>
 
                                       const SizedBox(height: 22),
 
-                                      // Email
-                                      _GlowField(
-                                        ctrl: _emailCtrl,
-                                        label: 'Correo electrónico',
-                                        icon: Icons.email_outlined,
-                                        keyboardType:
-                                            TextInputType.emailAddress,
-                                        textInputAction: TextInputAction.next,
-                                        validator: (v) {
-                                          if (v == null || v.trim().isEmpty) {
-                                            return 'Ingresa tu correo';
-                                          }
-                                          if (!v.contains('@')) {
-                                            return 'Correo inválido';
-                                          }
-                                          return null;
-                                        },
-                                      ),
-
-                                      const SizedBox(height: 14),
-
-                                      // Password
-                                      _GlowField(
-                                        ctrl: _passwordCtrl,
-                                        label: 'Contraseña',
-                                        icon: Icons.lock_outline_rounded,
-                                        obscure: _obscure,
-                                        textInputAction: TextInputAction.done,
-                                        onSubmitted: (_) => _login(),
-                                        suffixIcon: IconButton(
-                                          icon: Icon(
-                                            _obscure
-                                                ? Icons.visibility_off_outlined
-                                                : Icons.visibility_outlined,
-                                            color: const Color(0xFF8BA7E8),
-                                            size: 20,
-                                          ),
-                                          onPressed: () => setState(
-                                              () => _obscure = !_obscure),
+                                      if (_step == 0) ...[
+                                        // Email
+                                        _GlowField(
+                                          ctrl: _emailCtrl,
+                                          label: 'Correo electrónico',
+                                          icon: Icons.email_outlined,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                          textInputAction: TextInputAction.done,
+                                          onSubmitted: (_) =>
+                                              _goToPasswordStep(),
+                                          validator: (v) {
+                                            if (v == null || v.trim().isEmpty) {
+                                              return 'Ingresa tu correo';
+                                            }
+                                            if (!v.contains('@')) {
+                                              return 'Correo inválido';
+                                            }
+                                            return null;
+                                          },
                                         ),
-                                        validator: (v) {
-                                          if (v == null || v.isEmpty) {
-                                            return 'Ingresa tu contraseña';
-                                          }
-                                          return null;
-                                        },
-                                      ),
+
+                                        const SizedBox(height: 22),
+
+                                        _ShimmerButton(
+                                          shimmerCtrl: _shimmerCtrl,
+                                          pulseAnim: _pulse,
+                                          loading: false,
+                                          onPressed: _goToPasswordStep,
+                                          label: 'Siguiente',
+                                          icon: Icons.arrow_forward_rounded,
+                                        ),
+                                      ] else ...[
+                                        // Correo ya elegido — se mantiene con
+                                        // el mismo look del campo normal (en
+                                        // vez de convertirlo en una fila de
+                                        // texto/flecha) y se puede volver
+                                        // atrás con el ícono de editar.
+                                        _GlowField(
+                                          ctrl: _emailCtrl,
+                                          label: 'Correo electrónico',
+                                          icon: Icons.email_outlined,
+                                          enabled: false,
+                                          suffixIcon: IconButton(
+                                            icon: const Icon(
+                                                Icons.edit_outlined,
+                                                color: Color(0xFF8BA7E8),
+                                                size: 19),
+                                            onPressed: _backToEmailStep,
+                                          ),
+                                        ),
+
+                                        const SizedBox(height: 14),
+
+                                        // Face ID/huella — solo si ya está
+                                        // habilitado para este correo.
+                                        if (_biometricEnabledForEmail) ...[
+                                          _BiometricButton(
+                                            label: _biometricLabel,
+                                            checking: _biometricChecking,
+                                            onTap: _loginWithBiometrics,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Row(children: [
+                                            Expanded(
+                                                child: Container(
+                                                    height: 1,
+                                                    color: Colors.white
+                                                        .withValues(
+                                                            alpha: 0.10))),
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 10),
+                                              child: Text(
+                                                  'o ingresa tu contraseña',
+                                                  style: TextStyle(
+                                                      color: const Color(
+                                                              0xFF8BA7E8)
+                                                          .withValues(
+                                                              alpha: 0.65),
+                                                      fontSize: 11.5)),
+                                            ),
+                                            Expanded(
+                                                child: Container(
+                                                    height: 1,
+                                                    color: Colors.white
+                                                        .withValues(
+                                                            alpha: 0.10))),
+                                          ]),
+                                          const SizedBox(height: 16),
+                                        ],
+
+                                        // Password
+                                        _GlowField(
+                                          ctrl: _passwordCtrl,
+                                          label: 'Contraseña',
+                                          icon: Icons.lock_outline_rounded,
+                                          obscure: _obscure,
+                                          textInputAction: TextInputAction.done,
+                                          onSubmitted: (_) => _login(),
+                                          suffixIcon: IconButton(
+                                            icon: Icon(
+                                              _obscure
+                                                  ? Icons
+                                                      .visibility_off_outlined
+                                                  : Icons.visibility_outlined,
+                                              color: const Color(0xFF8BA7E8),
+                                              size: 20,
+                                            ),
+                                            onPressed: () => setState(
+                                                () => _obscure = !_obscure),
+                                          ),
+                                          validator: (v) {
+                                            if (v == null || v.isEmpty) {
+                                              return 'Ingresa tu contraseña';
+                                            }
+                                            return null;
+                                          },
+                                        ),
+
+                                        const SizedBox(height: 22),
+
+                                        _ShimmerButton(
+                                          shimmerCtrl: _shimmerCtrl,
+                                          pulseAnim: _pulse,
+                                          loading: _loading,
+                                          onPressed: _login,
+                                          label: 'Iniciar Sesión',
+                                          icon: Icons.arrow_forward_rounded,
+                                        ),
+                                      ],
 
                                       // Error
                                       if (_error != null) ...[
@@ -807,54 +1010,45 @@ class _LoginScreenState extends State<LoginScreen>
                                         ),
                                       ],
 
-                                      const SizedBox(height: 22),
-
-                                      // Login button
-                                      _ShimmerButton(
-                                        shimmerCtrl: _shimmerCtrl,
-                                        pulseAnim: _pulse,
-                                        loading: _loading,
-                                        onPressed: _login,
-                                        label: 'Iniciar Sesión',
-                                        icon: Icons.arrow_forward_rounded,
-                                      ),
-
                                       const SizedBox(height: 18),
 
                                       // Forgot password
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Text('¿Olvidaste tu contraseña? ',
-                                              style: TextStyle(
-                                                  color: const Color(0xFF8BA7E8)
-                                                      .withValues(alpha: 0.80),
-                                                  fontSize: 13)),
-                                          GestureDetector(
-                                            onTap: () => Navigator.push(
-                                                context,
-                                                MaterialPageRoute(
-                                                    builder: (_) =>
-                                                        const ForgotPasswordScreen())),
-                                            child: ShaderMask(
-                                              shaderCallback: (b) =>
-                                                  const LinearGradient(
-                                                colors: [
-                                                  Color(0xFF7C8EFF),
-                                                  Color(0xFF00C6FF)
-                                                ],
-                                              ).createShader(b),
-                                              child: const Text('Recuperar',
-                                                  style: TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.w700)),
+                                      if (_step == 1)
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Text('¿Olvidaste tu contraseña? ',
+                                                style: TextStyle(
+                                                    color:
+                                                        const Color(0xFF8BA7E8)
+                                                            .withValues(
+                                                                alpha: 0.80),
+                                                    fontSize: 13)),
+                                            GestureDetector(
+                                              onTap: () => Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                      builder: (_) =>
+                                                          const ForgotPasswordScreen())),
+                                              child: ShaderMask(
+                                                shaderCallback: (b) =>
+                                                    const LinearGradient(
+                                                  colors: [
+                                                    Color(0xFF7C8EFF),
+                                                    Color(0xFF00C6FF)
+                                                  ],
+                                                ).createShader(b),
+                                                child: const Text('Recuperar',
+                                                    style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w700)),
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
+                                          ],
+                                        ),
 
                                       const SizedBox(height: 22),
 
@@ -994,6 +1188,7 @@ class _GlowField extends StatefulWidget {
   final String? Function(String?)? validator;
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onSubmitted;
+  final bool enabled;
 
   const _GlowField({
     required this.ctrl,
@@ -1005,6 +1200,7 @@ class _GlowField extends StatefulWidget {
     this.validator,
     this.textInputAction,
     this.onSubmitted,
+    this.enabled = true,
   });
 
   @override
@@ -1061,6 +1257,7 @@ class _GlowFieldState extends State<_GlowField>
       child: TextFormField(
         controller: widget.ctrl,
         focusNode: _focus,
+        enabled: widget.enabled,
         keyboardType: widget.keyboardType,
         obscureText: widget.obscure,
         autocorrect: false,
@@ -1085,6 +1282,10 @@ class _GlowFieldState extends State<_GlowField>
               borderSide:
                   BorderSide(color: Colors.white.withValues(alpha: 0.12))),
           enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide:
+                  BorderSide(color: Colors.white.withValues(alpha: 0.12))),
+          disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide:
                   BorderSide(color: Colors.white.withValues(alpha: 0.12))),
@@ -1246,6 +1447,71 @@ class _ShimmerButton extends StatelessWidget {
           ),
         ),
       ]),
+    );
+  }
+}
+
+// ── Botón Face ID / huella ────────────────────────────────────────────────────
+class _BiometricButton extends StatelessWidget {
+  final String label;
+  final bool checking;
+  final VoidCallback onTap;
+
+  const _BiometricButton({
+    required this.label,
+    required this.checking,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: checking ? null : onTap,
+      child: Container(
+        width: double.infinity,
+        height: 54,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: const Color(0xFF6C63FF).withValues(alpha: 0.55)),
+          gradient: LinearGradient(
+            colors: [
+              const Color(0xFF6C63FF).withValues(alpha: 0.18),
+              const Color(0xFF00C6FF).withValues(alpha: 0.10),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (checking)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2.2, color: Color(0xFF9DA8FF)),
+              )
+            else
+              Icon(
+                  label == 'huella digital'
+                      ? Icons.fingerprint_rounded
+                      : Icons.face_retouching_natural_rounded,
+                  color: const Color(0xFF9DA8FF),
+                  size: 20),
+            const SizedBox(width: 10),
+            Text(
+              checking ? 'Verificando…' : 'Ingresar con $label',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

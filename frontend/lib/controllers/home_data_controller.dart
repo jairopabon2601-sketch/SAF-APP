@@ -335,7 +335,14 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
           if (!falloAlguna) {
             unawaited(repository.saveLocalData('movimientos', movements));
+            // Si loadData() ya había fijado serverIncome/serverExpenses en
+            // $0 (porque _fetchTotalesResumen falló justo tras el login, con
+            // movements aún vacío), _refreshFallbackTotalsIfNeeded() corrige
+            // el valor en memoria — pero sin este refresh() la corrección
+            // nunca se pintaba y el balance se quedaba en $0 hasta que algo
+            // más disparara un rebuild.
             _refreshFallbackTotalsIfNeeded();
+            if (isMounted) refresh(() {});
             return;
           }
           // Si algún lote falló a mitad de camino, cae al fallback por
@@ -501,8 +508,17 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   // dashboard deje de mostrar $0 apenas los movimientos terminen de cargar.
   void _refreshFallbackTotalsIfNeeded() {
     if (!serverTotalsIsFallback) return;
-    serverIncome = totalIncome;
-    serverExpenses = totalExpenses;
+    // OJO: no usar los getters totalIncome/totalExpenses acá — cuando
+    // serverTotalsLoaded ya es true (como en este punto), esos getters
+    // devuelven serverIncome/serverExpenses tal cual, sin recalcular nada.
+    // Asignar "serverIncome = totalIncome" era un círculo que nunca
+    // corregía el valor real; hay que sumar `movements` directamente.
+    serverIncome = movements
+        .where(movementIsIncome)
+        .fold<double>(0.0, (s, m) => s + numberValue(m['valor'] ?? 0));
+    serverExpenses = movements
+        .where((m) => !movementIsIncome(m))
+        .fold<double>(0.0, (s, m) => s + numberValue(m['valor'] ?? 0));
   }
 
   Future<List<Map<String, dynamic>>> fetchAccountMovements(
@@ -689,6 +705,15 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
           'codigo_consulta': 'json_total_gastos_ingresos',
           'filtro': filtro,
           'agrupacion': '',
+          // La consulta guardada también usa <<usuario>> (c.usuario, el
+          // dueño de la cuenta) además de <<filtro>>. Sin este campo, el
+          // backend cae a $_SESSION['codigo_usuario'] — una sesión PHP
+          // aparte del token de la app, que expira sola en el servidor.
+          // Si eso pasaba justo cuando esta petición corría (típicamente
+          // tras estar un rato en segundo plano), <<usuario>> quedaba en 0
+          // y la consulta no encontraba nada: total_gastos/ingresos = 0
+          // aunque sí hubiera movimientos.
+          'usuario': usuario,
         }).timeout(const Duration(seconds: 12));
         if (r.statusCode == 200) {
           final d = decodeJsonMap(r.body);

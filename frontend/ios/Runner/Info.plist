@@ -52,5 +52,7 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>NSFaceIDUsageDescription</key>
+	<string>SAF usa Face ID para que puedas iniciar sesión de forma rápida y segura.</string>
 </dict>
 </plist>
