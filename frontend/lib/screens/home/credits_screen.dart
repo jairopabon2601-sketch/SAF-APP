@@ -456,7 +456,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                         fontWeight: FontWeight.w700)),
                               ),
                               const Spacer(),
-                              Text('Total  ${formatCop(total)}',
+                              Text(
+                                  balanceVisible
+                                      ? 'Total  ${formatCop(total)}'
+                                      : 'Total  • • • •',
                                   style: TextStyle(
                                       color:
                                           Colors.white.withValues(alpha: 0.55),
@@ -2089,59 +2092,16 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final active = creditSubTab == index;
     final accent = _tabAccents[index] ?? const Color(0xFF4F46E5);
     final gradientColors = _tabGradients[index] ?? _tabGradients[2]!;
-    const dur = Duration(milliseconds: 220);
-    return GestureDetector(
+    return _CreditoTabButton(
+      active: active,
+      icon: icon,
+      label: label,
+      gradient: gradientColors,
+      accent: accent,
       onTap: () {
         refresh(() => creditSubTab = index);
         if (index == 1 || index == 4) unawaited(fetchPending());
       },
-      child: AnimatedContainer(
-        duration: dur,
-        curve: Curves.easeOutCubic,
-        decoration: BoxDecoration(
-          gradient: active
-              ? LinearGradient(
-                  colors: gradientColors,
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: active ? null : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: active ? accent.withValues(alpha: 0.55) : lineCol,
-            width: 1.2,
-          ),
-          boxShadow: active
-              ? [
-                  BoxShadow(
-                    color: accent.withValues(alpha: 0.38),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          AnimatedSwitcher(
-            duration: dur,
-            child: Icon(icon,
-                size: 14,
-                key: ValueKey(active),
-                color: active ? Colors.white : textSoft),
-          ),
-          const SizedBox(width: 6),
-          AnimatedDefaultTextStyle(
-            duration: dur,
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: active ? Colors.white : textSoft),
-            child: Text(label),
-          ),
-        ]),
-      ),
     );
   }
 
@@ -4068,6 +4028,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
               ),
             )
+          else if (!balanceVisible)
+            const Text('• • • •',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3))
           else
             TweenAnimationBuilder<double>(
               key: ValueKey('credits_total_${label}_$value'),
@@ -7234,6 +7201,112 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           ),
         ],
       );
+}
+
+// ── Tab de Créditos (Aprobados/Pendientes/Rechazadas/...): press-scale +
+// cross-fade fluido ─────────────────────────────────────────────────────────
+// Antes el degradado pasaba de `null` a `LinearGradient` de golpe (un color
+// "vacío" no interpola bien contra un degradado) y no había feedback táctil
+// al tocar — de ahí el micro tirón. Ahora ambos estados usan el mismo
+// degradado, solo cambia el alfa, así el cross-fade es suave.
+class _CreditoTabButton extends StatefulWidget {
+  final bool active;
+  final IconData icon;
+  final String label;
+  final List<Color> gradient;
+  final Color accent;
+  final VoidCallback onTap;
+
+  const _CreditoTabButton({
+    required this.active,
+    required this.icon,
+    required this.label,
+    required this.gradient,
+    required this.accent,
+    required this.onTap,
+  });
+
+  @override
+  State<_CreditoTabButton> createState() => _CreditoTabButtonState();
+}
+
+class _CreditoTabButtonState extends State<_CreditoTabButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _press = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 100),
+    lowerBound: 0.95,
+    upperBound: 1.0,
+  )..value = 1.0;
+
+  @override
+  void dispose() {
+    _press.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fadedGradient =
+        widget.gradient.map((c) => c.withValues(alpha: 0)).toList();
+    const dur = Duration(milliseconds: 260);
+    return GestureDetector(
+      onTapDown: (_) => _press.reverse(),
+      onTapUp: (_) {
+        _press.forward();
+        widget.onTap();
+      },
+      onTapCancel: () => _press.forward(),
+      child: ScaleTransition(
+        scale: _press,
+        child: AnimatedContainer(
+          duration: dur,
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: widget.active ? widget.gradient : fadedGradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: widget.active
+                  ? widget.accent.withValues(alpha: 0.55)
+                  : lineCol,
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color:
+                    widget.accent.withValues(alpha: widget.active ? 0.38 : 0),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            AnimatedSwitcher(
+              duration: dur,
+              child: Icon(widget.icon,
+                  size: 14,
+                  key: ValueKey(widget.active),
+                  color: widget.active ? Colors.white : textSoft),
+            ),
+            const SizedBox(width: 6),
+            AnimatedDefaultTextStyle(
+              duration: dur,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: widget.active ? Colors.white : textSoft),
+              child: Text(widget.label),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 // ── Botón de paginación: press-scale + transición fluida activo/inactivo ────

@@ -620,7 +620,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                               duration: const Duration(milliseconds: 1000),
                               curve: Curves.easeOutExpo,
                               builder: (_, t, __) => Text(
-                                formatCop(balance * t),
+                                balanceVisible
+                                    ? formatCop(balance * t)
+                                    : '• • • • • •',
                                 style: TextStyle(
                                     color: balance >= 0
                                         ? const Color(0xFF34D399)
@@ -708,7 +710,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                             const Duration(milliseconds: 900),
                                         curve: Curves.easeOutExpo,
                                         builder: (_, t, __) => Text(
-                                          formatCop(gastos * t),
+                                          balanceVisible
+                                              ? formatCop(gastos * t)
+                                              : '• • • •',
                                           style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 14,
@@ -793,7 +797,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                             const Duration(milliseconds: 900),
                                         curve: Curves.easeOutExpo,
                                         builder: (_, t, __) => Text(
-                                          formatCop(ingresos * t),
+                                          balanceVisible
+                                              ? formatCop(ingresos * t)
+                                              : '• • • •',
                                           style: const TextStyle(
                                               color: Colors.white,
                                               fontSize: 14,

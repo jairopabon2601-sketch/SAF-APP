@@ -844,138 +844,191 @@ class _LoginScreenState extends State<LoginScreen>
 
                                       const SizedBox(height: 22),
 
-                                      if (_step == 0) ...[
-                                        // Email
-                                        _GlowField(
-                                          ctrl: _emailCtrl,
-                                          label: 'Correo electrónico',
-                                          icon: Icons.email_outlined,
-                                          keyboardType:
-                                              TextInputType.emailAddress,
-                                          textInputAction: TextInputAction.done,
-                                          onSubmitted: (_) =>
-                                              _goToPasswordStep(),
-                                          validator: (v) {
-                                            if (v == null || v.trim().isEmpty) {
-                                              return 'Ingresa tu correo';
-                                            }
-                                            if (!v.contains('@')) {
-                                              return 'Correo inválido';
-                                            }
-                                            return null;
-                                          },
-                                        ),
+                                      // Email — mismo campo siempre; solo
+                                      // cambia si se puede editar o no. Así
+                                      // no "salta" de un estilo a otro entre
+                                      // pasos.
+                                      _GlowField(
+                                        ctrl: _emailCtrl,
+                                        label: 'Correo electrónico',
+                                        icon: Icons.email_outlined,
+                                        enabled: _step == 0,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
+                                        textInputAction: TextInputAction.done,
+                                        onSubmitted: (_) => _goToPasswordStep(),
+                                        suffixIcon: _step == 1
+                                            ? IconButton(
+                                                icon: const Icon(
+                                                    Icons.edit_outlined,
+                                                    color: Color(0xFF8BA7E8),
+                                                    size: 19),
+                                                onPressed: _backToEmailStep,
+                                              )
+                                            : null,
+                                        validator: (v) {
+                                          if (v == null || v.trim().isEmpty) {
+                                            return 'Ingresa tu correo';
+                                          }
+                                          if (!v.contains('@')) {
+                                            return 'Correo inválido';
+                                          }
+                                          return null;
+                                        },
+                                      ),
 
-                                        const SizedBox(height: 22),
+                                      const SizedBox(height: 22),
 
-                                        _ShimmerButton(
-                                          shimmerCtrl: _shimmerCtrl,
-                                          pulseAnim: _pulse,
-                                          loading: false,
-                                          onPressed: _goToPasswordStep,
-                                          label: 'Siguiente',
-                                          icon: Icons.arrow_forward_rounded,
-                                        ),
-                                      ] else ...[
-                                        // Correo ya elegido — se mantiene con
-                                        // el mismo look del campo normal (en
-                                        // vez de convertirlo en una fila de
-                                        // texto/flecha) y se puede volver
-                                        // atrás con el ícono de editar.
-                                        _GlowField(
-                                          ctrl: _emailCtrl,
-                                          label: 'Correo electrónico',
-                                          icon: Icons.email_outlined,
-                                          enabled: false,
-                                          suffixIcon: IconButton(
-                                            icon: const Icon(
-                                                Icons.edit_outlined,
-                                                color: Color(0xFF8BA7E8),
-                                                size: 19),
-                                            onPressed: _backToEmailStep,
-                                          ),
-                                        ),
-
-                                        const SizedBox(height: 14),
-
-                                        // Face ID/huella — solo si ya está
-                                        // habilitado para este correo.
-                                        if (_biometricEnabledForEmail) ...[
-                                          _BiometricButton(
-                                            label: _biometricLabel,
-                                            checking: _biometricChecking,
-                                            onTap: _loginWithBiometrics,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Row(children: [
-                                            Expanded(
-                                                child: Container(
-                                                    height: 1,
-                                                    color: Colors.white
-                                                        .withValues(
-                                                            alpha: 0.10))),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 10),
-                                              child: Text(
-                                                  'o ingresa tu contraseña',
-                                                  style: TextStyle(
-                                                      color: const Color(
-                                                              0xFF8BA7E8)
-                                                          .withValues(
-                                                              alpha: 0.65),
-                                                      fontSize: 11.5)),
+                                      // Lo que cambia entre pasos (botón
+                                      // "Siguiente" vs. Face ID/contraseña)
+                                      // entra con fade + slide hacia arriba,
+                                      // y la tarjeta crece/encoge con la
+                                      // misma duración — para que se note
+                                      // que es una animación y no un salto
+                                      // seco, y sin dejar el hueco vacío que
+                                      // quedaba antes.
+                                      AnimatedSize(
+                                        duration:
+                                            const Duration(milliseconds: 360),
+                                        curve: Curves.easeInOutCubic,
+                                        alignment: Alignment.topCenter,
+                                        child: AnimatedSwitcher(
+                                          duration:
+                                              const Duration(milliseconds: 320),
+                                          switchInCurve: Curves.easeOutCubic,
+                                          switchOutCurve: Curves.easeInCubic,
+                                          transitionBuilder: (child, anim) =>
+                                              FadeTransition(
+                                            opacity: anim,
+                                            child: SlideTransition(
+                                              position: Tween<Offset>(
+                                                begin: const Offset(0, 0.10),
+                                                end: Offset.zero,
+                                              ).animate(anim),
+                                              child: child,
                                             ),
-                                            Expanded(
-                                                child: Container(
-                                                    height: 1,
-                                                    color: Colors.white
-                                                        .withValues(
-                                                            alpha: 0.10))),
-                                          ]),
-                                          const SizedBox(height: 16),
-                                        ],
-
-                                        // Password
-                                        _GlowField(
-                                          ctrl: _passwordCtrl,
-                                          label: 'Contraseña',
-                                          icon: Icons.lock_outline_rounded,
-                                          obscure: _obscure,
-                                          textInputAction: TextInputAction.done,
-                                          onSubmitted: (_) => _login(),
-                                          suffixIcon: IconButton(
-                                            icon: Icon(
-                                              _obscure
-                                                  ? Icons
-                                                      .visibility_off_outlined
-                                                  : Icons.visibility_outlined,
-                                              color: const Color(0xFF8BA7E8),
-                                              size: 20,
-                                            ),
-                                            onPressed: () => setState(
-                                                () => _obscure = !_obscure),
                                           ),
-                                          validator: (v) {
-                                            if (v == null || v.isEmpty) {
-                                              return 'Ingresa tu contraseña';
-                                            }
-                                            return null;
-                                          },
-                                        ),
+                                          child: _step == 0
+                                              ? _ShimmerButton(
+                                                  key: const ValueKey(
+                                                      'step_email'),
+                                                  shimmerCtrl: _shimmerCtrl,
+                                                  pulseAnim: _pulse,
+                                                  loading: false,
+                                                  onPressed: _goToPasswordStep,
+                                                  label: 'Siguiente',
+                                                  icon: Icons
+                                                      .arrow_forward_rounded,
+                                                )
+                                              : Column(
+                                                  key: const ValueKey(
+                                                      'step_password'),
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    // Face ID/huella — solo
+                                                    // si ya está habilitado
+                                                    // para este correo.
+                                                    if (_biometricEnabledForEmail) ...[
+                                                      _BiometricButton(
+                                                        label: _biometricLabel,
+                                                        checking:
+                                                            _biometricChecking,
+                                                        onTap:
+                                                            _loginWithBiometrics,
+                                                      ),
+                                                      const SizedBox(
+                                                          height: 16),
+                                                      Row(children: [
+                                                        Expanded(
+                                                            child: Container(
+                                                                height: 1,
+                                                                color: Colors
+                                                                    .white
+                                                                    .withValues(
+                                                                        alpha:
+                                                                            0.10))),
+                                                        Padding(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal:
+                                                                      10),
+                                                          child: Text(
+                                                              'o ingresa tu contraseña',
+                                                              style: TextStyle(
+                                                                  color: const Color(
+                                                                          0xFF8BA7E8)
+                                                                      .withValues(
+                                                                          alpha:
+                                                                              0.65),
+                                                                  fontSize:
+                                                                      11.5)),
+                                                        ),
+                                                        Expanded(
+                                                            child: Container(
+                                                                height: 1,
+                                                                color: Colors
+                                                                    .white
+                                                                    .withValues(
+                                                                        alpha:
+                                                                            0.10))),
+                                                      ]),
+                                                      const SizedBox(
+                                                          height: 16),
+                                                    ],
 
-                                        const SizedBox(height: 22),
+                                                    // Password
+                                                    _GlowField(
+                                                      ctrl: _passwordCtrl,
+                                                      label: 'Contraseña',
+                                                      icon: Icons
+                                                          .lock_outline_rounded,
+                                                      obscure: _obscure,
+                                                      textInputAction:
+                                                          TextInputAction.done,
+                                                      onSubmitted: (_) =>
+                                                          _login(),
+                                                      suffixIcon: IconButton(
+                                                        icon: Icon(
+                                                          _obscure
+                                                              ? Icons
+                                                                  .visibility_off_outlined
+                                                              : Icons
+                                                                  .visibility_outlined,
+                                                          color: const Color(
+                                                              0xFF8BA7E8),
+                                                          size: 20,
+                                                        ),
+                                                        onPressed: () =>
+                                                            setState(() =>
+                                                                _obscure =
+                                                                    !_obscure),
+                                                      ),
+                                                      validator: (v) {
+                                                        if (v == null ||
+                                                            v.isEmpty) {
+                                                          return 'Ingresa tu contraseña';
+                                                        }
+                                                        return null;
+                                                      },
+                                                    ),
 
-                                        _ShimmerButton(
-                                          shimmerCtrl: _shimmerCtrl,
-                                          pulseAnim: _pulse,
-                                          loading: _loading,
-                                          onPressed: _login,
-                                          label: 'Iniciar Sesión',
-                                          icon: Icons.arrow_forward_rounded,
+                                                    const SizedBox(height: 22),
+
+                                                    _ShimmerButton(
+                                                      shimmerCtrl: _shimmerCtrl,
+                                                      pulseAnim: _pulse,
+                                                      loading: _loading,
+                                                      onPressed: _login,
+                                                      label: 'Iniciar Sesión',
+                                                      icon: Icons
+                                                          .arrow_forward_rounded,
+                                                    ),
+                                                  ],
+                                                ),
                                         ),
-                                      ],
+                                      ),
 
                                       // Error
                                       if (_error != null) ...[
@@ -1320,6 +1373,7 @@ class _ShimmerButton extends StatelessWidget {
   final IconData icon;
 
   const _ShimmerButton({
+    super.key,
     required this.shimmerCtrl,
     required this.pulseAnim,
     required this.loading,
