@@ -668,7 +668,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                   // ── Tagline ───────────────────────────────────────
                   Text(
-                    'SOCIEDAD DE AHORROS FAMILIAR',
+                    'SOCIEDAD DE ALIADOS FINANCIEROS',
                     style: TextStyle(
                       color: const Color(0xFF8BA7E8).withValues(alpha: 0.75),
                       fontSize: 9.5,
