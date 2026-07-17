@@ -5839,6 +5839,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     double moraVal = 0;
     double tasaMensual = 0;
     double tiempoCuotaDiv = 1;
+    double interesCuotaServidor = 0;
     final valorCuota = double.tryParse((cuota['valor_pago'] ?? '')
             .toString()
             .replaceAll(RegExp(r'[^0-9.]'), '')) ??
@@ -5883,11 +5884,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   final tiempo = double.tryParse(
                           d['tiempo_cuota']?.toString() ?? '1') ??
                       1;
+                  final interesCuota = double.tryParse(
+                          d['interes_cuota']?.toString() ?? '0') ??
+                      0;
                   if (ctx.mounted) {
                     setS(() {
                       moraVal = inc;
                       tasaMensual = tasa;
                       tiempoCuotaDiv = tiempo > 0 ? tiempo : 1;
+                      interesCuotaServidor = interesCuota;
                     });
                   }
                 }
@@ -5900,23 +5905,38 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           return '${fechaPago.year}-${fechaPago.month.toString().padLeft(2, '0')}-${fechaPago.day.toString().padLeft(2, '0')}';
         }
 
-        // Vista previa del pago parcial a capital: si no es abono a interés y
-        // el valor es menor a la cuota, el backend cubre primero el interés,
-        // abona el resto a capital y proyecta el saldo a una cuota nueva.
+        // Vista previa: marcar Interés=Sí sobre un pago MENOR a la cuota
+        // indica que ese abono cubre el interés de ESTA cuota
+        // (interesCuotaServidor, calculado por el servidor según
+        // tipo_interes: Fijo = prorrateo del interés total del crédito;
+        // Variable = interés sobre saldo); el resto abona a capital y el
+        // saldo se proyecta a una cuota nueva con la tasa vigente.
+        // Pago MENOR sin marcar interés no modifica nada (queda pendiente).
+        // Pago MAYOR siempre descuenta el excedente de la cuota siguiente.
         final valPagadoPrev = double.tryParse(valorCtrl.text.trim()) ?? 0;
         final tasaPeriodo =
             tiempoCuotaDiv > 0 ? (tasaMensual / 100) / tiempoCuotaDiv : 0.0;
-        final esPagoParcial = interes == '1' &&
+        final esPagoParcial = interes == '2' &&
             valPagadoPrev > 0 &&
             valorCuota > 0 &&
             valPagadoPrev < valorCuota;
+        final esPagoMenorSinInteres = interes == '1' &&
+            valPagadoPrev > 0 &&
+            valorCuota > 0 &&
+            valPagadoPrev < valorCuota;
+        final esPagoMayor = valPagadoPrev > 0 &&
+            valorCuota > 0 &&
+            valPagadoPrev > valorCuota;
+        final excedentePrev = valPagadoPrev - valorCuota;
         final interesCuotaPrev =
-            tasaPeriodo > 0 ? valorCuota - (valorCuota / (1 + tasaPeriodo)) : 0.0;
+            interesCuotaServidor > valPagadoPrev ? valPagadoPrev : interesCuotaServidor;
         final abonoCapitalPrev = (valPagadoPrev - interesCuotaPrev) > 0
             ? valPagadoPrev - interesCuotaPrev
             : 0.0;
+        final capitalCuotaPrev = valorCuota - interesCuotaPrev;
+        final saldoCapitalPrev = capitalCuotaPrev - abonoCapitalPrev;
         final nuevaCuotaPrev =
-            ((valorCuota - valPagadoPrev) * (1 + tasaPeriodo)).roundToDouble();
+            (saldoCapitalPrev * (1 + tasaPeriodo)).roundToDouble();
 
         return AlertDialog(
           backgroundColor: dialogBg,
@@ -6039,7 +6059,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
               ),
               const SizedBox(height: 10),
-              // Vista previa de pago parcial a capital
+              // Vista previa de pago parcial a capital (Interés = Sí)
               if (esPagoParcial) ...[
                 Container(
                   width: double.infinity,
@@ -6058,6 +6078,53 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF2C3A8C),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              // Aviso: pago menor sin marcar interés no modifica la cuota
+              if (esPagoMenorSinInteres) ...[
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF3CD),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFF0D68A)),
+                  ),
+                  child: const Text(
+                    'El valor es menor a la cuota. Así no se registrará ningún '
+                    'cambio: la cuota seguirá pendiente. Marca "Interés = Sí" '
+                    'si este abono cubre el interés y el resto a capital.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF8A6D1D),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
+              // Vista previa de pago mayor: excedente a la cuota siguiente
+              if (esPagoMayor) ...[
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDF2E1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFB8DFC0)),
+                  ),
+                  child: Text(
+                    'Pago mayor: se cobra esta cuota completa y el excedente '
+                    '(${formatCop(excedentePrev)}) se descuenta de la cuota siguiente.',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1B5E20),
                     ),
                   ),
                 ),
@@ -6222,6 +6289,16 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             if (fuente.isEmpty) {
                               showResult(false,
                                   'Selecciona la fuente donde ingresó el pago');
+                              return;
+                            }
+                            if (interes == '1' &&
+                                valorCuota > 0 &&
+                                val < valorCuota) {
+                              showResult(
+                                  false,
+                                  'El valor es menor a la cuota. Marca "Interés = Sí" '
+                                  'si este abono cubre el interés y el resto a capital, '
+                                  'o completa el valor de la cuota.');
                               return;
                             }
                             setS(() => saving = true);
