@@ -5912,7 +5912,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         // Variable = interés sobre saldo); el resto abona a capital y el
         // saldo se proyecta a una cuota nueva con la tasa vigente.
         // Pago MENOR sin marcar interés no modifica nada (queda pendiente).
-        // Pago MAYOR siempre descuenta el excedente de la cuota siguiente.
+        // Pago MAYOR siempre recalcula las cuotas futuras pendientes (el
+        // servidor decide la fórmula exacta según tipo_interes; el cliente
+        // solo avisa).
         final valPagadoPrev = double.tryParse(valorCtrl.text.trim()) ?? 0;
         final tasaPeriodo =
             tiempoCuotaDiv > 0 ? (tasaMensual / 100) / tiempoCuotaDiv : 0.0;
@@ -6120,7 +6122,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   ),
                   child: Text(
                     'Pago mayor: se cobra esta cuota completa y el excedente '
-                    '(${formatCop(excedentePrev)}) se descuenta de la cuota siguiente.',
+                    '(${formatCop(excedentePrev)}) abona a capital, recalculando '
+                    'las cuotas futuras pendientes (quedan más bajas).',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -7571,25 +7574,34 @@ class _EliminarCreditoDialogState extends State<_EliminarCreditoDialog>
   late final Animation<double> _scale;
   late final Animation<double> _fade;
   late final Animation<double> _iconScale;
+  late final Animation<double> _iconWiggle;
 
   @override
   void initState() {
     super.initState();
     _entryCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 450));
+        vsync: this, duration: const Duration(milliseconds: 380));
     _iconCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
+        vsync: this, duration: const Duration(milliseconds: 700));
 
-    _scale = Tween<double>(begin: 0.78, end: 1.0)
-        .animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.elasticOut));
+    _scale = Tween<double>(begin: 0.90, end: 1.0).animate(
+        CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOutCubic));
     _fade = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(
         parent: _entryCtrl,
-        curve: const Interval(0.0, 0.45, curve: Curves.easeOut)));
-    _iconScale = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _iconCtrl, curve: Curves.elasticOut));
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut)));
+    _iconScale = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(
+        parent: _iconCtrl,
+        curve: const Interval(0.0, 0.55, curve: Curves.elasticOut)));
+    _iconWiggle = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: -0.06), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -0.06, end: 0.06), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 0.06, end: 0.0), weight: 1),
+    ]).animate(CurvedAnimation(
+        parent: _iconCtrl,
+        curve: const Interval(0.55, 1.0, curve: Curves.easeInOut)));
 
     _entryCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 180), () {
+    Future.delayed(const Duration(milliseconds: 150), () {
       if (mounted) _iconCtrl.forward();
     });
   }
@@ -7617,160 +7629,163 @@ class _EliminarCreditoDialogState extends State<_EliminarCreditoDialog>
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.18),
-                  blurRadius: 48,
-                  offset: const Offset(0, 20),
+                  color: Colors.black.withValues(alpha: 0.16),
+                  blurRadius: 40,
+                  offset: const Offset(0, 16),
                 ),
               ],
             ),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              // ── Gradient header ────────────────────────────────
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 32),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFF7F1D1D),
-                      Color(0xFFDC2626),
-                      Color(0xFFFF5252)
-                    ],
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 22),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                // ── Ícono de advertencia (neutro, con leve acento rojo) ──
+                AnimatedBuilder(
+                  animation: _iconCtrl,
+                  builder: (context, child) => Transform.scale(
+                    scale: _iconScale.value,
+                    child: Transform.rotate(
+                        angle: _iconWiggle.value, child: child),
                   ),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                ),
-                child: Column(children: [
-                  ScaleTransition(
-                    scale: _iconScale,
-                    child: Container(
-                      width: 76,
-                      height: 76,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.35),
-                            width: 2),
-                      ),
-                      child: const Icon(Icons.delete_outline_rounded,
-                          color: Colors.white, size: 38),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  const Text('Eliminar crédito',
-                      style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.4)),
-                  const SizedBox(height: 4),
-                  Text('Esta acción no se puede deshacer',
-                      style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.75))),
-                ]),
-              ),
-              // ── Body ──────────────────────────────────────────
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 22),
-                child: Column(children: [
-                  // Credit info card
-                  Container(
-                    padding: const EdgeInsets.all(14),
+                  child: Container(
+                    width: 64,
+                    height: 64,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: lineCol),
+                      color: isDarkTheme
+                          ? const Color(0xFFDC2626).withValues(alpha: 0.16)
+                          : const Color(0xFFFEF2F2),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: isDarkTheme
+                              ? const Color(0xFFDC2626).withValues(alpha: 0.45)
+                              : const Color(0xFFFCA5A5),
+                          width: 1.5),
                     ),
-                    child: Row(children: [
-                      Container(
-                        width: 42,
-                        height: 42,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFFDC2626), Color(0xFFFF5252)],
-                          ),
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: const Icon(Icons.credit_card_rounded,
-                            color: Colors.white, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Crédito #${widget.cod}',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                      color: textMain)),
-                              const SizedBox(height: 2),
-                              Text(widget.cliente,
-                                  style:
-                                      TextStyle(fontSize: 12, color: textSoft)),
-                            ]),
-                      ),
-                    ]),
+                    child: const Icon(Icons.delete_outline_rounded,
+                        color: Color(0xFFEF4444), size: 30),
                   ),
-                  const SizedBox(height: 18),
-                  // Buttons
-                  Row(children: [
-                    Expanded(
-                      child: appCancelButton(
-                          'Cancelar', () => Navigator.pop(context, false),
-                          height: 46),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFFB91C1C), Color(0xFFEF4444)],
-                          ),
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFDC2626)
-                                  .withValues(alpha: 0.38),
-                              blurRadius: 14,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                          ),
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.delete_rounded, size: 16),
-                              SizedBox(width: 6),
-                              Text('Eliminar',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 14)),
-                            ],
-                          ),
-                        ),
+                ),
+                const SizedBox(height: 16),
+                Text('Eliminar crédito',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: textMain,
+                        letterSpacing: -0.3)),
+                const SizedBox(height: 6),
+                Text('Esta acción no se puede deshacer',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: textSoft)),
+                const SizedBox(height: 20),
+                // Credit info card
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: cardBgAlt,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: lineCol),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: chipIndigo,
+                        borderRadius: BorderRadius.circular(11),
                       ),
+                      child: Icon(Icons.credit_card_rounded,
+                          color: btnPrimary, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Crédito #${widget.cod}',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13,
+                                    color: textMain)),
+                            const SizedBox(height: 2),
+                            Text(widget.cliente,
+                                style:
+                                    TextStyle(fontSize: 12, color: textSoft)),
+                          ]),
                     ),
                   ]),
+                ),
+                const SizedBox(height: 20),
+                // Buttons
+                Row(children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context, false),
+                      child: Container(
+                        height: 46,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: inputFill,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: isDarkTheme
+                                  ? lineCol
+                                  : const Color(0xFFCBD5E1),
+                              width: isDarkTheme ? 1 : 1.4),
+                        ),
+                        child: Text('Cancelar',
+                            style: TextStyle(
+                                color: textMain,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFFB91C1C), Color(0xFFEF4444)],
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color:
+                                const Color(0xFFDC2626).withValues(alpha: 0.32),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.delete_rounded, size: 16),
+                            SizedBox(width: 6),
+                            Text('Eliminar',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ]),
-              ),
-            ]),
+              ]),
+            ),
           ),
         ),
       ),
