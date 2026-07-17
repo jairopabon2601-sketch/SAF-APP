@@ -5837,6 +5837,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final comentCtrl = TextEditingController();
     DateTime fechaPago = DateTime.now();
     double moraVal = 0;
+    double tasaMensual = 0;
+    double tiempoCuotaDiv = 1;
+    final valorCuota = double.tryParse((cuota['valor_pago'] ?? '')
+            .toString()
+            .replaceAll(RegExp(r'[^0-9.]'), '')) ??
+        0;
     bool loadingMora = codigoCuota.isNotEmpty;
     bool saving = false;
     final fuentesPago = <Map<String, String>>[];
@@ -5871,7 +5877,19 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   final inc = double.tryParse(
                           d['valor_incremento']?.toString() ?? '0') ??
                       0;
-                  if (ctx.mounted) setS(() => moraVal = inc);
+                  final tasa = double.tryParse(
+                          d['tasa_interes_mensual']?.toString() ?? '0') ??
+                      0;
+                  final tiempo = double.tryParse(
+                          d['tiempo_cuota']?.toString() ?? '1') ??
+                      1;
+                  if (ctx.mounted) {
+                    setS(() {
+                      moraVal = inc;
+                      tasaMensual = tasa;
+                      tiempoCuotaDiv = tiempo > 0 ? tiempo : 1;
+                    });
+                  }
                 }
               } catch (_) {}
             }
@@ -5881,6 +5899,24 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         String fechaStr() {
           return '${fechaPago.year}-${fechaPago.month.toString().padLeft(2, '0')}-${fechaPago.day.toString().padLeft(2, '0')}';
         }
+
+        // Vista previa del pago parcial a capital: si no es abono a interés y
+        // el valor es menor a la cuota, el backend cubre primero el interés,
+        // abona el resto a capital y proyecta el saldo a una cuota nueva.
+        final valPagadoPrev = double.tryParse(valorCtrl.text.trim()) ?? 0;
+        final tasaPeriodo =
+            tiempoCuotaDiv > 0 ? (tasaMensual / 100) / tiempoCuotaDiv : 0.0;
+        final esPagoParcial = interes == '1' &&
+            valPagadoPrev > 0 &&
+            valorCuota > 0 &&
+            valPagadoPrev < valorCuota;
+        final interesCuotaPrev =
+            tasaPeriodo > 0 ? valorCuota - (valorCuota / (1 + tasaPeriodo)) : 0.0;
+        final abonoCapitalPrev = (valPagadoPrev - interesCuotaPrev) > 0
+            ? valPagadoPrev - interesCuotaPrev
+            : 0.0;
+        final nuevaCuotaPrev =
+            ((valorCuota - valPagadoPrev) * (1 + tasaPeriodo)).roundToDouble();
 
         return AlertDialog(
           backgroundColor: dialogBg,
@@ -5933,6 +5969,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               // Valor pagado
               TextField(
                 controller: valorCtrl,
+                onChanged: (_) => setS(() {}),
                 keyboardType: TextInputType.number,
                 style: TextStyle(
                   color: textMain,
@@ -6002,6 +6039,30 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
               ),
               const SizedBox(height: 10),
+              // Vista previa de pago parcial a capital
+              if (esPagoParcial) ...[
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3E8FB),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFB6C2EE)),
+                  ),
+                  child: Text(
+                    'Pago parcial: cubre interés (${formatCop(interesCuotaPrev)}) '
+                    'y abona ${formatCop(abonoCapitalPrev)} a capital. '
+                    'Se creará una cuota nueva de ${formatCop(nuevaCuotaPrev)}.',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF2C3A8C),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
               // Fuente
               DropdownButtonFormField<String>(
                 initialValue: fuente,
