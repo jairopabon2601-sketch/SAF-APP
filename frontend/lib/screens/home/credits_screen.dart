@@ -3540,13 +3540,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: const BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle,
-                                        ),
+                                      _PulsingDot(
+                                        color: activo
+                                            ? (vencido
+                                                ? const Color(0xFFFCA5A5)
+                                                : const Color(0xFF6EE7A0))
+                                            : Colors.white,
                                       ),
                                       const SizedBox(width: 5),
                                       Text(estado,
@@ -5553,25 +5552,25 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             backgroundColor: dialogBg,
             surfaceTintColor: Colors.transparent,
             shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             insetPadding:
                 const EdgeInsets.symmetric(horizontal: 8, vertical: 20),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              // Header con gradiente compartido (mismo estilo que el resto de diálogos)
-              ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
-                child: appDialogHeader(
-                  icon: Icons.list_alt_rounded,
-                  title: 'Listado de cuotas',
-                  subtitle: '$cliente · Cód #$cod',
-                  gradientColors: const [
-                    Color(0xFF1E1B4B),
-                    Color(0xFF3B3B8A),
-                    Color(0xFF4F46E5),
-                  ],
-                  onClose: () => Navigator.pop(ctx),
-                ),
+              // Header con gradiente compartido (mismo estilo que el resto de
+              // diálogos). appDialogHeader ya se recorta a sí mismo con
+              // radio 20 (ver home_constants.dart): el shape de este Dialog
+              // debe coincidir en 20 para que no quede un borde cuadrado del
+              // Dialog asomando detrás de la esquina redondeada del header.
+              appDialogHeader(
+                icon: Icons.list_alt_rounded,
+                title: 'Listado de cuotas',
+                subtitle: '$cliente · Cód #$cod',
+                gradientColors: const [
+                  Color(0xFF1E1B4B),
+                  Color(0xFF3B3B8A),
+                  Color(0xFF4F46E5),
+                ],
+                onClose: () => Navigator.pop(ctx),
               ),
               // Cabecera tabla, con degradado a juego con el header
               Container(
@@ -5725,8 +5724,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 width: 28,
                                 child: Center(
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 5, vertical: 2),
+                                    width: 22,
+                                    height: 18,
+                                    alignment: Alignment.center,
                                     decoration: BoxDecoration(
                                       color: accentPill.withValues(alpha: 0.15),
                                       borderRadius: BorderRadius.circular(6),
@@ -5740,132 +5740,50 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                   ),
                                 )),
                             SizedBox(
-                                width: pagadoSi ? 56 : 84,
-                                child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      GestureDetector(
-                                        onTap: () =>
-                                            _showRegistroPagoDialog(ctx, q, () {
-                                          repository.post(
-                                              '/ajax/get_cuotas_credito.php', {
-                                            'codigo_credito': cod
-                                          }).then((r) {
-                                            if (r.statusCode == 200) {
-                                              try {
-                                                final d = jsonDecode(r.body);
-                                                if (d is List) {
-                                                  cuotas = d
-                                                      .whereType<Map>()
-                                                      .map((e) => Map<String,
-                                                          dynamic>.from(e))
-                                                      .toList();
-                                                }
-                                              } catch (_) {}
+                                width: 48,
+                                child: Center(
+                                  child: GestureDetector(
+                                    onTap: () =>
+                                        _showRegistroPagoDialog(ctx, q, () {
+                                      repository.post(
+                                          '/ajax/get_cuotas_credito.php', {
+                                        'codigo_credito': cod
+                                      }).then((r) {
+                                        if (r.statusCode == 200) {
+                                          try {
+                                            final d = jsonDecode(r.body);
+                                            if (d is List) {
+                                              cuotas = d
+                                                  .whereType<Map>()
+                                                  .map((e) => Map<String,
+                                                      dynamic>.from(e))
+                                                  .toList();
                                             }
-                                            if (ctx.mounted) setS(() {});
-                                            repository.invalidateCache(
-                                                '/ajax/get_creditos_lista.php');
-                                            fetchCredits('').then((_) {
-                                              if (isMounted) refresh(() {});
-                                            });
-                                          });
-                                        }),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF3B3B8A)
-                                                .withValues(alpha: 0.12),
-                                            borderRadius:
-                                                BorderRadius.circular(7),
-                                          ),
-                                          child: const Icon(
-                                              Icons
-                                                  .assignment_turned_in_outlined,
-                                              size: 14,
-                                              color: Color(0xFF3B3B8A)),
-                                        ),
+                                          } catch (_) {}
+                                        }
+                                        if (ctx.mounted) setS(() {});
+                                        repository.invalidateCache(
+                                            '/ajax/get_creditos_lista.php');
+                                        fetchCredits('').then((_) {
+                                          if (isMounted) refresh(() {});
+                                        });
+                                      });
+                                    }),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF3B3B8A)
+                                            .withValues(alpha: 0.12),
+                                        borderRadius:
+                                            BorderRadius.circular(7),
                                       ),
-                                      if (!pagadoSi)
-                                        GestureDetector(
-                                          onTap: () =>
-                                              _showRegistrarAbonoDialog(ctx, q,
-                                                  () {
-                                            repository.post(
-                                                '/ajax/get_cuotas_credito.php', {
-                                              'codigo_credito': cod
-                                            }).then((r) {
-                                              if (r.statusCode == 200) {
-                                                try {
-                                                  final d = jsonDecode(r.body);
-                                                  if (d is List) {
-                                                    cuotas = d
-                                                        .whereType<Map>()
-                                                        .map((e) => Map<String,
-                                                            dynamic>.from(e))
-                                                        .toList();
-                                                  }
-                                                } catch (_) {}
-                                              }
-                                              if (ctx.mounted) setS(() {});
-                                              repository.invalidateCache(
-                                                  '/ajax/get_creditos_lista.php');
-                                              fetchCredits('').then((_) {
-                                                if (isMounted) refresh(() {});
-                                              });
-                                            });
-                                          }),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF16A34A)
-                                                  .withValues(alpha: 0.12),
-                                              borderRadius:
-                                                  BorderRadius.circular(7),
-                                            ),
-                                            child: const Icon(
-                                                Icons.add_card_outlined,
-                                                size: 14,
-                                                color: Color(0xFF16A34A)),
-                                          ),
-                                        ),
-                                      GestureDetector(
-                                        onTap: () =>
-                                            _showEditarCuotaDialog(ctx, q, () {
-                                          repository.post(
-                                              '/ajax/get_cuotas_credito.php', {
-                                            'codigo_credito': cod
-                                          }).then((r) {
-                                            if (r.statusCode == 200) {
-                                              try {
-                                                final d = jsonDecode(r.body);
-                                                if (d is List) {
-                                                  cuotas = d
-                                                      .whereType<Map>()
-                                                      .map((e) => Map<String,
-                                                          dynamic>.from(e))
-                                                      .toList();
-                                                }
-                                              } catch (_) {}
-                                            }
-                                            if (ctx.mounted) setS(() {});
-                                          });
-                                        }),
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: BoxDecoration(
-                                            color: const Color(0xFF3B3B8A)
-                                                .withValues(alpha: 0.12),
-                                            borderRadius:
-                                                BorderRadius.circular(7),
-                                          ),
-                                          child: const Icon(Icons.edit_outlined,
-                                              size: 14,
-                                              color: Color(0xFF3B3B8A)),
-                                        ),
-                                      ),
-                                    ])),
+                                      child: const Icon(
+                                          Icons.assignment_turned_in_outlined,
+                                          size: 14,
+                                          color: Color(0xFF3B3B8A)),
+                                    ),
+                                  ),
+                                )),
                           ]),
                         ),
                       );
@@ -5887,432 +5805,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     );
   }
 
-  // Registra un ABONO PARCIAL ligado a una cuota específica: a diferencia de
-  // "Registro de pago" (que sobrescribe el valor_pagado de la cuota), esto
-  // suma un movimiento nuevo en tbl_deudores_creditos_cuotas_abonos, así que
-  // se puede abonar varias veces en fechas distintas (ej. 600.000 hoy y
-  // 600.000 pasado mañana) sin perder el abono anterior. La cuota solo queda
-  // "pagada" cuando la suma de sus abonos alcanza el valor completo.
-  Future<void> _showRegistrarAbonoDialog(BuildContext parentCtx,
-      Map<String, dynamic> cuota, VoidCallback onSaved) async {
-    final codigoCuota = cuota['codigo_cuota']?.toString() ?? '';
-    final valorCuota = double.tryParse((cuota['valor_pago'] ?? '')
-            .toString()
-            .replaceAll(RegExp(r'[^0-9.]'), '')) ??
-        0;
-    final valorCtrl = TextEditingController();
-    final comentCtrl = TextEditingController();
-    String fuente = '';
-    DateTime fechaAbono = DateTime.now();
-    bool loadingAbonos = codigoCuota.isNotEmpty;
-    bool saving = false;
-    double saldoPendiente = valorCuota;
-    double totalAbonado = 0;
-    List<Map<String, dynamic>> historialAbonos = [];
-    final fuentesPago = <Map<String, String>>[];
-    final codigosFuente = <String>{};
-    for (final cuenta in accounts) {
-      final codigo =
-          (cuenta['codigo'] ?? cuenta['codigo_cuenta'] ?? '').toString().trim();
-      final nombre =
-          (cuenta['nombre'] ?? cuenta['cuenta'] ?? '').toString().trim();
-      final activa = (cuenta['estado'] ?? '1').toString() != '0';
-      if (codigo.isNotEmpty &&
-          nombre.isNotEmpty &&
-          activa &&
-          codigosFuente.add(codigo)) {
-        fuentesPago.add({'codigo': codigo, 'nombre': nombre});
-      }
-    }
-    fuentesPago.sort((a, b) =>
-        a['nombre']!.toLowerCase().compareTo(b['nombre']!.toLowerCase()));
-
-    await showDialog(
-      context: parentCtx,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
-        if (loadingAbonos && codigoCuota.isNotEmpty) {
-          loadingAbonos = false;
-          repository.post('/ajax/listar_abonos_cuota.php',
-              {'codigo_cuota': codigoCuota}).then((r) {
-            if (r.statusCode == 200) {
-              try {
-                final d = jsonDecode(r.body);
-                if (d is Map && d['success'] == true) {
-                  final saldo = double.tryParse(
-                          d['saldo_pendiente']?.toString() ?? '0') ??
-                      valorCuota;
-                  final total = double.tryParse(
-                          d['total_abonado']?.toString() ?? '0') ??
-                      0;
-                  final lista = (d['abonos'] as List? ?? [])
-                      .whereType<Map>()
-                      .map((e) => Map<String, dynamic>.from(e))
-                      .toList();
-                  if (ctx.mounted) {
-                    setS(() {
-                      saldoPendiente = saldo;
-                      totalAbonado = total;
-                      historialAbonos = lista;
-                    });
-                  }
-                }
-              } catch (_) {}
-            }
-          });
-        }
-
-        String fechaStr() {
-          return '${fechaAbono.year}-${fechaAbono.month.toString().padLeft(2, '0')}-${fechaAbono.day.toString().padLeft(2, '0')}';
-        }
-
-        return AlertDialog(
-          backgroundColor: dialogBg,
-          surfaceTintColor: Colors.transparent,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Registrar abono',
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w700, color: textMain)),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              // Resumen de saldo
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: inputFill,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: lineCol),
-                ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Valor de la cuota: ${formatCop(valorCuota)}',
-                      style: TextStyle(fontSize: 12, color: textMain)),
-                  if (totalAbonado > 0)
-                    Text('Ya abonado: ${formatCop(totalAbonado)}',
-                        style: TextStyle(
-                            fontSize: 12,
-                            color: textMain,
-                            fontWeight: FontWeight.w600)),
-                  Text('Saldo pendiente: ${formatCop(saldoPendiente)}',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFFB71C1C))),
-                  Builder(builder: (_) {
-                    final valorEscrito =
-                        double.tryParse(valorCtrl.text.trim()) ?? 0;
-                    if (valorEscrito <= 0) return const SizedBox.shrink();
-                    final excede = valorEscrito > saldoPendiente + 0.01;
-                    final saldoTrasAbono =
-                        (saldoPendiente - valorEscrito)
-                            .clamp(0.0, saldoPendiente);
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        excede
-                            ? 'El abono supera el saldo pendiente'
-                            : 'Saldo tras este abono: ${formatCop(saldoTrasAbono)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: excede
-                              ? const Color(0xFFB71C1C)
-                              : const Color(0xFF1B5E20),
-                        ),
-                      ),
-                    );
-                  }),
-                ]),
-              ),
-              if (historialAbonos.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Abonos registrados',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: textSoft)),
-                ),
-                const SizedBox(height: 4),
-                ...historialAbonos.map((a) {
-                  final valor =
-                      double.tryParse(a['valor_abonado']?.toString() ?? '0') ??
-                          0;
-                  final fecha = (a['fecha_abono'] ?? '').toString();
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(fecha,
-                              style: TextStyle(fontSize: 12, color: textSoft)),
-                          Text(formatCop(valor),
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: textMain)),
-                        ]),
-                  );
-                }),
-              ],
-              const SizedBox(height: 10),
-              // Valor a abonar
-              TextField(
-                controller: valorCtrl,
-                onChanged: (_) => setS(() {}),
-                keyboardType: TextInputType.number,
-                style: TextStyle(
-                  color: textMain,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-                cursorColor: const Color(0xFF3B3B8A),
-                decoration: InputDecoration(
-                  labelText: 'Valor del abono',
-                  labelStyle: const TextStyle(
-                    color: Color(0xFF5B5BB0),
-                    fontWeight: FontWeight.w600,
-                  ),
-                  floatingLabelStyle: const TextStyle(
-                    color: Color(0xFF3B3B8A),
-                    fontWeight: FontWeight.w700,
-                  ),
-                  filled: true,
-                  fillColor: inputFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF3B3B8A),
-                      width: 1.5,
-                    ),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Fuente
-              DropdownButtonFormField<String>(
-                initialValue: fuente,
-                isExpanded: true,
-                dropdownColor: dialogBg,
-                iconEnabledColor: const Color(0xFF3B3B8A),
-                style: TextStyle(
-                  color: textMain,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-                decoration: InputDecoration(
-                  labelText: 'Fuente',
-                  labelStyle: const TextStyle(
-                    color: Color(0xFF5B5BB0),
-                    fontWeight: FontWeight.w600,
-                  ),
-                  floatingLabelStyle: const TextStyle(
-                    color: Color(0xFF3B3B8A),
-                    fontWeight: FontWeight.w700,
-                  ),
-                  filled: true,
-                  fillColor: inputFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF3B3B8A),
-                      width: 1.5,
-                    ),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: '',
-                    child: Text(
-                      '[Seleccione]',
-                      style: TextStyle(color: textSoft),
-                    ),
-                  ),
-                  ...fuentesPago.map((f) {
-                    return DropdownMenuItem(
-                      value: f['codigo'],
-                      child:
-                          Text(f['nombre']!, overflow: TextOverflow.ellipsis),
-                    );
-                  }),
-                ],
-                onChanged: (v) => setS(() => fuente = v ?? ''),
-              ),
-              const SizedBox(height: 10),
-              // Fecha del abono
-              GestureDetector(
-                onTap: () async {
-                  final d = await showLightDatePicker(
-                    ctx,
-                    initialDate: fechaAbono,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2035),
-                  );
-                  if (d != null && ctx.mounted) setS(() => fechaAbono = d);
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: inputFill,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: lineCol),
-                  ),
-                  child: Row(children: [
-                    const Icon(Icons.calendar_today_outlined,
-                        size: 14, color: Color(0xFF3B3B8A)),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${fechaAbono.day.toString().padLeft(2, '0')}/${fechaAbono.month.toString().padLeft(2, '0')}/${fechaAbono.year}',
-                      style: TextStyle(fontSize: 12, color: textMain),
-                    ),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // Comentarios
-              TextField(
-                controller: comentCtrl,
-                maxLines: 3,
-                style: TextStyle(
-                  color: textMain,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-                cursorColor: const Color(0xFF3B3B8A),
-                decoration: InputDecoration(
-                  hintText: 'Comentarios (opcional)',
-                  hintStyle: TextStyle(
-                    color: textSoft,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  filled: true,
-                  fillColor: inputFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF3B3B8A),
-                      width: 1.5,
-                    ),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-              ),
-            ]),
-          ),
-          actions: [
-            Row(children: [
-              Expanded(
-                  child: appCancelButton('Cerrar', () => Navigator.pop(ctx))),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
-                  height: 42,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B3B8A),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: saving
-                        ? null
-                        : () async {
-                            final val =
-                                double.tryParse(valorCtrl.text.trim()) ?? 0;
-                            if (val <= 0) {
-                              showResult(false,
-                                  'Ingresa el valor del abono antes de continuar');
-                              return;
-                            }
-                            if (val > saldoPendiente + 0.01) {
-                              showResult(false,
-                                  'El abono no puede ser mayor al saldo pendiente (${formatCop(saldoPendiente)})');
-                              return;
-                            }
-                            if (fuente.isEmpty) {
-                              showResult(false,
-                                  'Selecciona la fuente donde ingresó el abono');
-                              return;
-                            }
-                            setS(() => saving = true);
-                            final r = await repository
-                                .post('/ajax/registrar_abono_cuota.php', {
-                              'codigo_cuota': codigoCuota,
-                              'valor_abonado': valorCtrl.text.trim(),
-                              'fuente_abono': fuente,
-                              'fecha_abono': fechaStr(),
-                              'comentarios': comentCtrl.text.trim(),
-                            });
-                            setS(() => saving = false);
-                            if (!ctx.mounted) return;
-                            final decoded = decodeJsonMap(r.body);
-                            final ok = r.statusCode == 200 &&
-                                decoded['success'] == true;
-                            if (ok) {
-                              Navigator.pop(ctx);
-                              onSaved();
-                            }
-                            showResult(
-                                ok,
-                                ok
-                                    ? (decoded['mensaje']?.toString() ??
-                                        'Abono registrado correctamente')
-                                    : friendlyError(r.body));
-                          },
-                    child: saving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Text('Abonar'),
-                  ),
-                ),
-              ),
-            ]),
-          ],
-        );
-      }),
-    );
-  }
-
   Future<void> _showRegistroPagoDialog(BuildContext parentCtx,
       Map<String, dynamic> cuota, VoidCallback onSaved) async {
     final codigoCuota = cuota['codigo_cuota']?.toString() ?? '';
-    String interes = '1'; // 1=No interés, 2=Con interés
+    String interes = '1'; // 1=No interés, 2=Con interés, 3=Abono parcial
     String fuente = '';
     final valorCtrl = TextEditingController(
         text: (cuota['valor_pago'] ?? '')
@@ -6324,11 +5820,20 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     double tasaMensual = 0;
     double tiempoCuotaDiv = 1;
     double interesCuotaServidor = 0;
+    // Saldo pendiente real de la cuota (valor_pago menos abonos ya
+    // registrados) y su historial, usados por la opción "Abono".
+    double saldoPendiente = double.tryParse((cuota['valor_pago'] ?? '')
+            .toString()
+            .replaceAll(RegExp(r'[^0-9.]'), '')) ??
+        0;
+    double totalAbonado = 0;
+    List<Map<String, dynamic>> historialAbonos = [];
     final valorCuota = double.tryParse((cuota['valor_pago'] ?? '')
             .toString()
             .replaceAll(RegExp(r'[^0-9.]'), '')) ??
         0;
     bool loadingMora = codigoCuota.isNotEmpty;
+    bool loadingAbonos = codigoCuota.isNotEmpty;
     bool saving = false;
     final fuentesPago = <Map<String, String>>[];
     final codigosFuente = <String>{};
@@ -6371,14 +5876,40 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   final interesCuota = double.tryParse(
                           d['interes_cuota']?.toString() ?? '0') ??
                       0;
+                  final saldo = double.tryParse(
+                          d['saldo_pendiente']?.toString() ?? '0') ??
+                      valorCuota;
+                  final abonado = double.tryParse(
+                          d['total_abonado']?.toString() ?? '0') ??
+                      0;
                   if (ctx.mounted) {
                     setS(() {
                       moraVal = inc;
                       tasaMensual = tasa;
                       tiempoCuotaDiv = tiempo > 0 ? tiempo : 1;
                       interesCuotaServidor = interesCuota;
+                      saldoPendiente = saldo;
+                      totalAbonado = abonado;
                     });
                   }
+                }
+              } catch (_) {}
+            }
+          });
+        }
+        if (loadingAbonos && codigoCuota.isNotEmpty) {
+          loadingAbonos = false;
+          repository.post('/ajax/listar_abonos_cuota.php',
+              {'codigo_cuota': codigoCuota}).then((r) {
+            if (r.statusCode == 200) {
+              try {
+                final d = jsonDecode(r.body);
+                if (d is Map && d['success'] == true) {
+                  final lista = (d['abonos'] as List? ?? [])
+                      .whereType<Map>()
+                      .map((e) => Map<String, dynamic>.from(e))
+                      .toList();
+                  if (ctx.mounted) setS(() => historialAbonos = lista);
                 }
               } catch (_) {}
             }
@@ -6466,13 +5997,80 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     items: const [
                       DropdownMenuItem(value: '1', child: Text('No')),
                       DropdownMenuItem(value: '2', child: Text('Si')),
+                      DropdownMenuItem(value: '3', child: Text('Abono')),
                     ],
                     onChanged: (v) => setS(() => interes = v ?? '1'),
                   )),
                 )),
               ]),
+              // Saldo pendiente + historial de abonos (modo Abono)
+              if (interes == '3') ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: inputFill,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: lineCol),
+                  ),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Valor de la cuota: ${formatCop(valorCuota)}',
+                            style:
+                                TextStyle(fontSize: 12, color: textMain)),
+                        if (totalAbonado > 0)
+                          Text('Ya abonado: ${formatCop(totalAbonado)}',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: textMain,
+                                  fontWeight: FontWeight.w600)),
+                        Text(
+                            'Saldo pendiente: ${formatCop(saldoPendiente)}',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFFB71C1C))),
+                      ]),
+                ),
+                if (historialAbonos.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Abonos registrados',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: textSoft)),
+                  ),
+                  const SizedBox(height: 4),
+                  ...historialAbonos.map((a) {
+                    final valor = double.tryParse(
+                            a['valor_abonado']?.toString() ?? '0') ??
+                        0;
+                    final fecha = (a['fecha_abono'] ?? '').toString();
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(fecha,
+                                style: TextStyle(
+                                    fontSize: 12, color: textSoft)),
+                            Text(formatCop(valor),
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: textMain)),
+                          ]),
+                    );
+                  }),
+                ],
+              ],
               const SizedBox(height: 10),
-              // Valor pagado
+              // Valor pagado / Valor del abono
               TextField(
                 controller: valorCtrl,
                 onChanged: (_) => setS(() {}),
@@ -6484,7 +6082,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
                 cursorColor: const Color(0xFF3B3B8A),
                 decoration: InputDecoration(
-                  labelText: 'Valor pagado',
+                  labelText: interes == '3' ? 'Valor del abono' : 'Valor pagado',
                   labelStyle: const TextStyle(
                     color: Color(0xFF5B5BB0),
                     fontWeight: FontWeight.w600,
@@ -6514,6 +6112,32 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
+              // Vista previa en tiempo real del saldo tras el abono
+              if (interes == '3') ...[
+                Builder(builder: (_) {
+                  final valorEscrito =
+                      double.tryParse(valorCtrl.text.trim()) ?? 0;
+                  if (valorEscrito <= 0) return const SizedBox.shrink();
+                  final excede = valorEscrito > saldoPendiente + 0.01;
+                  final saldoTrasAbono = (saldoPendiente - valorEscrito)
+                      .clamp(0.0, saldoPendiente);
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      excede
+                          ? 'El abono supera el saldo pendiente'
+                          : 'Saldo tras este abono: ${formatCop(saldoTrasAbono)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: excede
+                            ? const Color(0xFFB71C1C)
+                            : const Color(0xFF1B5E20),
+                      ),
+                    ),
+                  );
+                }),
+              ],
               const SizedBox(height: 10),
               // Mora calculada (read-only)
               Container(
@@ -6769,8 +6393,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             final val =
                                 double.tryParse(valorCtrl.text.trim()) ?? 0;
                             if (val <= 0) {
-                              showResult(false,
-                                  'Ingresa el valor del pago antes de continuar');
+                              showResult(
+                                  false,
+                                  interes == '3'
+                                      ? 'Ingresa el valor del abono antes de continuar'
+                                      : 'Ingresa el valor del pago antes de continuar');
                               return;
                             }
                             if (fuente.isEmpty) {
@@ -6778,6 +6405,44 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                   'Selecciona la fuente donde ingresó el pago');
                               return;
                             }
+
+                            if (interes == '3') {
+                              // Abono parcial ligado a la cuota: suma un
+                              // movimiento nuevo (no sobrescribe abonos
+                              // previos), la cuota solo queda pagada cuando
+                              // la suma alcanza el valor completo.
+                              if (val > saldoPendiente + 0.01) {
+                                showResult(false,
+                                    'El abono no puede ser mayor al saldo pendiente (${formatCop(saldoPendiente)})');
+                                return;
+                              }
+                              setS(() => saving = true);
+                              final r = await repository
+                                  .post('/ajax/registrar_abono_cuota.php', {
+                                'codigo_cuota': codigoCuota,
+                                'valor_abonado': valorCtrl.text.trim(),
+                                'fuente_abono': fuente,
+                                'fecha_abono': fechaStr(),
+                                'comentarios': comentCtrl.text.trim(),
+                              });
+                              setS(() => saving = false);
+                              if (!ctx.mounted) return;
+                              final decoded = decodeJsonMap(r.body);
+                              final ok = r.statusCode == 200 &&
+                                  decoded['success'] == true;
+                              if (ok) {
+                                Navigator.pop(ctx);
+                                onSaved();
+                              }
+                              showResult(
+                                  ok,
+                                  ok
+                                      ? (decoded['mensaje']?.toString() ??
+                                          'Abono registrado correctamente')
+                                      : friendlyError(r.body));
+                              return;
+                            }
+
                             if (interes == '1' &&
                                 valorCuota > 0 &&
                                 val < valorCuota) {
@@ -6827,217 +6492,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
                         : const Text('Grabar'),
-                  ),
-                ),
-              ),
-            ]),
-          ],
-        );
-      }),
-    );
-  }
-
-  Future<void> _showEditarCuotaDialog(BuildContext parentCtx,
-      Map<String, dynamic> cuota, VoidCallback onSaved) async {
-    final codigoCuota = cuota['codigo_cuota']?.toString() ?? '';
-    final valorCtrl = TextEditingController(
-        text: (cuota['valor_pago'] ?? '')
-            .toString()
-            .replaceAll(RegExp(r'[^0-9.]'), ''));
-    final obsCtrl =
-        TextEditingController(text: (cuota['observaciones'] ?? '').toString());
-    DateTime? fechaPago;
-    try {
-      fechaPago = DateTime.parse((cuota['fecha_pago'] ?? '').toString());
-    } catch (_) {}
-    bool saving = false;
-
-    await showDialog(
-      context: parentCtx,
-      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
-        String fechaStr() {
-          if (fechaPago == null) return '';
-          return '${fechaPago!.year}-${fechaPago!.month.toString().padLeft(2, '0')}-${fechaPago!.day.toString().padLeft(2, '0')}';
-        }
-
-        return AlertDialog(
-          backgroundColor: dialogBg,
-          surfaceTintColor: Colors.transparent,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Editar Cuota',
-              style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w700, color: textMain)),
-          content: SingleChildScrollView(
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                controller: valorCtrl,
-                keyboardType: TextInputType.number,
-                style: TextStyle(
-                  color: textMain,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-                cursorColor: const Color(0xFF3B3B8A),
-                decoration: InputDecoration(
-                  labelText: 'Valor de la cuota',
-                  labelStyle: const TextStyle(
-                    color: Color(0xFF5B5BB0),
-                    fontWeight: FontWeight.w600,
-                  ),
-                  floatingLabelStyle: const TextStyle(
-                    color: Color(0xFF3B3B8A),
-                    fontWeight: FontWeight.w700,
-                  ),
-                  filled: true,
-                  fillColor: inputFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF3B3B8A),
-                      width: 1.5,
-                    ),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-              ),
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: () async {
-                  final d = await showLightDatePicker(
-                    ctx,
-                    initialDate: fechaPago ?? DateTime.now(),
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime(2035),
-                  );
-                  if (d != null && ctx.mounted) setS(() => fechaPago = d);
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: inputFill,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: lineCol),
-                  ),
-                  child: Row(children: [
-                    const Icon(Icons.calendar_today_outlined,
-                        size: 14, color: Color(0xFF3B3B8A)),
-                    const SizedBox(width: 8),
-                    Text(
-                      fechaPago != null
-                          ? '${fechaPago!.day.toString().padLeft(2, '0')}/${fechaPago!.month.toString().padLeft(2, '0')}/${fechaPago!.year}'
-                          : 'Fecha de pago',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: fechaPago != null ? textMain : textSoft,
-                      ),
-                    ),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: obsCtrl,
-                maxLines: 3,
-                style: TextStyle(
-                  color: textMain,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-                cursorColor: const Color(0xFF3B3B8A),
-                decoration: InputDecoration(
-                  hintText: 'Observaciones (opcional)',
-                  hintStyle: TextStyle(
-                    color: textSoft,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  filled: true,
-                  fillColor: inputFill,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: lineCol),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF3B3B8A),
-                      width: 1.5,
-                    ),
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                ),
-              ),
-            ]),
-          ),
-          actions: [
-            Row(children: [
-              Expanded(
-                  child: appCancelButton('Cancelar', () => Navigator.pop(ctx))),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
-                  height: 42,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B3B8A),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
-                    ),
-                    onPressed: saving
-                        ? null
-                        : () async {
-                            setS(() => saving = true);
-                            final r = await repository
-                                .post('/ajax/editar_cuota.php', {
-                              'codigo_cuota': codigoCuota,
-                              'valor_pago': valorCtrl.text.trim(),
-                              'fecha_pago': fechaStr(),
-                            });
-                            setS(() => saving = false);
-                            if (!ctx.mounted) return;
-                            bool ok = false;
-                            try {
-                              final d = jsonDecode(r.body);
-                              ok = r.statusCode == 200 &&
-                                  (d['resultado'] == 1 ||
-                                      d['resultado'] == '1');
-                            } catch (_) {
-                              ok = false;
-                            }
-                            if (ok) {
-                              Navigator.pop(ctx);
-                              onSaved();
-                            }
-                            showResult(
-                                ok,
-                                ok
-                                    ? 'Cuota actualizada correctamente'
-                                    : friendlyError(r.body));
-                          },
-                    child: saving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Text('Guardar cambios'),
                   ),
                 ),
               ),
@@ -7122,17 +6576,19 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             int.tryParse(calculo?['cuotas_pendientes']?.toString() ?? '0') ?? 0;
 
         return AppAnimatedDialog(
-          child: AlertDialog(
+          child: Dialog(
             backgroundColor: dialogBg,
             surfaceTintColor: Colors.transparent,
             shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            titlePadding: EdgeInsets.zero,
-            contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            title: ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-              child: appDialogHeader(
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // appDialogHeader ya se recorta a sí mismo con radio 20 (ver
+              // home_constants.dart): el shape de este Dialog debe coincidir
+              // en 20 para que no quede un borde cuadrado del Dialog
+              // asomando detrás de la esquina redondeada del header.
+              appDialogHeader(
                 icon: Icons.request_page_rounded,
                 title: 'Liquidar crédito #$cod',
                 subtitle: 'Cliente: $cliente',
@@ -7143,10 +6599,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 ],
                 onClose: () => Navigator.pop(ctx),
               ),
-            ),
-            content: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const SizedBox(height: 4),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
                 // Fecha de liquidación
                 GestureDetector(
                   onTap: () async {
@@ -7167,24 +6623,24 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                        horizontal: 14, vertical: 14),
                     decoration: BoxDecoration(
                       color: inputFill,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: lineCol),
                     ),
                     child: Row(children: [
                       const Icon(Icons.calendar_today_outlined,
-                          size: 14, color: Color(0xFF3B3B8A)),
-                      const SizedBox(width: 8),
+                          size: 15, color: Color(0xFF3B3B8A)),
+                      const SizedBox(width: 10),
                       Text(
                         'Fecha de liquidación: ${fechaLiquidacion.day.toString().padLeft(2, '0')}/${fechaLiquidacion.month.toString().padLeft(2, '0')}/${fechaLiquidacion.year}',
-                        style: TextStyle(fontSize: 12, color: textMain),
+                        style: TextStyle(fontSize: 13, color: textMain),
                       ),
                     ]),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
                 GestureDetector(
                   onTap: calculando ? null : calcular,
                   child: Container(
@@ -7282,12 +6738,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
+                          horizontal: 14, vertical: 14),
                       decoration: BoxDecoration(
                         color: isDarkTheme
                             ? const Color(0xFF12341F)
                             : const Color(0xFFDDF2E1),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                             color: isDarkTheme
                                 ? const Color(0xFF1E5A3C)
@@ -7303,6 +6759,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     color: isDarkTheme
                                         ? const Color(0xFF6EE7A0)
                                         : const Color(0xFF1B5E20))),
+                            const SizedBox(height: 6),
                             Text(
                                 'Interés prorateado: ${formatCop(interesTotal)}',
                                 style: TextStyle(
@@ -7310,6 +6767,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     color: isDarkTheme
                                         ? const Color(0xFF6EE7A0)
                                         : const Color(0xFF1B5E20))),
+                            const SizedBox(height: 6),
                             Text(
                                 'Cuotas que se cancelan/fusionan: $cuotasPendientes',
                                 style: TextStyle(
@@ -7317,11 +6775,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     color: isDarkTheme
                                         ? const Color(0xFF6EE7A0)
                                         : const Color(0xFF1B5E20))),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 10),
                             Text(
                                 'Total a pagar: ${formatCop(valorLiquidacion)}',
                                 style: TextStyle(
-                                    fontSize: 15,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                     color: isDarkTheme
                                         ? const Color(0xFF6EE7A0)
@@ -7330,7 +6788,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   initialValue: fuente,
                   isExpanded: true,
@@ -7350,11 +6808,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     filled: true,
                     fillColor: inputFill,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide(color: lineCol),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                        horizontal: 14, vertical: 14),
                   ),
                   items: [
                     DropdownMenuItem(
@@ -7369,7 +6827,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   ],
                   onChanged: (v) => setS(() => fuente = v ?? ''),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
                 TextField(
                   controller: comentCtrl,
                   maxLines: 3,
@@ -7384,130 +6842,133 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     filled: true,
                     fillColor: inputFill,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide(color: lineCol),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
+                        horizontal: 14, vertical: 14),
                   ),
                 ),
-              ]),
-            ),
-            actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            actions: [
-              Row(children: [
-                Expanded(
-                  flex: 2,
-                  child: GestureDetector(
-                    onTap: () => Navigator.pop(ctx),
-                    child: Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                              color: const Color(0xFFDC2626)
-                                  .withValues(alpha: 0.4),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4)),
-                        ],
-                      ),
-                      alignment: Alignment.center,
-                      child: const Text('Cerrar',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700)),
-                    ),
-                  ),
+                  ]),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 3,
-                  child: GestureDetector(
-                    onTap: (calculo == null || confirmando)
-                        ? null
-                        : () async {
-                            if (fuente.isEmpty) {
-                              showResult(false,
-                                  'Selecciona la fuente donde ingresó el pago');
-                              return;
-                            }
-                            setS(() => confirmando = true);
-                            final r = await repository
-                                .post('/ajax/liquidar_credito.php', {
-                              'codigo_credito': cod,
-                              'fecha_liquidacion': fechaStr(),
-                              'fuente_cuota': fuente,
-                              'comentarios': comentCtrl.text.trim(),
-                            });
-                            setS(() => confirmando = false);
-                            if (!ctx.mounted) return;
-                            final decoded = decodeJsonMap(r.body);
-                            final ok = r.statusCode == 200 &&
-                                decoded['success'] == true;
-                            if (ok) {
-                              Navigator.pop(ctx);
-                              repository.invalidateCache(
-                                  '/ajax/get_creditos_lista.php');
-                              await fetchCredits('');
-                              if (isMounted) refresh(() {});
-                            }
-                            showResult(
-                                ok,
-                                ok
-                                    ? 'Crédito liquidado correctamente'
-                                    : friendlyError((decoded['error'] ?? r.body)
-                                        .toString()));
-                          },
-                    child: Opacity(
-                      opacity: (calculo == null || confirmando) ? 0.4 : 1,
-                      child: RepaintBoundary(
-                        child: Container(
-                          height: 40,
-                          padding: const EdgeInsets.symmetric(horizontal: 6),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF7C3AED), Color(0xFFA855F7)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                  color: const Color(0xFF7C3AED)
-                                      .withValues(alpha: 0.45),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4)),
-                            ],
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                child: Row(children: [
+                  Expanded(
+                    flex: 2,
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: Container(
+                        height: 44,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          alignment: Alignment.center,
-                          child: confirmando
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : const Text('Confirmar liquidación',
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700)),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                                color: const Color(0xFFDC2626)
+                                    .withValues(alpha: 0.4),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4)),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text('Cerrar',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    flex: 3,
+                    child: GestureDetector(
+                      onTap: (calculo == null || confirmando)
+                          ? null
+                          : () async {
+                              if (fuente.isEmpty) {
+                                showResult(false,
+                                    'Selecciona la fuente donde ingresó el pago');
+                                return;
+                              }
+                              setS(() => confirmando = true);
+                              final r = await repository
+                                  .post('/ajax/liquidar_credito.php', {
+                                'codigo_credito': cod,
+                                'fecha_liquidacion': fechaStr(),
+                                'fuente_cuota': fuente,
+                                'comentarios': comentCtrl.text.trim(),
+                              });
+                              setS(() => confirmando = false);
+                              if (!ctx.mounted) return;
+                              final decoded = decodeJsonMap(r.body);
+                              final ok = r.statusCode == 200 &&
+                                  decoded['success'] == true;
+                              if (ok) {
+                                Navigator.pop(ctx);
+                                repository.invalidateCache(
+                                    '/ajax/get_creditos_lista.php');
+                                await fetchCredits('');
+                                if (isMounted) refresh(() {});
+                              }
+                              showResult(
+                                  ok,
+                                  ok
+                                      ? 'Crédito liquidado correctamente'
+                                      : friendlyError(
+                                          (decoded['error'] ?? r.body)
+                                              .toString()));
+                            },
+                      child: Opacity(
+                        opacity: (calculo == null || confirmando) ? 0.4 : 1,
+                        child: RepaintBoundary(
+                          child: Container(
+                            height: 44,
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF7C3AED), Color(0xFFA855F7)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                    color: const Color(0xFF7C3AED)
+                                        .withValues(alpha: 0.45),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4)),
+                              ],
+                            ),
+                            alignment: Alignment.center,
+                            child: confirmando
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white))
+                                : const Text('Confirmar liquidación',
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700)),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ]),
-            ],
+                ]),
+              ),
+            ]),
           ),
         );
       }),
@@ -8218,6 +7679,59 @@ class _CreditoTabButtonState extends State<_CreditoTabButton>
 // Compartido por Créditos, Pendientes, Movimientos y Ahorros — antes era un
 // GestureDetector plano sin animación, con un cambio de color de golpe al
 // (des)habilitarse.
+// Punto tipo "LED en vivo": pulso continuo de opacidad + escala, usado en el
+// badge de estado "Activo" de la tarjeta de crédito.
+class _PulsingDot extends StatefulWidget {
+  final Color color;
+  static const double size = 6;
+
+  const _PulsingDot({required this.color});
+
+  @override
+  State<_PulsingDot> createState() => _PulsingDotState();
+}
+
+class _PulsingDotState extends State<_PulsingDot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 900))
+    ..repeat(reverse: true);
+  late final Animation<double> _pulse =
+      Tween<double>(begin: 0.55, end: 1.0).animate(
+          CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (_, __) => Transform.scale(
+        scale: 0.85 + (_pulse.value * 0.3),
+        child: Container(
+          width: _PulsingDot.size,
+          height: _PulsingDot.size,
+          decoration: BoxDecoration(
+            color: widget.color.withValues(alpha: _pulse.value),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withValues(alpha: _pulse.value * 0.6),
+                blurRadius: _PulsingDot.size * 1.2,
+                spreadRadius: 0.5,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PaginationButton extends StatefulWidget {
   final IconData icon;
   final bool enabled;
