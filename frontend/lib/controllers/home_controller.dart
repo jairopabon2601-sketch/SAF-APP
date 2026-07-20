@@ -58,6 +58,8 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
   String creditStatusFilter = '';
   String creditAdvisorFilter = '';
   String creditsBuscar = '';
+  final TextEditingController creditsBuscarCtrl = TextEditingController();
+  Timer? creditsBuscarDebounce;
   bool queryingCredits = false;
   int creditsPage = 1;
   int creditsTotal = 0;

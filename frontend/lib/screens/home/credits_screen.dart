@@ -1,5 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
+import 'package:pdf/widgets.dart' as pw;
+
 import '../../controllers/home_actions.dart';
 import '../../controllers/home_data_controller.dart';
 import 'dashboard_screen.dart';
@@ -599,6 +601,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     TextField(
+                      controller: creditsBuscarCtrl,
                       decoration: InputDecoration(
                         hintText: 'Buscar por cliente o código...',
                         hintStyle: TextStyle(fontSize: 12.5, color: textSoft),
@@ -620,6 +623,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         suffixIcon: creditsBuscar.isNotEmpty
                             ? GestureDetector(
                                 onTap: () async {
+                                  creditsBuscarDebounce?.cancel();
+                                  creditsBuscarCtrl.clear();
                                   refresh(() {
                                     creditsBuscar = '';
                                     creditsPage = 1;
@@ -653,8 +658,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         ),
                       ),
                       style: TextStyle(fontSize: 13, color: textMain),
-                      onChanged: (v) => refresh(() => creditsBuscar = v.trim()),
+                      onChanged: (v) {
+                        refresh(() => creditsBuscar = v.trim());
+                        creditsBuscarDebounce?.cancel();
+                        creditsBuscarDebounce =
+                            Timer(const Duration(milliseconds: 500), () async {
+                          if (!isMounted) return;
+                          refresh(() {
+                            creditsPage = 1;
+                            queryingCredits = true;
+                          });
+                          await fetchCredits('');
+                          if (isMounted) refresh(() => queryingCredits = false);
+                        });
+                      },
                       onSubmitted: (_) async {
+                        creditsBuscarDebounce?.cancel();
                         refresh(() {
                           creditsPage = 1;
                           queryingCredits = true;
@@ -5721,7 +5740,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                   ),
                                 )),
                             SizedBox(
-                                width: 56,
+                                width: pagadoSi ? 56 : 84,
                                 child: Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceBetween,
@@ -5768,6 +5787,49 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                               color: Color(0xFF3B3B8A)),
                                         ),
                                       ),
+                                      if (!pagadoSi)
+                                        GestureDetector(
+                                          onTap: () =>
+                                              _showRegistrarAbonoDialog(ctx, q,
+                                                  () {
+                                            repository.post(
+                                                '/ajax/get_cuotas_credito.php', {
+                                              'codigo_credito': cod
+                                            }).then((r) {
+                                              if (r.statusCode == 200) {
+                                                try {
+                                                  final d = jsonDecode(r.body);
+                                                  if (d is List) {
+                                                    cuotas = d
+                                                        .whereType<Map>()
+                                                        .map((e) => Map<String,
+                                                            dynamic>.from(e))
+                                                        .toList();
+                                                  }
+                                                } catch (_) {}
+                                              }
+                                              if (ctx.mounted) setS(() {});
+                                              repository.invalidateCache(
+                                                  '/ajax/get_creditos_lista.php');
+                                              fetchCredits('').then((_) {
+                                                if (isMounted) refresh(() {});
+                                              });
+                                            });
+                                          }),
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF16A34A)
+                                                  .withValues(alpha: 0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(7),
+                                            ),
+                                            child: const Icon(
+                                                Icons.add_card_outlined,
+                                                size: 14,
+                                                color: Color(0xFF16A34A)),
+                                          ),
+                                        ),
                                       GestureDetector(
                                         onTap: () =>
                                             _showEditarCuotaDialog(ctx, q, () {
@@ -5820,6 +5882,428 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               ),
             ]),
           ),
+        );
+      }),
+    );
+  }
+
+  // Registra un ABONO PARCIAL ligado a una cuota específica: a diferencia de
+  // "Registro de pago" (que sobrescribe el valor_pagado de la cuota), esto
+  // suma un movimiento nuevo en tbl_deudores_creditos_cuotas_abonos, así que
+  // se puede abonar varias veces en fechas distintas (ej. 600.000 hoy y
+  // 600.000 pasado mañana) sin perder el abono anterior. La cuota solo queda
+  // "pagada" cuando la suma de sus abonos alcanza el valor completo.
+  Future<void> _showRegistrarAbonoDialog(BuildContext parentCtx,
+      Map<String, dynamic> cuota, VoidCallback onSaved) async {
+    final codigoCuota = cuota['codigo_cuota']?.toString() ?? '';
+    final valorCuota = double.tryParse((cuota['valor_pago'] ?? '')
+            .toString()
+            .replaceAll(RegExp(r'[^0-9.]'), '')) ??
+        0;
+    final valorCtrl = TextEditingController();
+    final comentCtrl = TextEditingController();
+    String fuente = '';
+    DateTime fechaAbono = DateTime.now();
+    bool loadingAbonos = codigoCuota.isNotEmpty;
+    bool saving = false;
+    double saldoPendiente = valorCuota;
+    double totalAbonado = 0;
+    List<Map<String, dynamic>> historialAbonos = [];
+    final fuentesPago = <Map<String, String>>[];
+    final codigosFuente = <String>{};
+    for (final cuenta in accounts) {
+      final codigo =
+          (cuenta['codigo'] ?? cuenta['codigo_cuenta'] ?? '').toString().trim();
+      final nombre =
+          (cuenta['nombre'] ?? cuenta['cuenta'] ?? '').toString().trim();
+      final activa = (cuenta['estado'] ?? '1').toString() != '0';
+      if (codigo.isNotEmpty &&
+          nombre.isNotEmpty &&
+          activa &&
+          codigosFuente.add(codigo)) {
+        fuentesPago.add({'codigo': codigo, 'nombre': nombre});
+      }
+    }
+    fuentesPago.sort((a, b) =>
+        a['nombre']!.toLowerCase().compareTo(b['nombre']!.toLowerCase()));
+
+    await showDialog(
+      context: parentCtx,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        if (loadingAbonos && codigoCuota.isNotEmpty) {
+          loadingAbonos = false;
+          repository.post('/ajax/listar_abonos_cuota.php',
+              {'codigo_cuota': codigoCuota}).then((r) {
+            if (r.statusCode == 200) {
+              try {
+                final d = jsonDecode(r.body);
+                if (d is Map && d['success'] == true) {
+                  final saldo = double.tryParse(
+                          d['saldo_pendiente']?.toString() ?? '0') ??
+                      valorCuota;
+                  final total = double.tryParse(
+                          d['total_abonado']?.toString() ?? '0') ??
+                      0;
+                  final lista = (d['abonos'] as List? ?? [])
+                      .whereType<Map>()
+                      .map((e) => Map<String, dynamic>.from(e))
+                      .toList();
+                  if (ctx.mounted) {
+                    setS(() {
+                      saldoPendiente = saldo;
+                      totalAbonado = total;
+                      historialAbonos = lista;
+                    });
+                  }
+                }
+              } catch (_) {}
+            }
+          });
+        }
+
+        String fechaStr() {
+          return '${fechaAbono.year}-${fechaAbono.month.toString().padLeft(2, '0')}-${fechaAbono.day.toString().padLeft(2, '0')}';
+        }
+
+        return AlertDialog(
+          backgroundColor: dialogBg,
+          surfaceTintColor: Colors.transparent,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Registrar abono',
+              style: TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w700, color: textMain)),
+          content: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // Resumen de saldo
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: inputFill,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: lineCol),
+                ),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Valor de la cuota: ${formatCop(valorCuota)}',
+                      style: TextStyle(fontSize: 12, color: textMain)),
+                  if (totalAbonado > 0)
+                    Text('Ya abonado: ${formatCop(totalAbonado)}',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: textMain,
+                            fontWeight: FontWeight.w600)),
+                  Text('Saldo pendiente: ${formatCop(saldoPendiente)}',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFFB71C1C))),
+                  Builder(builder: (_) {
+                    final valorEscrito =
+                        double.tryParse(valorCtrl.text.trim()) ?? 0;
+                    if (valorEscrito <= 0) return const SizedBox.shrink();
+                    final excede = valorEscrito > saldoPendiente + 0.01;
+                    final saldoTrasAbono =
+                        (saldoPendiente - valorEscrito)
+                            .clamp(0.0, saldoPendiente);
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        excede
+                            ? 'El abono supera el saldo pendiente'
+                            : 'Saldo tras este abono: ${formatCop(saldoTrasAbono)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: excede
+                              ? const Color(0xFFB71C1C)
+                              : const Color(0xFF1B5E20),
+                        ),
+                      ),
+                    );
+                  }),
+                ]),
+              ),
+              if (historialAbonos.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Abonos registrados',
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: textSoft)),
+                ),
+                const SizedBox(height: 4),
+                ...historialAbonos.map((a) {
+                  final valor =
+                      double.tryParse(a['valor_abonado']?.toString() ?? '0') ??
+                          0;
+                  final fecha = (a['fecha_abono'] ?? '').toString();
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(fecha,
+                              style: TextStyle(fontSize: 12, color: textSoft)),
+                          Text(formatCop(valor),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: textMain)),
+                        ]),
+                  );
+                }),
+              ],
+              const SizedBox(height: 10),
+              // Valor a abonar
+              TextField(
+                controller: valorCtrl,
+                onChanged: (_) => setS(() {}),
+                keyboardType: TextInputType.number,
+                style: TextStyle(
+                  color: textMain,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+                cursorColor: const Color(0xFF3B3B8A),
+                decoration: InputDecoration(
+                  labelText: 'Valor del abono',
+                  labelStyle: const TextStyle(
+                    color: Color(0xFF5B5BB0),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  floatingLabelStyle: const TextStyle(
+                    color: Color(0xFF3B3B8A),
+                    fontWeight: FontWeight.w700,
+                  ),
+                  filled: true,
+                  fillColor: inputFill,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: lineCol),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: lineCol),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B3B8A),
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Fuente
+              DropdownButtonFormField<String>(
+                initialValue: fuente,
+                isExpanded: true,
+                dropdownColor: dialogBg,
+                iconEnabledColor: const Color(0xFF3B3B8A),
+                style: TextStyle(
+                  color: textMain,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Fuente',
+                  labelStyle: const TextStyle(
+                    color: Color(0xFF5B5BB0),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  floatingLabelStyle: const TextStyle(
+                    color: Color(0xFF3B3B8A),
+                    fontWeight: FontWeight.w700,
+                  ),
+                  filled: true,
+                  fillColor: inputFill,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: lineCol),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: lineCol),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B3B8A),
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                items: [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text(
+                      '[Seleccione]',
+                      style: TextStyle(color: textSoft),
+                    ),
+                  ),
+                  ...fuentesPago.map((f) {
+                    return DropdownMenuItem(
+                      value: f['codigo'],
+                      child:
+                          Text(f['nombre']!, overflow: TextOverflow.ellipsis),
+                    );
+                  }),
+                ],
+                onChanged: (v) => setS(() => fuente = v ?? ''),
+              ),
+              const SizedBox(height: 10),
+              // Fecha del abono
+              GestureDetector(
+                onTap: () async {
+                  final d = await showLightDatePicker(
+                    ctx,
+                    initialDate: fechaAbono,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2035),
+                  );
+                  if (d != null && ctx.mounted) setS(() => fechaAbono = d);
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: inputFill,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: lineCol),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.calendar_today_outlined,
+                        size: 14, color: Color(0xFF3B3B8A)),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${fechaAbono.day.toString().padLeft(2, '0')}/${fechaAbono.month.toString().padLeft(2, '0')}/${fechaAbono.year}',
+                      style: TextStyle(fontSize: 12, color: textMain),
+                    ),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 10),
+              // Comentarios
+              TextField(
+                controller: comentCtrl,
+                maxLines: 3,
+                style: TextStyle(
+                  color: textMain,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                cursorColor: const Color(0xFF3B3B8A),
+                decoration: InputDecoration(
+                  hintText: 'Comentarios (opcional)',
+                  hintStyle: TextStyle(
+                    color: textSoft,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  filled: true,
+                  fillColor: inputFill,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: lineCol),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: lineCol),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF3B3B8A),
+                      width: 1.5,
+                    ),
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ]),
+          ),
+          actions: [
+            Row(children: [
+              Expanded(
+                  child: appCancelButton('Cerrar', () => Navigator.pop(ctx))),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 42,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B3B8A),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: saving
+                        ? null
+                        : () async {
+                            final val =
+                                double.tryParse(valorCtrl.text.trim()) ?? 0;
+                            if (val <= 0) {
+                              showResult(false,
+                                  'Ingresa el valor del abono antes de continuar');
+                              return;
+                            }
+                            if (val > saldoPendiente + 0.01) {
+                              showResult(false,
+                                  'El abono no puede ser mayor al saldo pendiente (${formatCop(saldoPendiente)})');
+                              return;
+                            }
+                            if (fuente.isEmpty) {
+                              showResult(false,
+                                  'Selecciona la fuente donde ingresó el abono');
+                              return;
+                            }
+                            setS(() => saving = true);
+                            final r = await repository
+                                .post('/ajax/registrar_abono_cuota.php', {
+                              'codigo_cuota': codigoCuota,
+                              'valor_abonado': valorCtrl.text.trim(),
+                              'fuente_abono': fuente,
+                              'fecha_abono': fechaStr(),
+                              'comentarios': comentCtrl.text.trim(),
+                            });
+                            setS(() => saving = false);
+                            if (!ctx.mounted) return;
+                            final decoded = decodeJsonMap(r.body);
+                            final ok = r.statusCode == 200 &&
+                                decoded['success'] == true;
+                            if (ok) {
+                              Navigator.pop(ctx);
+                              onSaved();
+                            }
+                            showResult(
+                                ok,
+                                ok
+                                    ? (decoded['mensaje']?.toString() ??
+                                        'Abono registrado correctamente')
+                                    : friendlyError(r.body));
+                          },
+                    child: saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('Abonar'),
+                  ),
+                ),
+              ),
+            ]),
+          ],
         );
       }),
     );
@@ -7071,6 +7555,182 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     );
   }
 
+  Future<Uint8List> _generarPazYSalvoPdf({
+    required String cliente,
+    required String numDoc,
+    required String cod,
+    required String fechaPrestamo,
+    required double valorPrestamo,
+    required String ultimaPago,
+    required String fechaFirma,
+  }) async {
+    final documento = pw.Document(
+      title: 'Paz y Salvo - Crédito #$cod',
+      author: 'SAF - Sistema de Ahorro y Financiamiento',
+      subject: 'Certificado de Paz y Salvo',
+    );
+
+    const navy = PdfColor(0.051, 0.106, 0.294); // #0D1B4B
+    const blue = PdfColor(0.082, 0.396, 0.753); // #1565C0
+    const grey700 = PdfColors.grey700;
+
+    documento.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(48, 44, 48, 44),
+        build: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('SAF',
+                        style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            fontSize: 20,
+                            color: navy)),
+                    pw.Text('Dirección · Tel: (316) 270-5951',
+                        style: pw.TextStyle(fontSize: 9, color: grey700)),
+                  ],
+                ),
+                pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(fechaFirma,
+                        style: pw.TextStyle(fontSize: 9, color: grey700)),
+                    pw.Text('Paz y salvo',
+                        style: pw.TextStyle(fontSize: 9, color: grey700)),
+                  ],
+                ),
+              ],
+            ),
+            pw.SizedBox(height: 10),
+            pw.Divider(color: navy, thickness: 1.5),
+            pw.SizedBox(height: 20),
+            pw.Center(
+              child: pw.Text('CERTIFICADO DE PAZ Y SALVO',
+                  style: pw.TextStyle(
+                      fontWeight: pw.FontWeight.bold,
+                      fontSize: 14,
+                      color: navy,
+                      letterSpacing: 1)),
+            ),
+            pw.SizedBox(height: 20),
+            pw.RichText(
+              text: pw.TextSpan(
+                style: pw.TextStyle(fontSize: 11, color: navy, lineSpacing: 3),
+                children: [
+                  const pw.TextSpan(
+                      text: 'La presente certifica que el(la) señor(a) '),
+                  pw.TextSpan(
+                      text: cliente,
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  const pw.TextSpan(
+                      text: ' identificado(a) con cédula de ciudadanía No. '),
+                  pw.TextSpan(
+                      text: numDoc,
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  const pw.TextSpan(
+                      text:
+                          ' ha cancelado en su totalidad las obligaciones relacionadas con el crédito identificado con número '),
+                  pw.TextSpan(
+                      text: cod,
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  const pw.TextSpan(text: ', realizado el dia '),
+                  pw.TextSpan(
+                      text: fechaPrestamo,
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  const pw.TextSpan(text: ', por valor de '),
+                  pw.TextSpan(
+                      text: formatCop(valorPrestamo),
+                      style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  const pw.TextSpan(text: '.'),
+                ],
+              ),
+            ),
+            if (ultimaPago.isNotEmpty) ...[
+              pw.SizedBox(height: 12),
+              pw.RichText(
+                text: pw.TextSpan(
+                  style:
+                      pw.TextStyle(fontSize: 11, color: navy, lineSpacing: 3),
+                  children: [
+                    pw.TextSpan(
+                        text: 'Última Fecha de Pago: ',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.TextSpan(text: '$ultimaPago.'),
+                  ],
+                ),
+              ),
+            ],
+            pw.SizedBox(height: 12),
+            pw.Text(
+              'Este certificado se expide a solicitud del interesado para los fines que estime convenientes.',
+              style: pw.TextStyle(fontSize: 11, color: navy, lineSpacing: 3),
+            ),
+            pw.SizedBox(height: 12),
+            pw.Text(
+              'En constancia de lo anterior, se firma a los $fechaFirma.',
+              style: pw.TextStyle(fontSize: 11, color: navy, lineSpacing: 3),
+            ),
+            pw.SizedBox(height: 36),
+            pw.Center(
+              child: pw.Container(
+                width: 90,
+                height: 90,
+                decoration: pw.BoxDecoration(
+                  shape: pw.BoxShape.circle,
+                  border: pw.Border.all(color: blue, width: 2),
+                ),
+                child: pw.Center(
+                  child: pw.Column(
+                    mainAxisSize: pw.MainAxisSize.min,
+                    children: [
+                      pw.Text('SAF',
+                          style: pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                              color: blue)),
+                      pw.Text('PAZ Y SALVO',
+                          style: pw.TextStyle(
+                              fontSize: 6,
+                              fontWeight: pw.FontWeight.bold,
+                              color: blue)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 30),
+            pw.Row(children: [
+              pw.Expanded(
+                child: pw.Column(children: [
+                  pw.Divider(color: navy),
+                  pw.Text('Asesor',
+                      style: pw.TextStyle(fontSize: 10, color: grey700)),
+                ]),
+              ),
+              pw.SizedBox(width: 32),
+              pw.Expanded(
+                child: pw.Column(children: [
+                  pw.Divider(color: navy),
+                  pw.Text('Deudor',
+                      style: pw.TextStyle(fontSize: 10, color: grey700)),
+                ]),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+
+    return documento.save();
+  }
+
   void _showPazYSalvoDialog(Map<String, dynamic> credito) {
     final cliente = (credito['cliente'] ?? '').toString();
     final numDoc = (credito['num_documento'] ?? '').toString();
@@ -7080,10 +7740,47 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final ultimaPago = (credito['ultima_fecha_pago'] ?? '').toString();
     final hoy = DateTime.now();
     final fechaFirma = '${hoy.day}/${hoy.month}/${hoy.year}';
+    bool generandoPdf = false;
+
+    Future<void> descargarPdf(StateSetter setS) async {
+      setS(() => generandoPdf = true);
+      try {
+        final bytes = await _generarPazYSalvoPdf(
+          cliente: cliente,
+          numDoc: numDoc,
+          cod: cod,
+          fechaPrestamo: fechaPrestamo,
+          valorPrestamo: valorPrestamo,
+          ultimaPago: ultimaPago,
+          fechaFirma: fechaFirma,
+        );
+        final nombreSeguro = cliente
+            .toLowerCase()
+            .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+            .replaceAll(RegExp(r'^_|_$'), '');
+        await Printing.sharePdf(
+          bytes: bytes,
+          filename:
+              'paz_y_salvo_${nombreSeguro.isEmpty ? 'credito' : nombreSeguro}_$cod.pdf',
+        );
+      } on MissingPluginException {
+        if (isMounted) {
+          showResult(false,
+              'La descarga de PDF requiere instalar la nueva versión de SAF. Cierra y reinstala la aplicación; el hot reload no carga este componente.');
+        }
+      } catch (_) {
+        if (isMounted) {
+          showResult(false, 'No se pudo generar el PDF del certificado.');
+        }
+      } finally {
+        setS(() => generandoPdf = false);
+      }
+    }
 
     showDialog(
       context: screenContext,
-      builder: (ctx) => AppAnimatedDialog(
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) {
+        return AppAnimatedDialog(
         child: Dialog(
           backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
@@ -7259,16 +7956,67 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             style: TextStyle(fontSize: 11, color: textSoft)),
                       ])),
                     ]),
-                    const SizedBox(height: 12),
-                    // Botón cerrar
-                    Center(
-                        child: appCancelButton(
-                            'Cerrar', () => Navigator.pop(ctx))),
+                    const SizedBox(height: 16),
+                    // Botones: Cerrar + Descargar como PDF
+                    Row(children: [
+                      Expanded(
+                          child: appCancelButton(
+                              'Cerrar', () => Navigator.pop(ctx))),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF4338CA), Color(0xFF2D2A9E)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF4338CA)
+                                    .withValues(alpha: 0.35),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: SizedBox(
+                            height: 42,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
+                              ),
+                              onPressed: generandoPdf
+                                  ? null
+                                  : () => descargarPdf(setS),
+                              icon: generandoPdf
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Icon(Icons.download_rounded,
+                                      size: 18),
+                              label: Text(generandoPdf
+                                  ? 'Generando…'
+                                  : 'Descargar PDF'),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ]),
                   ]),
             ),
           ),
         ),
-      ),
+        );
+      }),
     );
   }
 
