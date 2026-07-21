@@ -5835,6 +5835,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     bool loadingMora = codigoCuota.isNotEmpty;
     bool loadingAbonos = codigoCuota.isNotEmpty;
     bool saving = false;
+    // Pestaña activa: registrar pago (formulario) o ver el historial de
+    // abonos ya registrados para esta cuota. Ambas conviven en el mismo
+    // diálogo para no agregar un botón nuevo en la fila de cuotas.
+    bool mostrarHistorial = false;
     final fuentesPago = <Map<String, String>>[];
     final codigosFuente = <String>{};
     for (final cuenta in accounts) {
@@ -5955,6 +5959,33 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         final nuevaCuotaPrev =
             (saldoCapitalPrev * (1 + tasaPeriodo)).roundToDouble();
 
+        Widget tabChip(String label, bool selected, VoidCallback onTap) {
+          return Expanded(
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? const Color(0xFF3B3B8A)
+                      : inputFill,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: selected
+                          ? const Color(0xFF3B3B8A)
+                          : lineCol),
+                ),
+                alignment: Alignment.center,
+                child: Text(label,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: selected ? Colors.white : textMain)),
+              ),
+            ),
+          );
+        }
+
         return AlertDialog(
           backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
@@ -5965,6 +5996,101 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   fontSize: 16, fontWeight: FontWeight.w700, color: textMain)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // Pestañas: formulario de pago vs. historial de abonos ya
+              // registrados para esta cuota (evita agregar otro botón en la
+              // fila de cuotas).
+              Row(children: [
+                tabChip('Registrar pago', !mostrarHistorial,
+                    () => setS(() => mostrarHistorial = false)),
+                const SizedBox(width: 8),
+                tabChip(
+                    historialAbonos.isEmpty
+                        ? 'Historial'
+                        : 'Historial (${historialAbonos.length})',
+                    mostrarHistorial,
+                    () => setS(() => mostrarHistorial = true)),
+              ]),
+              const SizedBox(height: 14),
+              if (mostrarHistorial) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: inputFill,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: lineCol),
+                  ),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Valor de la cuota: ${formatCop(valorCuota)}',
+                            style:
+                                TextStyle(fontSize: 12, color: textMain)),
+                        if (totalAbonado > 0)
+                          Text('Total abonado: ${formatCop(totalAbonado)}',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: textMain,
+                                  fontWeight: FontWeight.w600)),
+                        Text(
+                            'Saldo pendiente: ${formatCop(saldoPendiente)}',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFFB71C1C))),
+                      ]),
+                ),
+                const SizedBox(height: 10),
+                if (historialAbonos.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text('Aún no se han registrado abonos.',
+                        style: TextStyle(fontSize: 12, color: textSoft)),
+                  )
+                else
+                  ...historialAbonos.map((a) {
+                    final valor = double.tryParse(
+                            a['valor_abonado']?.toString() ?? '0') ??
+                        0;
+                    final fecha = (a['fecha_abono'] ?? '').toString();
+                    final comentarios =
+                        (a['comentarios'] ?? '').toString();
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: inputFill,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: lineCol),
+                      ),
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(fecha,
+                                      style: TextStyle(
+                                          fontSize: 12, color: textSoft)),
+                                  Text(formatCop(valor),
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                          color: textMain)),
+                                ]),
+                            if (comentarios.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(comentarios,
+                                  style: TextStyle(
+                                      fontSize: 11, color: textSoft)),
+                            ],
+                          ]),
+                    );
+                  }),
+              ] else ...[
               // Interés
               Row(children: [
                 SizedBox(
@@ -6003,72 +6129,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   )),
                 )),
               ]),
-              // Saldo pendiente + historial de abonos (modo Abono)
-              if (interes == '3') ...[
-                const SizedBox(height: 10),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: inputFill,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: lineCol),
-                  ),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Valor de la cuota: ${formatCop(valorCuota)}',
-                            style:
-                                TextStyle(fontSize: 12, color: textMain)),
-                        if (totalAbonado > 0)
-                          Text('Ya abonado: ${formatCop(totalAbonado)}',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: textMain,
-                                  fontWeight: FontWeight.w600)),
-                        Text(
-                            'Saldo pendiente: ${formatCop(saldoPendiente)}',
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFFB71C1C))),
-                      ]),
-                ),
-                if (historialAbonos.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Abonos registrados',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: textSoft)),
-                  ),
-                  const SizedBox(height: 4),
-                  ...historialAbonos.map((a) {
-                    final valor = double.tryParse(
-                            a['valor_abonado']?.toString() ?? '0') ??
-                        0;
-                    final fecha = (a['fecha_abono'] ?? '').toString();
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(fecha,
-                                style: TextStyle(
-                                    fontSize: 12, color: textSoft)),
-                            Text(formatCop(valor),
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: textMain)),
-                          ]),
-                    );
-                  }),
-                ],
-              ],
               const SizedBox(height: 10),
               // Valor pagado / Valor del abono
               TextField(
@@ -6370,6 +6430,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
               ),
+              ],
             ]),
           ),
           actions: [
@@ -6382,7 +6443,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   height: 42,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3B3B8A),
+                      backgroundColor: mostrarHistorial
+                          ? const Color(0xFF3B3B8A).withValues(alpha: 0.35)
+                          : const Color(0xFF3B3B8A),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
@@ -6390,6 +6453,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     onPressed: saving
                         ? null
                         : () async {
+                            if (mostrarHistorial) {
+                              setS(() => mostrarHistorial = false);
+                              return;
+                            }
                             final val =
                                 double.tryParse(valorCtrl.text.trim()) ?? 0;
                             if (val <= 0) {
@@ -6491,7 +6558,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             height: 16,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
-                        : const Text('Grabar'),
+                        : Text(mostrarHistorial ? 'Volver' : 'Grabar'),
                   ),
                 ),
               ),
