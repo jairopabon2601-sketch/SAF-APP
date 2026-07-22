@@ -66,6 +66,30 @@ List<Color> get cardSheen => isDarkTheme
     ? const [Color(0xFF171F44), Color(0xFF0F1531)]
     : const [Color(0xFFFDFEFF), Color(0xFFF2F5FF)];
 
+// Color de marca por fuente/cuenta de pago — mismo mapeo que SRC_GRAD en
+// SAF-WEB (CreditsPage.tsx), para que el punto de color junto al nombre de
+// la fuente sea consistente entre app y web.
+const Map<String, Color> _sourceColors = {
+  'Sin fuente': Color(0xFF818CF8),
+  'Davivienda': Color(0xFFF87171),
+  'Bancolombia': Color(0xFFFBBF24),
+  'Nequi': Color(0xFFF9A8D4),
+  'Daviplata': Color(0xFFF472B6),
+  'Efectivo': Color(0xFF4ADE80),
+  'SAF Ahorros': Color(0xFFC4B5FD),
+  'Préstamos': Color(0xFF93C5FD),
+  'Cámaras': Color(0xFF5EEAD4),
+  'Dínamo Jr': Color(0xFFFB923C),
+};
+Color sourceColor(String nombre) =>
+    _sourceColors[nombre] ?? const Color(0xFF9CA3AF);
+
+// Acento de formularios (labels, iconos, cursor, borde con foco). El valor
+// fijo #3B3B8A/#5B5BB0 se perdía sobre fondos oscuros; estos getters siguen
+// el mismo criterio que btnPrimary (navy en claro, índigo visible en oscuro).
+Color get formAccent => isDarkTheme ? const Color(0xFF818CF8) : const Color(0xFF3B3B8A);
+Color get formLabel => isDarkTheme ? const Color(0xFFA5B4FC) : const Color(0xFF5B5BB0);
+
 const statisticsPageSize = 10;
 const movementsPageSize = 25;
 const creditsPageSize = 20;

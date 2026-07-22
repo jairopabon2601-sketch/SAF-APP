@@ -322,6 +322,10 @@ class _SafAnimatedBottomNavigationBarState
       children: List.generate(n, (i) {
         final selected = i == widget.selectedIndex;
         final color = widget.colors[i];
+        // Versión más viva/clara del color de acento, solo para el ícono y
+        // el label cuando la pestaña está seleccionada — el color base sigue
+        // usándose para el pill, el glow y el punto indicador.
+        final brightColor = Color.lerp(color, Colors.white, 0.28)!;
         final item = widget.items[i];
 
         return Expanded(
@@ -372,7 +376,7 @@ class _SafAnimatedBottomNavigationBarState
                               selected ? item.$1 : item.$2,
                               key: ValueKey('${i}_$selected'),
                               color: selected
-                                  ? color
+                                  ? brightColor
                                   : Colors.white.withValues(alpha: 0.28),
                               size: selected ? 24 : 20,
                               shadows: selected
@@ -399,7 +403,7 @@ class _SafAnimatedBottomNavigationBarState
                           duration: const Duration(milliseconds: 260),
                           style: TextStyle(
                             color: selected
-                                ? color
+                                ? brightColor
                                 : Colors.white.withValues(alpha: 0.26),
                             fontSize: selected ? 9.5 : 8.5,
                             fontWeight: selected

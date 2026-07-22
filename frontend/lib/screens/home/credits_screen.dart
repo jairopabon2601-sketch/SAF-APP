@@ -5772,15 +5772,23 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     child: Container(
                                       padding: const EdgeInsets.all(4),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF3B3B8A)
-                                            .withValues(alpha: 0.12),
+                                        color: btnPrimary.withValues(
+                                            alpha: isDarkTheme ? 0.28 : 0.12),
                                         borderRadius:
                                             BorderRadius.circular(7),
+                                        border: isDarkTheme
+                                            ? Border.all(
+                                                color: btnPrimary.withValues(
+                                                    alpha: 0.5),
+                                                width: 1)
+                                            : null,
                                       ),
-                                      child: const Icon(
+                                      child: Icon(
                                           Icons.assignment_turned_in_outlined,
                                           size: 14,
-                                          color: Color(0xFF3B3B8A)),
+                                          color: isDarkTheme
+                                              ? const Color(0xFFA5B4FC)
+                                              : btnPrimary),
                                     ),
                                   ),
                                 )),
@@ -5959,21 +5967,33 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         final nuevaCuotaPrev =
             (saldoCapitalPrev * (1 + tasaPeriodo)).roundToDouble();
 
-        Widget tabChip(String label, bool selected, VoidCallback onTap) {
+        Widget tabChip(String label, bool selected, VoidCallback onTap,
+            {required List<Color> gradient, required Color glow}) {
           return Expanded(
             child: GestureDetector(
               onTap: onTap,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 8),
+                padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(0xFF3B3B8A)
-                      : inputFill,
+                  gradient: selected
+                      ? LinearGradient(
+                          colors: gradient,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        )
+                      : null,
+                  color: selected ? null : inputFill,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                      color: selected
-                          ? const Color(0xFF3B3B8A)
-                          : lineCol),
+                  border: Border.all(color: selected ? gradient.first : lineCol),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: glow.withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
                 ),
                 alignment: Alignment.center,
                 child: Text(label,
@@ -5986,6 +6006,29 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           );
         }
 
+        Widget summaryRow(String label, String value,
+            {bool emphasize = false}) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(label,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: emphasize ? textMain : textSoft)),
+                  Text(value,
+                      style: TextStyle(
+                          fontSize: emphasize ? 15 : 13,
+                          fontWeight:
+                              emphasize ? FontWeight.w800 : FontWeight.w600,
+                          color: emphasize
+                              ? const Color(0xFFF87171)
+                              : textMain)),
+                ]),
+          );
+        }
+
         return AlertDialog(
           backgroundColor: dialogBg,
           surfaceTintColor: Colors.transparent,
@@ -5993,60 +6036,89 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text('Registro de pago',
               style: TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w700, color: textMain)),
+                  fontSize: 17, fontWeight: FontWeight.w700, color: textMain)),
           content: SingleChildScrollView(
             child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const SizedBox(height: 4),
               // Pestañas: formulario de pago vs. historial de abonos ya
               // registrados para esta cuota (evita agregar otro botón en la
               // fila de cuotas).
               Row(children: [
                 tabChip('Registrar pago', !mostrarHistorial,
-                    () => setS(() => mostrarHistorial = false)),
-                const SizedBox(width: 8),
+                    () => setS(() => mostrarHistorial = false),
+                    gradient: const [Color(0xFF4338CA), Color(0xFF2D2A9E)],
+                    glow: const Color(0xFF4338CA)),
+                const SizedBox(width: 10),
                 tabChip(
                     historialAbonos.isEmpty
                         ? 'Historial'
                         : 'Historial (${historialAbonos.length})',
                     mostrarHistorial,
-                    () => setS(() => mostrarHistorial = true)),
+                    () => setS(() => mostrarHistorial = true),
+                    gradient: const [Color(0xFF34D399), Color(0xFF047857)],
+                    glow: const Color(0xFF10B981)),
               ]),
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
               if (mostrarHistorial) ...[
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                      horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: inputFill,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: lineCol),
+                    gradient: LinearGradient(
+                      colors: isDarkTheme
+                          ? [
+                              const Color(0xFF10B981).withValues(alpha: 0.16),
+                              const Color(0xFF047857).withValues(alpha: 0.08),
+                            ]
+                          : [
+                              const Color(0xFFDCFCE7),
+                              const Color(0xFFECFDF5),
+                            ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: const Color(0xFF10B981)
+                            .withValues(alpha: isDarkTheme ? 0.35 : 0.3)),
                   ),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Valor de la cuota: ${formatCop(valorCuota)}',
-                            style:
-                                TextStyle(fontSize: 12, color: textMain)),
-                        if (totalAbonado > 0)
-                          Text('Total abonado: ${formatCop(totalAbonado)}',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: textMain,
-                                  fontWeight: FontWeight.w600)),
-                        Text(
-                            'Saldo pendiente: ${formatCop(saldoPendiente)}',
-                            style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                color: const Color(0xFFB71C1C))),
-                      ]),
+                  child: totalAbonado > 0
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            summaryRow(
+                                'Valor de la cuota', formatCop(valorCuota)),
+                            Divider(
+                                height: 12,
+                                color: lineCol.withValues(alpha: 0.6)),
+                            summaryRow('Total abonado',
+                                formatCop(totalAbonado)),
+                            Divider(
+                                height: 12,
+                                color: lineCol.withValues(alpha: 0.6)),
+                            summaryRow(
+                                'Saldo pendiente', formatCop(saldoPendiente),
+                                emphasize: true),
+                          ])
+                      // Sin abonos aún: "Valor de la cuota" y "Saldo
+                      // pendiente" serían el mismo número — se muestra un
+                      // único dato en vez de repetirlo en dos filas.
+                      : summaryRow('Cuota pendiente', formatCop(valorCuota),
+                          emphasize: true),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 18),
                 if (historialAbonos.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text('Aún no se han registrado abonos.',
-                        style: TextStyle(fontSize: 12, color: textSoft)),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 28),
+                    child: Column(children: [
+                      Icon(Icons.inbox_outlined,
+                          size: 32, color: textSoft.withValues(alpha: 0.5)),
+                      const SizedBox(height: 8),
+                      Text('Aún no se han registrado abonos',
+                          style: TextStyle(fontSize: 12, color: textSoft)),
+                    ]),
                   )
                 else
                   ...historialAbonos.map((a) {
@@ -6057,12 +6129,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     final comentarios =
                         (a['comentarios'] ?? '').toString();
                     return Container(
-                      margin: const EdgeInsets.only(bottom: 6),
+                      margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
+                          horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
                         color: inputFill,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: lineCol),
                       ),
                       child: Column(
@@ -6082,7 +6154,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                           color: textMain)),
                                 ]),
                             if (comentarios.isNotEmpty) ...[
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               Text(comentarios,
                                   style: TextStyle(
                                       fontSize: 11, color: textSoft)),
@@ -6102,11 +6174,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             color: textMain))),
                 Expanded(
                     child: Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  height: 46,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
                     color: inputFill,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: lineCol),
                   ),
                   child: DropdownButtonHideUnderline(
@@ -6114,7 +6186,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     value: interes,
                     isExpanded: true,
                     dropdownColor: dialogBg,
-                    iconEnabledColor: const Color(0xFF3B3B8A),
+                    iconEnabledColor: formAccent,
                     style: TextStyle(
                       fontSize: 13,
                       color: textMain,
@@ -6129,7 +6201,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   )),
                 )),
               ]),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
               // Valor pagado / Valor del abono
               TextField(
                 controller: valorCtrl,
@@ -6140,36 +6212,36 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
                 ),
-                cursorColor: const Color(0xFF3B3B8A),
+                cursorColor: formAccent,
                 decoration: InputDecoration(
                   labelText: interes == '3' ? 'Valor del abono' : 'Valor pagado',
-                  labelStyle: const TextStyle(
-                    color: Color(0xFF5B5BB0),
+                  labelStyle: TextStyle(
+                    color: formLabel,
                     fontWeight: FontWeight.w600,
                   ),
-                  floatingLabelStyle: const TextStyle(
-                    color: Color(0xFF3B3B8A),
+                  floatingLabelStyle: TextStyle(
+                    color: formAccent,
                     fontWeight: FontWeight.w700,
                   ),
                   filled: true,
                   fillColor: inputFill,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(color: lineCol),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(color: lineCol),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF3B3B8A),
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: formAccent,
                       width: 1.5,
                     ),
                   ),
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 ),
               ),
               // Vista previa en tiempo real del saldo tras el abono
@@ -6198,17 +6270,17 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   );
                 }),
               ],
-              const SizedBox(height: 10),
+              const SizedBox(height: 18),
               // Mora calculada (read-only)
               Container(
                 width: double.infinity,
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: moraVal > 0
                       ? const Color(0xFFFFD7DB)
                       : const Color(0xFFDDF2E1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: moraVal > 0
                         ? const Color(0xFFF3A8B0)
@@ -6228,16 +6300,16 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
               // Vista previa de pago parcial a capital (Interés = Sí)
               if (esPagoParcial) ...[
                 Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE3E8FB),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFFB6C2EE)),
                   ),
                   child: Text(
@@ -6251,17 +6323,17 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
               ],
               // Aviso: pago menor sin marcar interés no modifica la cuota
               if (esPagoMenorSinInteres) ...[
                 Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFFF3CD),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFFF0D68A)),
                   ),
                   child: const Text(
@@ -6275,17 +6347,17 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
               ],
               // Vista previa de pago mayor: excedente a la cuota siguiente
               if (esPagoMayor) ...[
                 Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: const Color(0xFFDDF2E1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFFB8DFC0)),
                   ),
                   child: Text(
@@ -6299,48 +6371,68 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
               ],
               // Fuente
               DropdownButtonFormField<String>(
                 initialValue: fuente,
                 isExpanded: true,
                 dropdownColor: dialogBg,
-                iconEnabledColor: const Color(0xFF3B3B8A),
+                iconEnabledColor: formAccent,
                 style: TextStyle(
                   color: textMain,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
+                selectedItemBuilder: (context) => [
+                  Text('[Seleccione]',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: textSoft)),
+                  ...fuentesPago.map((f) => Row(children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: BoxDecoration(
+                              color: sourceColor(f['nombre']!),
+                              shape: BoxShape.circle),
+                        ),
+                        Flexible(
+                          child: Text(f['nombre']!,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: textMain)),
+                        ),
+                      ])),
+                ],
                 decoration: InputDecoration(
                   labelText: 'Fuente',
-                  labelStyle: const TextStyle(
-                    color: Color(0xFF5B5BB0),
+                  labelStyle: TextStyle(
+                    color: formLabel,
                     fontWeight: FontWeight.w600,
                   ),
-                  floatingLabelStyle: const TextStyle(
-                    color: Color(0xFF3B3B8A),
+                  floatingLabelStyle: TextStyle(
+                    color: formAccent,
                     fontWeight: FontWeight.w700,
                   ),
                   filled: true,
                   fillColor: inputFill,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(color: lineCol),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(color: lineCol),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF3B3B8A),
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: formAccent,
                       width: 1.5,
                     ),
                   ),
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 ),
                 items: [
                   DropdownMenuItem(
@@ -6353,14 +6445,27 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   ...fuentesPago.map((f) {
                     return DropdownMenuItem(
                       value: f['codigo'],
-                      child:
-                          Text(f['nombre']!, overflow: TextOverflow.ellipsis),
+                      child: Row(children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                              color: sourceColor(f['nombre']!),
+                              shape: BoxShape.circle),
+                        ),
+                        Expanded(
+                          child: Text(f['nombre']!,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: textMain)),
+                        ),
+                      ]),
                     );
                   }),
                 ],
                 onChanged: (v) => setS(() => fuente = v ?? ''),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
               // Fecha de Pago
               GestureDetector(
                 onTap: () async {
@@ -6375,24 +6480,24 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 child: Container(
                   width: double.infinity,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                   decoration: BoxDecoration(
                     color: inputFill,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: lineCol),
                   ),
                   child: Row(children: [
-                    const Icon(Icons.calendar_today_outlined,
-                        size: 14, color: Color(0xFF3B3B8A)),
-                    const SizedBox(width: 8),
+                    Icon(Icons.calendar_today_outlined,
+                        size: 15, color: formAccent),
+                    const SizedBox(width: 10),
                     Text(
                       '${fechaPago.day.toString().padLeft(2, '0')}/${fechaPago.month.toString().padLeft(2, '0')}/${fechaPago.year}',
-                      style: TextStyle(fontSize: 12, color: textMain),
+                      style: TextStyle(fontSize: 13, color: textMain),
                     ),
                   ]),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
               // Comentarios
               TextField(
                 controller: comentCtrl,
@@ -6402,7 +6507,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
-                cursorColor: const Color(0xFF3B3B8A),
+                cursorColor: formAccent,
                 decoration: InputDecoration(
                   hintText: 'Comentarios (opcional)',
                   hintStyle: TextStyle(
@@ -6412,22 +6517,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   filled: true,
                   fillColor: inputFill,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(color: lineCol),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     borderSide: BorderSide(color: lineCol),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF3B3B8A),
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(
+                      color: formAccent,
                       width: 1.5,
                     ),
                   ),
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 ),
               ),
               ],
@@ -6444,8 +6549,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: mostrarHistorial
-                          ? const Color(0xFF3B3B8A).withValues(alpha: 0.35)
-                          : const Color(0xFF3B3B8A),
+                          ? btnPrimary.withValues(alpha: 0.35)
+                          : btnPrimary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8)),
