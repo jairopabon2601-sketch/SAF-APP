@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'api_service.dart';
@@ -20,7 +19,6 @@ class PushNotificationsService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
-  static const _apnsChannel = MethodChannel('saf/apns_diagnostics');
 
   static const _channel = AndroidNotificationChannel(
     'cuotas_atrasadas',
@@ -141,78 +139,6 @@ class PushNotificationsService {
     } catch (e) {
       debugPrint('[Push] Error registrando token: $e');
     }
-  }
-
-  /// Ejecuta el mismo flujo de registro paso a paso, pero devolviendo un
-  /// reporte en texto plano de cada etapa — pensado para diagnosticar en
-  /// dispositivos reales (TestFlight) sin acceso a Xcode/Console. Temporal:
-  /// se usa para encontrar la causa raíz en un caso puntual y luego se quita.
-  Future<String> runDiagnostics() async {
-    final buffer = StringBuffer();
-    buffer.writeln('Plataforma: ${Platform.isIOS ? "iOS" : "Android"}');
-    buffer.writeln('Token ya confirmado antes: $_tokenConfirmed');
-
-    try {
-      final settings = await _messaging.getNotificationSettings();
-      buffer.writeln('Permiso del sistema: ${settings.authorizationStatus}');
-    } catch (e) {
-      buffer.writeln('Error leyendo permiso: $e');
-    }
-
-    if (Platform.isIOS) {
-      try {
-        final apnsToken = await _messaging.getAPNSToken();
-        buffer.writeln(apnsToken == null
-            ? 'APNs token: null (iOS aún no lo entrega)'
-            : 'APNs token: OK (${apnsToken.substring(0, 12)}...)');
-      } catch (e) {
-        buffer.writeln('Error obteniendo APNs token: $e');
-      }
-
-      // Motivo exacto que dio iOS si rechazó el registro remoto de forma
-      // explícita (capturado en AppDelegate.swift) — sin esto, un fallo
-      // real de iOS se ve idéntico a un simple timeout.
-      try {
-        final nativeError = await _apnsChannel
-            .invokeMethod<String>('getRegistrationError');
-        buffer.writeln(nativeError == null
-            ? 'Error nativo de registro APNs: ninguno reportado'
-            : 'Error nativo de registro APNs: $nativeError');
-      } catch (e) {
-        buffer.writeln('No se pudo leer el error nativo: $e');
-      }
-    }
-
-    String? fcmToken;
-    try {
-      fcmToken = await _messaging.getToken();
-      buffer.writeln(fcmToken == null
-          ? 'FCM token: null'
-          : 'FCM token: OK (${fcmToken.substring(0, 20)}...)');
-    } catch (e) {
-      buffer.writeln('Error obteniendo FCM token: $e');
-    }
-
-    final codigoUsuario = ApiService().user?['codigo_usuario']?.toString();
-    buffer.writeln('codigo_usuario: ${codigoUsuario ?? "null"}');
-
-    if (fcmToken != null && codigoUsuario != null && codigoUsuario.isNotEmpty) {
-      try {
-        final r = await ApiService().post('/ajax/registrar_token_push.php', {
-          'codigo_usuario': codigoUsuario,
-          'fcm_token': fcmToken,
-          'plataforma': Platform.isIOS ? 'ios' : 'android',
-        });
-        buffer.writeln('Backend: HTTP ${r.statusCode} — ${r.body}');
-        if (r.statusCode == 200) _tokenConfirmed = true;
-      } catch (e) {
-        buffer.writeln('Error llamando al backend: $e');
-      }
-    } else {
-      buffer.writeln('Backend: no llamado (falta token o usuario)');
-    }
-
-    return buffer.toString();
   }
 
   void _showForegroundNotification(RemoteMessage message) {
