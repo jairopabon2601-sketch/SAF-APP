@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../controllers/home_actions.dart';
 import '../../controllers/home_permissions_dialog.dart';
 import '../../screens/home/home_dependencies.dart';
+import '../../screens/home/push_diagnostics_screen.dart';
 import 'cached_avatar.dart';
 import 'shimmer_header_overlay.dart';
 
@@ -73,6 +74,12 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
           Navigator.of(screenContext).pop();
           showGestionPermisos();
         },
+        onDiagnosticoPush: () {
+          Navigator.of(screenContext).pop();
+          Navigator.of(screenContext).push(MaterialPageRoute(
+            builder: (_) => const PushDiagnosticsScreen(),
+          ));
+        },
         onLogoutConfirmed: () {
           Navigator.of(screenContext).pop();
           logout();
@@ -92,6 +99,7 @@ class _ProfileSheetContent extends StatefulWidget {
       onUploadPhoto;
   final VoidCallback onGestionUsuarios;
   final VoidCallback onGestionPermisos;
+  final VoidCallback onDiagnosticoPush;
   final VoidCallback onLogoutConfirmed;
 
   const _ProfileSheetContent({
@@ -104,6 +112,7 @@ class _ProfileSheetContent extends StatefulWidget {
     this.onUploadPhoto,
     required this.onGestionUsuarios,
     required this.onGestionPermisos,
+    required this.onDiagnosticoPush,
     required this.onLogoutConfirmed,
   });
 
@@ -674,6 +683,101 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
                 ),
 
                 if (widget.showGestionUsuarios) const SizedBox(height: 14),
+
+                // Diagnóstico de notificaciones push (visible para todos —
+                // temporal, mientras se investiga un caso puntual de registro
+                // de token en un dispositivo nuevo).
+                SlideTransition(
+                  position: _card1Slide,
+                  child: FadeTransition(
+                    opacity: _card1Fade,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFF064E3B),
+                            Color(0xFF0F766E),
+                            Color(0xFF14B8A6),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0F766E).withValues(alpha: 0.45),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
+                          ),
+                          BoxShadow(
+                            color: const Color(0xFF14B8A6).withValues(alpha: 0.20),
+                            blurRadius: 32,
+                            spreadRadius: -4,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(children: [
+                          const Positioned.fill(child: ShimmerHeaderOverlay()),
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: widget.onDiagnosticoPush,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 46,
+                                      height: 46,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.16),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.28)),
+                                      ),
+                                      child: const Icon(
+                                          Icons.notifications_active_rounded,
+                                          color: Colors.white, size: 24),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Diagnóstico de notificaciones',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w700)),
+                                          SizedBox(height: 2),
+                                          Text('Revisa por qué no llegan push',
+                                              style: TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 11)),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.arrow_forward_ios_rounded,
+                                        color: Colors.white54, size: 15),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 14),
 
                 // Cerrar sesión
                 SlideTransition(
