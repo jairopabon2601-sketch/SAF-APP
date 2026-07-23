@@ -7379,11 +7379,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final r = await repository.post(
         '/ajax/eliminar_solicitud_credito.php', {'codigo_solicitud': cod});
     if (!isMounted) return;
-    final bodyLower = r.body.toLowerCase();
+    final bodyLower = r.body.toLowerCase().trim();
     final decoded = decodeJsonMap(r.body);
     final exito = r.statusCode == 200 &&
         (decoded['success'] == true ||
             decoded['resultado'] == 1 ||
+            bodyLower == '1' ||
             bodyLower.contains('eliminad') ||
             bodyLower.contains('exitoso') ||
             bodyLower.contains('success'));
