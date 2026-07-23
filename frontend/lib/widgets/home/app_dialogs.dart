@@ -299,12 +299,16 @@ class AppResultDialog extends StatefulWidget {
     required this.success,
     this.title,
     this.icon,
+    this.warning = false,
   });
 
   final String message;
   final bool success;
   final String? title;
   final IconData? icon;
+  /// Cuando es true, muestra un estilo ámbar de advertencia/información en
+  /// vez del verde de éxito o rojo de error (independiente de [success]).
+  final bool warning;
 
   @override
   State<AppResultDialog> createState() => _AppResultDialogState();
@@ -353,16 +357,22 @@ class _AppResultDialogState extends State<AppResultDialog>
 
   @override
   Widget build(BuildContext context) {
-    final Color colorA =
-        widget.success ? const Color(0xFF059669) : const Color(0xFFDC2626);
-    final Color colorB =
-        widget.success ? const Color(0xFF34D399) : const Color(0xFFEF4444);
+    final Color colorA = widget.warning
+        ? const Color(0xFF92400E)
+        : (widget.success ? const Color(0xFF059669) : const Color(0xFFDC2626));
+    final Color colorB = widget.warning
+        ? const Color(0xFFFBBF24)
+        : (widget.success ? const Color(0xFF34D399) : const Color(0xFFEF4444));
     final heading = widget.title ??
-        (widget.success ? '¡Operación exitosa!' : 'Algo salió mal');
+        (widget.warning
+            ? 'Ten en cuenta'
+            : (widget.success ? '¡Operación exitosa!' : 'Algo salió mal'));
     final icono = widget.icon ??
-        (widget.success
-            ? Icons.check_circle_outline_rounded
-            : Icons.error_outline_rounded);
+        (widget.warning
+            ? Icons.warning_amber_rounded
+            : (widget.success
+                ? Icons.check_circle_outline_rounded
+                : Icons.error_outline_rounded));
     final grad = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,

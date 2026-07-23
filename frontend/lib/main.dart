@@ -1,18 +1,35 @@
+import 'dart:async';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/home/home_constants.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/api_service.dart';
+import 'services/push_notifications_service.dart';
 import 'widgets/home/app_dialogs.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+// FCM invoca este handler en un isolate separado cuando llega un mensaje con
+// la app en background o cerrada — debe ser una función top-level (no un
+// método de clase) y reinicializar Firebase, porque corre fuera del árbol de
+// widgets normal de la app.
+@pragma('vm:entry-point')
+Future<void> _firebaseBackgroundMessageHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundMessageHandler);
   await ApiService().init();
   await loadThemePreference();
   // Precarga la foto de perfil en memoria antes de runApp(): leer el disco
@@ -36,6 +53,9 @@ void main() async {
     initialRoute = '/onboarding';
   } else if (ApiService().token != null) {
     initialRoute = '/home';
+    // Sesión ya activa (no pasó por el login screen en este arranque):
+    // registra/refresca el token push igual.
+    unawaited(PushNotificationsService().init());
   } else {
     initialRoute = '/login';
   }

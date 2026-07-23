@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/push_notifications_service.dart';
 import '../utils/responsive.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -100,6 +102,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Future<void> _finish() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_done', true);
+    // El diálogo de permiso de notificaciones debe salir apenas el usuario
+    // entra por primera vez a la app, no después del login.
+    unawaited(PushNotificationsService().requestPermissionAndListen());
     if (!mounted) return;
     Navigator.of(context).pushReplacementNamed('/login');
   }

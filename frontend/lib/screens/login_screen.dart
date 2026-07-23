@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/biometric_service.dart';
+import '../services/push_notifications_service.dart';
 import '../utils/responsive.dart';
 import 'forgot_password_screen.dart';
 import 'home/home_constants.dart';
@@ -424,6 +425,7 @@ class _LoginScreenState extends State<LoginScreen>
           await setThemeDark(dark);
         }
         if (!mounted) return;
+        unawaited(PushNotificationsService().init());
         Navigator.of(context).pushReplacementNamed('/home');
       } else {
         setState(() =>

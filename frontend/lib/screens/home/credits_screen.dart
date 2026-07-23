@@ -2784,6 +2784,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     String? selectedTipoInt = '1'; // 1=Fijo, 2=Variable
     String? selectedTasa;
     String? selectedFuente;
+    String? selectedCuentaDestino;
     DateTime? fechaPrestamo;
     final valorCtrl = TextEditingController();
     final numCuotasCtrl = TextEditingController();
@@ -2836,6 +2837,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
       }
       return [];
     }
+
+    // Si el usuario ya marcó una cuenta como destino de Préstamos (en la
+    // pantalla de Cuentas), no hace falta pedirla de nuevo en cada crédito.
+    bool hayCuentaPrestamosMarcada() =>
+        accounts.any((a) => a['es_cuenta_prestamos']?.toString() == '1');
 
     void recalcTotal(void Function(void Function()) setS) {
       final valor = double.tryParse(
@@ -2906,6 +2912,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               'tipo_interes': selectedTipoInt ?? '',
               'codigo_tasa_interes_reg': selectedTasa ?? '',
               'fuente_credito_reg': selectedFuente ?? '',
+              'cuenta_destino_reg': selectedCuentaDestino ?? '',
               'total_pagar': totalAPagar.toStringAsFixed(0),
             });
             final bodyLower = r.body.toLowerCase();
@@ -3257,6 +3264,30 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     v == null ? 'Seleccione una fuente' : null,
                               ),
                             ),
+                            // Cuenta destino del total a pagar — solo si el
+                            // usuario no marcó ya una cuenta fija en Cuentas.
+                            if (!hayCuentaPrestamosMarcada()) ...[
+                              const SizedBox(height: 8),
+                              buildDialogRow(
+                                'Cuenta destino',
+                                buildDialogDropdown<String>(
+                                  value: fuentes.any(
+                                          (p) => p.$1 == selectedCuentaDestino)
+                                      ? selectedCuentaDestino
+                                      : null,
+                                  hint: '[Seleccione]',
+                                  items: fuentes
+                                      .map((p) => DropdownMenuItem(
+                                          value: p.$1, child: Text(p.$2)))
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setS(() => selectedCuentaDestino = v),
+                                  validator: (v) => v == null
+                                      ? 'Seleccione la cuenta destino'
+                                      : null,
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 8),
                             // Total a Pagar (read-only calculado)
                             buildDialogRow(

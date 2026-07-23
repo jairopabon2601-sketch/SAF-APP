@@ -18,3 +18,14 @@ desktop.ini
 *.certSigningRequest
 *.p12
 *.cer
+
+# Firebase sensitive/generated files (never commit)
+firebase-service-account.json
+firebase-debug.log
+frontend/android/app/google-services.json
+frontend/ios/Runner/GoogleService-Info.plist
+
+# Copias locales de trabajo de archivos PHP del servidor (no forman parte
+# del repo Flutter; se descargan/suben por FTP directamente al hosting)
+/*.php
+/.htaccess

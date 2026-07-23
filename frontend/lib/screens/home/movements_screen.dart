@@ -4137,6 +4137,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
     List<Map<String, dynamic>> tiposOpts = [];
 
     String selectedEstado = (c['estado']?.toString() == '1') ? '1' : '0';
+    bool esCuentaPrestamos = (c['es_cuenta_prestamos']?.toString() == '1');
+    bool savingPrestamos = false;
 
     // Movimientos tab
     int activeTab = 0;
@@ -4471,6 +4473,159 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                   '[Seleccione una Opción]'),
                             ),
                             const SizedBox(height: 16),
+                            GestureDetector(
+                              onTap: savingPrestamos
+                                  ? null
+                                  : () async {
+                                      final marcando = !esCuentaPrestamos;
+                                      final confirm = await showDialog<bool>(
+                                        context: ctx,
+                                        builder: (c2) => AppConfirmDialog(
+                                          title: marcando
+                                              ? '¿Marcar como cuenta destino?'
+                                              : '¿Quitar cuenta destino?',
+                                          message: marcando
+                                              ? 'Esta será de ahora en adelante tu cuenta destino de Préstamos para los créditos.'
+                                              : 'Si haces esto deberás seleccionar una cuenta destino de Préstamos para futuros créditos.',
+                                          icon: Icons.account_balance_rounded,
+                                          confirmLabel: marcando
+                                              ? 'Marcar'
+                                              : 'Sí, quitar',
+                                          gradientColors: marcando
+                                              ? const [
+                                                  Color(0xFF047857),
+                                                  Color(0xFF34D399),
+                                                ]
+                                              : const [
+                                                  Color(0xFF92400E),
+                                                  Color(0xFFFBBF24),
+                                                ],
+                                        ),
+                                      );
+                                      if (confirm != true) return;
+                                      // Si vamos a marcar esta cuenta, detecta
+                                      // si había otra distinta ya marcada
+                                      // (se desmarcará automáticamente en el
+                                      // backend) para poder avisarlo.
+                                      final otraPrestamosPrevia = marcando
+                                          ? accounts.firstWhere(
+                                              (a) =>
+                                                  a['es_cuenta_prestamos']
+                                                          ?.toString() ==
+                                                      '1' &&
+                                                  (a['codigo'] ?? a['codigo_cuenta'])
+                                                          ?.toString() !=
+                                                      codigo,
+                                              orElse: () =>
+                                                  <String, dynamic>{},
+                                            )
+                                          : <String, dynamic>{};
+                                      setS(() => savingPrestamos = true);
+                                      try {
+                                        final r = await repository.post(
+                                          '/ajax/marcar_cuenta_prestamos.php',
+                                          {
+                                            'codigo': codigo,
+                                            'marcar': marcando ? '1' : '0',
+                                            'usuario': codigoUsuario,
+                                          },
+                                        );
+                                        final j = decodeJsonMap(r.body);
+                                        final ok = j['success'] == true;
+                                        if (ok) {
+                                          setS(() =>
+                                              esCuentaPrestamos = marcando);
+                                          repository.invalidateCache(
+                                              '/ajax/listar_cuentas_gasto.php');
+                                          unawaited(fetchAccounts(
+                                                  codigoUsuario)
+                                              .then((_) {
+                                            if (isMounted) refresh(() {});
+                                          }));
+                                        }
+                                        final nombreOtra =
+                                            (otraPrestamosPrevia['nombre'] ??
+                                                    '')
+                                                .toString();
+                                        final msgBase =
+                                            (j['msg'] ?? '').toString().isNotEmpty
+                                                ? j['msg'].toString()
+                                                : (ok
+                                                    ? 'Cuenta actualizada'
+                                                    : 'No se pudo actualizar');
+                                        showResult(ok, msgBase);
+                                        if (ok && nombreOtra.isNotEmpty) {
+                                          Future.delayed(
+                                              const Duration(
+                                                  milliseconds: 900), () {
+                                            if (ctx.mounted) {
+                                              showDialog(
+                                                context: ctx,
+                                                builder: (_) => AppResultDialog(
+                                                  message:
+                                                      'La cuenta "$nombreOtra" se deseleccionó como cuenta destino de Préstamos.',
+                                                  success: true,
+                                                  warning: true,
+                                                ),
+                                              );
+                                            }
+                                          });
+                                        }
+                                      } catch (e) {
+                                        showResult(false, friendlyError(e));
+                                      } finally {
+                                        setS(() => savingPrestamos = false);
+                                      }
+                                    },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: inputFill,
+                                  border: Border.all(
+                                      color: esCuentaPrestamos
+                                          ? const Color(0xFF10B981)
+                                          : lineCol,
+                                      width: esCuentaPrestamos ? 1.5 : 1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(children: [
+                                  savingPrestamos
+                                      ? SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color:
+                                                  const Color(0xFF10B981)))
+                                      : Icon(
+                                          esCuentaPrestamos
+                                              ? Icons.check_box_rounded
+                                              : Icons
+                                                  .check_box_outline_blank_rounded,
+                                          size: 20,
+                                          color: esCuentaPrestamos
+                                              ? const Color(0xFF10B981)
+                                              : textSoft),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'Cuenta destino de Préstamos',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: textMain),
+                                    ),
+                                  ),
+                                ]),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Al registrar un crédito, el total a pagar se abonará automáticamente a esta cuenta.',
+                              style: TextStyle(fontSize: 11, color: textSoft),
+                            ),
+                            const SizedBox(height: 16),
                             buildSavingsFieldLabel('Estado'),
                             const SizedBox(height: 6),
                             GestureDetector(
@@ -4593,6 +4748,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                             '#${colorCtrl.text.trim().toUpperCase()}',
                                         'tipo': selectedTipoCod ?? '',
                                         'estado': selectedEstado,
+                                        'usuario': codigoUsuario,
                                       },
                                     );
                                     final rawBody = r.body.trim();
