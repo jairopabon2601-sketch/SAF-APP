@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'api_service.dart';
@@ -19,6 +20,7 @@ class PushNotificationsService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+  static const _apnsChannel = MethodChannel('saf/apns_diagnostics');
 
   static const _channel = AndroidNotificationChannel(
     'cuotas_atrasadas',
@@ -139,6 +141,19 @@ class PushNotificationsService {
             : 'APNs token: OK (${apnsToken.substring(0, 12)}...)');
       } catch (e) {
         buffer.writeln('Error obteniendo APNs token: $e');
+      }
+
+      // Motivo exacto que dio iOS si rechazó el registro remoto de forma
+      // explícita (capturado en AppDelegate.swift) — sin esto, un fallo
+      // real de iOS se ve idéntico a un simple timeout.
+      try {
+        final nativeError = await _apnsChannel
+            .invokeMethod<String>('getRegistrationError');
+        buffer.writeln(nativeError == null
+            ? 'Error nativo de registro APNs: ninguno reportado'
+            : 'Error nativo de registro APNs: $nativeError');
+      } catch (e) {
+        buffer.writeln('No se pudo leer el error nativo: $e');
       }
     }
 
