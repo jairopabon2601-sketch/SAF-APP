@@ -7855,8 +7855,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             bodyLower.contains('exitoso') ||
             bodyLower.contains('success'));
     if (exito) {
-      repository.invalidateCache('/ajax/get_creditos_lista.php');
-      await fetchCredits('');
+      // Las solicitudes (pendientes/rechazadas) viven en pendingRequests,
+      // no en credits — invalidar/refrescar get_creditos_lista.php (como
+      // hace el eliminar de créditos aprobados) no actualizaba esta lista,
+      // por eso solo se veía el cambio tras un pull-to-refresh manual.
+      repository.invalidateCache('/ajax/get_pendientes_lista.php');
+      await fetchPending();
       if (isMounted) refresh(() {});
     }
     if (!isMounted) return;
