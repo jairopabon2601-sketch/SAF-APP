@@ -19,11 +19,13 @@ desktop.ini
 *.p12
 *.cer
 
-# Firebase sensitive/generated files (never commit)
+# Firebase: la service account key SI es sensible (da control admin total,
+# usada solo en el backend PHP) — nunca comitear. google-services.json y
+# GoogleService-Info.plist son claves publicas de cliente por diseño de
+# Firebase (igual que firebase_options.dart) y SI se versionan: GitHub
+# Actions los necesita al clonar el repo para compilar la app.
 firebase-service-account.json
 firebase-debug.log
-frontend/android/app/google-services.json
-frontend/ios/Runner/GoogleService-Info.plist
 
 # Copias locales de trabajo de archivos PHP del servidor (no forman parte
 # del repo Flutter; se descargan/suben por FTP directamente al hosting)

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "743517892586",
+    "project_id": "saf-ea357",
+    "storage_bucket": "saf-ea357.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:743517892586:android:4ae14c55dcabd08cb98c93",
+        "android_client_info": {
+          "package_name": "com.saf.saf_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBokME_VG4GLapHndsH_623YgZt7XsBfdg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
