@@ -95,6 +95,8 @@ class _SafAppState extends State<SafApp> with WidgetsBindingObserver {
             ?.pushNamedAndRemoveUntil('/login', (_) => false);
         WidgetsBinding.instance
             .addPostFrameCallback((_) => _showInactivityDialog());
+      } else {
+        unawaited(PushNotificationsService().retryIfPending());
       }
     }
   }

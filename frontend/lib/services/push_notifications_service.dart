@@ -28,6 +28,7 @@ class PushNotificationsService {
   );
 
   bool _listenersReady = false;
+  bool _pendingRetry = false;
 
   /// Pide el permiso del sistema y arma los listeners de FCM. Se llama al
   /// entrar por primera vez a la app (fin del onboarding), ANTES del login,
@@ -76,32 +77,32 @@ class PushNotificationsService {
     await _registerToken();
   }
 
+  /// Se llama cuando la app vuelve a foreground (ver didChangeAppLifecycleState
+  /// en main.dart). Si un intento anterior no logró obtener el token FCM
+  /// (red lenta durante el login, registro APNs aún no completado por iOS),
+  /// esto le da una segunda oportunidad sin esperar a que el usuario cierre
+  /// sesión.
+  Future<void> retryIfPending() async {
+    if (!_pendingRetry) return;
+    await _registerToken();
+  }
+
   Future<void> _registerToken() async {
     try {
-      // En iOS, FCM necesita primero el APNs token nativo antes de poder
-      // generar el token FCM — pedirlo demasiado pronto tras el login
-      // devuelve null silenciosamente. Se espera con reintentos cortos
-      // antes de darse por vencido.
-      if (Platform.isIOS) {
-        String? apnsToken = await _messaging.getAPNSToken();
-        var intentos = 0;
-        while (apnsToken == null && intentos < 10) {
-          await Future.delayed(const Duration(milliseconds: 500));
-          apnsToken = await _messaging.getAPNSToken();
-          intentos++;
-        }
-        if (apnsToken == null) {
-          debugPrint('[Push] APNs token no disponible tras esperar');
-          return;
-        }
-      }
-
+      // getToken() ya espera internamente a que iOS tenga el APNs token
+      // nativo listo (el plugin lo maneja) — no hace falta ni conviene
+      // hacer polling manual de getAPNSToken() aquí: en dispositivos reales
+      // eso se ha visto expirar antes de que iOS complete el registro.
       final token = await _messaging.getToken();
       final codigoUsuario = ApiService().user?['codigo_usuario']?.toString();
       debugPrint('[Push] fcmToken=$token codigoUsuario=$codigoUsuario');
       if (token == null || codigoUsuario == null || codigoUsuario.isEmpty) {
+        // token null: iOS aún no completó el registro remoto. Se reintenta
+        // cuando la app vuelva a foreground (ver retryIfPending).
+        _pendingRetry = token == null;
         return;
       }
+      _pendingRetry = false;
       final r = await ApiService().post('/ajax/registrar_token_push.php', {
         'codigo_usuario': codigoUsuario,
         'fcm_token': token,
@@ -111,6 +112,7 @@ class PushNotificationsService {
           '[Push] registrar_token_push respuesta: ${r.statusCode} ${r.body}');
     } catch (e) {
       debugPrint('[Push] Error registrando token: $e');
+      _pendingRetry = true;
     }
   }
 
