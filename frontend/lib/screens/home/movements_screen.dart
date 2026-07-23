@@ -4219,10 +4219,12 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 }
               }
             } catch (_) {}
-            setS(() {
-              loadingTipos = false;
-              tiposLoaded = true;
-            });
+            if (ctx.mounted) {
+              setS(() {
+                loadingTipos = false;
+                tiposLoaded = true;
+              });
+            }
           });
         }
 
@@ -4239,10 +4241,12 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               movsList = await fetchAccountMovements(codigo, codigoUsuario,
                   desde: mesInicio, hasta: mesFin);
             } catch (_) {}
-            setS(() {
-              loadingMovs = false;
-              movsLoaded = true;
-            });
+            if (ctx.mounted) {
+              setS(() {
+                loadingMovs = false;
+                movsLoaded = true;
+              });
+            }
           });
         }
 
@@ -5712,7 +5716,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                       Row(children: [
                         _iconActionBtn(
                           icon: Icons.edit_rounded,
-                          colors: const [Color(0xFF0284C7), Color(0xFF0EA5E9)],
+                          // Mismo gradiente exacto que usa la web
+                          // (linear-gradient(135deg,#4f46e5,#2563eb)) para
+                          // este mismo botón — antes era un azul distinto.
+                          colors: const [Color(0xFF4F46E5), Color(0xFF2563EB)],
                           onTap: () => _showEditarCuentaDialog(c),
                         ),
                         const SizedBox(width: 6),

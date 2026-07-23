@@ -32,14 +32,37 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 (c['cod'] ?? '').toString().contains(txt);
           }).toList();
 
-    // Solicitudes: separa pendientes reales de rechazadas (estado 3)
+    // Solicitudes: separa pendientes reales de rechazadas (estado 3).
+    // get_pendientes_lista.php no filtra en servidor (ver fetchPending), así
+    // que búsqueda y estado se aplican aquí, en memoria, para ambas listas.
+    final buscarTxt = creditsBuscar.trim().toLowerCase();
+    bool matchBusqueda(Map<String, dynamic> p) {
+      if (buscarTxt.isEmpty) return true;
+      final nombre = ([p['nombres'], p['apellidos']]
+              .where((x) => x != null && x.toString().isNotEmpty)
+              .join(' '))
+          .toLowerCase();
+      final cod = (p['codigo_solicitud'] ?? p['cod'] ?? '').toString();
+      return nombre.contains(buscarTxt) || cod.contains(buscarTxt);
+    }
+
     final pendientesActivas = pendingRequests
         .where((p) =>
             (int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0) != 3)
+        .where(matchBusqueda)
+        .where((p) {
+          if (creditSubTab != 1 || creditStatusFilter.isEmpty) return true;
+          final tieneAsesorP =
+              (p['codigo_asesor'] ?? '').toString().trim().isNotEmpty;
+          return creditStatusFilter == 'con_asesor'
+              ? tieneAsesorP
+              : !tieneAsesorP;
+        })
         .toList();
     final solicitudesRechazadas = pendingRequests
         .where((p) =>
             (int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0) == 3)
+        .where(matchBusqueda)
         .toList();
 
     // ── Cálculo del simulador (igual que web: tasa mensual simple) ──
@@ -545,7 +568,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             ),
           ),
 
-        // ── Filtros (solo en Aprobados) ─────────────────────────
+        // ── Filtros: completo en Aprobados, solo Estado en Pendientes
+        // (sin Asesor), solo búsqueda en Rechazadas (ver más abajo) ──
         if (creditSubTab == 0)
           Container(
             margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
@@ -1071,6 +1095,16 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               ),
             ]),
           ),
+        // ── Filtro simple: solo Estado (Pendiente/Con Asesor), sin Asesor —
+        // fetchPending() no llama al servidor con esto, se filtra en
+        // memoria (ver pendientesActivas más arriba) ──
+        if (creditSubTab == 1)
+          _buildSimpleFilterCard(
+            statusOptions: const [
+              ('pendiente', 'Pendiente', Color(0xFFF59E0B)),
+              ('con_asesor', 'Con Asesor', Color(0xFF2563EB)),
+            ],
+          ),
         // ── Lista Aprobados ──
         if (creditSubTab == 0) ...[
           if (creditosFiltrados.isEmpty)
@@ -1424,6 +1458,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         // ── ESTADÍSTICA POR FUENTE ───────────────────────────
         _estadisticaCreditosWidget(),
       ] else if (creditSubTab == 4) ...[
+        // ── Filtro simple: solo búsqueda ──
+        _buildSimpleFilterCard(showStatus: false),
         // ── Lista Rechazadas ──
         if (pendingLoading && !pendingLoaded)
           buildPendingSkeleton()
@@ -2123,6 +2159,212 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     4: Color(0xFFDC2626),
   };
 
+  // Filtro reducido para Pendientes (solo Estado, sin Asesor — ver
+  // pendientesActivas más arriba) y Rechazadas (solo búsqueda). Mismo
+  // lenguaje visual que el filtro completo de Aprobados, sin duplicar toda
+  // esa lógica de Asesor/paginación de servidor que no aplica aquí.
+  Widget _buildSimpleFilterCard({
+    bool showStatus = true,
+    List<(String, String, Color)> statusOptions = const [],
+  }) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: lineCol),
+        boxShadow: [
+          BoxShadow(
+              color: homeNavy.withValues(alpha: 0.07),
+              blurRadius: 18,
+              offset: const Offset(0, 5))
+        ],
+      ),
+      child: Column(children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFF0B0F2E),
+                Color(0xFF1E3A8A),
+                Color(0xFF3B82F6),
+              ],
+              stops: [0.0, 0.55, 1.0],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(19)),
+          ),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(9)),
+              child: const Icon(Icons.tune_rounded,
+                  size: 14, color: Colors.white),
+            ),
+            const SizedBox(width: 10),
+            const Text('Filtrar resultados',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.2)),
+          ]),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: creditsBuscarCtrl,
+                decoration: InputDecoration(
+                  hintText: 'Buscar por cliente o código...',
+                  hintStyle: TextStyle(fontSize: 12.5, color: textSoft),
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.all(9),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF60A5FA), Color(0xFF3B82F6)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.search_rounded,
+                          size: 15, color: Colors.white),
+                    ),
+                  ),
+                  suffixIcon: creditsBuscar.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () {
+                            creditsBuscarCtrl.clear();
+                            refresh(() => creditsBuscar = '');
+                          },
+                          child: Icon(Icons.close_rounded,
+                              size: 16, color: textSoft),
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: inputFill,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: lineCol),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: lineCol),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide:
+                        const BorderSide(color: Color(0xFF4338CA), width: 1.5),
+                  ),
+                ),
+                style: TextStyle(fontSize: 13, color: textMain),
+                // Filtrado en memoria (pendientesActivas/solicitudesRechazadas
+                // ya aplican creditsBuscar) — no hace falta debounce ni
+                // llamada al servidor, solo refrescar el build.
+                onChanged: (v) => refresh(() => creditsBuscar = v.trim()),
+              ),
+              if (showStatus) ...[
+                const SizedBox(height: 10),
+                Text('ESTADO',
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: textSoft,
+                        letterSpacing: 0.6)),
+                const SizedBox(height: 5),
+                Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: inputFill,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: creditStatusFilter.isNotEmpty
+                            ? (statusOptions.firstWhere(
+                                        (o) => o.$1 == creditStatusFilter,
+                                        orElse: () => ('', '', lineCol))
+                                    .$3)
+                                .withValues(alpha: 0.45)
+                            : lineCol),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF60A5FA), Color(0xFF3B82F6)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.radio_button_checked_rounded,
+                          size: 13, color: Colors.white),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: creditStatusFilter.isEmpty
+                              ? null
+                              : creditStatusFilter,
+                          isExpanded: true,
+                          dropdownColor: dialogBg,
+                          hint: Text('Todos',
+                              style: TextStyle(fontSize: 12, color: textSoft)),
+                          style: TextStyle(fontSize: 12.5, color: textMain),
+                          icon: Icon(Icons.keyboard_arrow_down_rounded,
+                              size: 16, color: textSoft),
+                          items: [
+                            DropdownMenuItem<String>(
+                                value: null,
+                                child: Text('Todos',
+                                    style: TextStyle(color: textMain))),
+                            ...statusOptions.map((o) => DropdownMenuItem<String>(
+                                value: o.$1,
+                                child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                          width: 7,
+                                          height: 7,
+                                          decoration: BoxDecoration(
+                                              color: o.$3,
+                                              shape: BoxShape.circle)),
+                                      const SizedBox(width: 6),
+                                      Text(o.$2,
+                                          style: TextStyle(
+                                              color: o.$3,
+                                              fontWeight: FontWeight.w600)),
+                                    ]))),
+                          ]
+                              .toList(),
+                          onChanged: (v) =>
+                              refresh(() => creditStatusFilter = v ?? ''),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+
   Widget _creditoTabBtn(int index, String label, IconData icon) {
     final active = creditSubTab == index;
     final accent = _tabAccents[index] ?? const Color(0xFF4F46E5);
@@ -2134,7 +2376,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
       gradient: gradientColors,
       accent: accent,
       onTap: () {
-        refresh(() => creditSubTab = index);
+        // creditStatusFilter usa claves distintas por tab ('1'/'2'/'atrasado'
+        // en Aprobados vs 'pendiente'/'con_asesor' en Pendientes) — sin
+        // resetear, un valor residual del tab anterior no coincidiría con
+        // ningún option visible pero seguiría filtrando en memoria.
+        refresh(() {
+          creditSubTab = index;
+          creditStatusFilter = '';
+        });
         if (index == 1 || index == 4) unawaited(fetchPending());
       },
     );
@@ -3452,17 +3701,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final cardKey = cod.isNotEmpty ? cod : nombre;
     final expanded = expandedCredits.contains(cardKey);
 
-    final Color accent = !activo
-        ? const Color(0xFF16A34A)
-        : vencido
-            ? const Color(0xFFDC2626)
-            : (isDarkTheme ? const Color(0xFF6366F1) : homeNavy);
-
-    final Color borderColor = !activo
-        ? (isDarkTheme ? const Color(0xFF1E5A3C) : const Color(0xFF86EFAC))
-        : vencido
-            ? (isDarkTheme ? const Color(0xFF5F2430) : const Color(0xFFFCA5A5))
-            : lineCol;
+    // Todas las cards de "Aprobados" usan el mismo verde de la sección — la
+    // mora ya no se marca tiñendo la card entera de rojo (se perdía la
+    // identidad visual del tab); se señala en el LED/etiqueta de estado y en
+    // el recuadro de "PRÓX. CUOTA" en su lugar.
+    const Color accent = Color(0xFF16A34A);
+    final Color borderColor =
+        isDarkTheme ? const Color(0xFF1E5A3C) : const Color(0xFF86EFAC);
 
     final initials = nombre
         .split(' ')
@@ -3520,13 +3765,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 child: Stack(children: [
                   Container(
                     padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
+                      // Mismo par exacto del tab "Aprobados" (no un lerp
+                      // automático desde accent) — el lerp daba un verde más
+                      // apagado que el verde oscuro→esmeralda vivo del tab.
                       gradient: LinearGradient(
-                        colors: [
-                          Color.lerp(accent, Colors.white, 0.14) ?? accent,
-                          accent,
-                          Color.lerp(accent, Colors.black, 0.24) ?? accent,
-                        ],
+                        colors: [Color(0xFF064E3B), Color(0xFF10B981)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -3563,22 +3807,30 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     color: Colors.white)),
                             const SizedBox(height: 2),
                             if (asesor.isNotEmpty)
-                              Row(mainAxisSize: MainAxisSize.min, children: [
-                                Icon(Icons.badge_outlined,
-                                    size: 11,
-                                    color:
-                                        Colors.white.withValues(alpha: 0.75)),
-                                const SizedBox(width: 3),
-                                Flexible(
-                                  child: Text(asesor,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                          fontSize: 11,
-                                          color: Colors.white
-                                              .withValues(alpha: 0.75))),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                              ]),
+                                child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.badge_outlined,
+                                          size: 11, color: Colors.white),
+                                      const SizedBox(width: 3),
+                                      Flexible(
+                                        child: Text(asesor,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white)),
+                                      ),
+                                    ]),
+                              ),
                           ])),
                       const SizedBox(width: 8),
                       Column(
@@ -3586,43 +3838,61 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           children: [
                             Row(mainAxisSize: MainAxisSize.min, children: [
                               if (cod.isNotEmpty) ...[
-                                Text('#$cod',
-                                    style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.white
-                                            .withValues(alpha: 0.65),
-                                        fontWeight: FontWeight.w600)),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Colors.black.withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text('#$cod',
+                                      style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700)),
+                                ),
                                 const SizedBox(width: 6),
                               ],
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 9, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.18),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.35),
-                                    width: 1,
+                              Builder(builder: (_) {
+                                // Chip siempre en fondo blanco sólido con LED
+                                // y texto en el color real del estado: verde
+                                // Activo, rojo En mora, azul Pagado (antes
+                                // Pagado y Activo compartían el mismo verde y
+                                // no se distinguían de un vistazo).
+                                final estadoColor = (activo && vencido)
+                                    ? const Color(0xFFDC2626)
+                                    : !activo
+                                        ? const Color(0xFF2563EB)
+                                        : const Color(0xFF16A34A);
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 9, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    // cardBg (no blanco fijo) — en modo
+                                    // oscuro un fondo blanco puro no combina
+                                    // con el resto de la UI.
+                                    color: cardBg,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border:
+                                        Border.all(color: estadoColor, width: 1),
                                   ),
-                                ),
-                                child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      _PulsingDot(
-                                        color: activo
-                                            ? (vencido
-                                                ? const Color(0xFFFCA5A5)
-                                                : const Color(0xFF6EE7A0))
-                                            : Colors.white,
-                                      ),
-                                      const SizedBox(width: 5),
-                                      Text(estado,
-                                          style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w700)),
-                                    ]),
-                              ),
+                                  child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _PulsingDot(color: estadoColor),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                            activo && vencido
+                                                ? 'Atrasado'
+                                                : estado,
+                                            style: TextStyle(
+                                                color: estadoColor,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700)),
+                                      ]),
+                                );
+                              }),
                             ]),
                             const SizedBox(height: 6),
                             AnimatedRotation(
@@ -3685,89 +3955,171 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
                 child: Row(children: [
                   Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: (pendiente > 0
-                                ? const Color(0xFFDC2626)
-                                : const Color(0xFF16A34A))
-                            .withValues(alpha: isDarkTheme ? 0.12 : 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: (pendiente > 0
-                                  ? const Color(0xFFDC2626)
-                                  : const Color(0xFF16A34A))
-                              .withValues(alpha: 0.22),
+                    child: Builder(builder: (_) {
+                      // Saldo pendiente ≠ atrasado: un crédito al día puede
+                      // seguir teniendo saldo por pagar, así que este
+                      // recuadro usa el amarillo de la tab "Pendientes" (no
+                      // rojo, que ya se reserva para "Atrasado" en el chip de
+                      // estado y en "PRÓX. CUOTA"). En $0, usa el mismo azul
+                      // del chip "Pagado", no verde.
+                      final boxColor = pendiente > 0
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFF2563EB);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: boxColor
+                              .withValues(alpha: isDarkTheme ? 0.12 : 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: boxColor.withValues(alpha: 0.30)),
                         ),
-                      ),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('PENDIENTE',
-                                style: TextStyle(
-                                    fontSize: 9,
-                                    color: textSoft,
-                                    fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 2),
-                            TweenAnimationBuilder<double>(
-                              key: ValueKey('pend_${cardKey}_$pendiente'),
-                              tween: Tween(begin: 0.0, end: pendiente),
-                              duration: const Duration(milliseconds: 700),
-                              curve: Curves.easeOutCubic,
-                              builder: (_, animatedPendiente, __) => Text(
-                                  formatCop(animatedPendiente),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w800,
-                                      color: pendiente > 0
-                                          ? const Color(0xFFDC2626)
-                                          : const Color(0xFF16A34A))),
+                        child: Row(children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                // Par fijo de dos tonos, igual que el resto
+                                // de estados (amarillo/verde/rojo) — un lerp
+                                // automático se veía más plano que un
+                                // gradiente de marca real.
+                                colors: pendiente > 0
+                                    ? const [
+                                        Color(0xFF92400E),
+                                        Color(0xFFF59E0B)
+                                      ]
+                                    : const [
+                                        Color(0xFF1D4ED8),
+                                        Color(0xFF3B82F6)
+                                      ],
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: boxColor.withValues(alpha: 0.40),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
                             ),
-                          ]),
-                    ),
+                            child: const Icon(Icons.attach_money_rounded,
+                                color: Colors.white, size: 16),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('PENDIENTE',
+                                      style: TextStyle(
+                                          fontSize: 9,
+                                          color: textSoft,
+                                          letterSpacing: 0.5,
+                                          fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 2),
+                                  TweenAnimationBuilder<double>(
+                                    key: ValueKey('pend_${cardKey}_$pendiente'),
+                                    tween: Tween(begin: 0.0, end: pendiente),
+                                    duration: const Duration(milliseconds: 700),
+                                    curve: Curves.easeOutCubic,
+                                    builder: (_, animatedPendiente, __) => Text(
+                                        formatCop(animatedPendiente),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w800,
+                                            color: boxColor)),
+                                  ),
+                                ]),
+                          ),
+                        ]),
+                      );
+                    }),
                   ),
                   if (proxima.isNotEmpty) ...[
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: (vencido ? const Color(0xFFDC2626) : accent)
-                            .withValues(alpha: isDarkTheme ? 0.12 : 0.07),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: (vencido ? const Color(0xFFDC2626) : accent)
-                              .withValues(alpha: 0.22),
-                        ),
-                      ),
-                      child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Row(mainAxisSize: MainAxisSize.min, children: [
-                              if (vencido)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 3),
-                                  child: Icon(Icons.warning_amber_rounded,
-                                      size: 10, color: const Color(0xFFDC2626)),
+                    Expanded(
+                      child: Builder(builder: (_) {
+                        final boxColor =
+                            vencido ? const Color(0xFFDC2626) : accent;
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: boxColor
+                                .withValues(alpha: isDarkTheme ? 0.12 : 0.07),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: boxColor.withValues(alpha: 0.30)),
+                          ),
+                          child: Row(children: [
+                            Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  // Mismo par exacto del tab "Aprobados" (o
+                                  // "Rechazadas" si está vencido) — un lerp
+                                  // automático daba tonos más apagados que
+                                  // los headers reales de esas secciones.
+                                  colors: vencido
+                                      ? const [
+                                          Color(0xFF7F1D1D),
+                                          Color(0xFFDC2626)
+                                        ]
+                                      : const [
+                                          Color(0xFF064E3B),
+                                          Color(0xFF10B981)
+                                        ],
                                 ),
-                              Text('PRÓX. CUOTA',
-                                  style: TextStyle(
-                                      fontSize: 9,
-                                      color: textSoft,
-                                      fontWeight: FontWeight.w600)),
-                            ]),
-                            const SizedBox(height: 2),
-                            Text(proxima,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: vencido
-                                        ? const Color(0xFFDC2626)
-                                        : textMain)),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: boxColor.withValues(alpha: 0.40),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                  vencido
+                                      ? Icons.warning_amber_rounded
+                                      : Icons.event_rounded,
+                                  color: Colors.white,
+                                  size: 16),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text('PRÓX. CUOTA',
+                                        style: TextStyle(
+                                            fontSize: 9,
+                                            color: textSoft,
+                                            letterSpacing: 0.5,
+                                            fontWeight: FontWeight.w700)),
+                                    const SizedBox(height: 2),
+                                    Text(proxima,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w800,
+                                            color: boxColor)),
+                                  ]),
+                            ),
                           ]),
+                        );
+                      }),
                     ),
                   ],
                 ]),
@@ -3806,46 +4158,51 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           tween: Tween(begin: 0, end: progress),
                           duration: const Duration(milliseconds: 800),
                           curve: Curves.easeOutCubic,
-                          builder: (_, v, __) => ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: Stack(children: [
-                              Container(
-                                height: 7,
-                                color: lineCol,
-                              ),
-                              FractionallySizedBox(
-                                widthFactor: v,
-                                child: Container(
+                          builder: (_, v, __) {
+                            // Barra por escala de avance, con los mismos
+                            // gradientes exactos de las tabs: 0-33% rojo
+                            // (Rechazadas), 34-66% amarillo (Pendientes),
+                            // 67-100% verde (Aprobados).
+                            final List<Color> progressColors = progress <= 0.33
+                                ? const [Color(0xFF7F1D1D), Color(0xFFDC2626)]
+                                : progress <= 0.66
+                                    ? const [
+                                        Color(0xFF92400E),
+                                        Color(0xFFF59E0B)
+                                      ]
+                                    : const [
+                                        Color(0xFF064E3B),
+                                        Color(0xFF10B981)
+                                      ];
+                            final Color glowColor = progressColors.last;
+                            return ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: Stack(children: [
+                                Container(
                                   height: 7,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: progress >= 1.0
-                                          ? [
-                                              const Color(0xFF34D399),
-                                              const Color(0xFF059669)
-                                            ]
-                                          : [
-                                              Color.lerp(accent, Colors.white,
-                                                      0.30) ??
-                                                  accent,
-                                              accent,
-                                            ],
+                                  color: lineCol,
+                                ),
+                                FractionallySizedBox(
+                                  widthFactor: v,
+                                  child: Container(
+                                    height: 7,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                          colors: progressColors),
+                                      borderRadius: BorderRadius.circular(6),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color:
+                                              glowColor.withValues(alpha: 0.55),
+                                          blurRadius: 7,
+                                        ),
+                                      ],
                                     ),
-                                    borderRadius: BorderRadius.circular(6),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: (progress >= 1.0
-                                                ? const Color(0xFF34D399)
-                                                : accent)
-                                            .withValues(alpha: 0.55),
-                                        blurRadius: 7,
-                                      ),
-                                    ],
                                   ),
                                 ),
-                              ),
-                            ]),
-                          ),
+                              ]),
+                            );
+                          },
                         ),
                       ]),
                 ),
@@ -4427,20 +4784,17 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         : (asesorSigla.isNotEmpty ? advisorName(asesorSigla) : codigoAsesor);
     final estadoCod = int.tryParse(p['codigo_estado']?.toString() ?? '0') ?? 0;
 
-    // Verde = asesor asignado, Rojo = rechazado (estado 3), Blanco = pendiente
+    // Todas las cards de "Pendientes" usan el mismo amarillo de la sección,
+    // tenga o no asesor asignado — esa distinción ahora se marca solo en el
+    // chip de estado (azul SAF para "Con Asesor"), no tiñendo la card entera.
     final tieneAsesor = codigoAsesor.isNotEmpty;
     final rechazado = estadoCod == 3;
     final cardBorder = rechazado
         ? (isDarkTheme ? const Color(0xFF6B2837) : const Color(0xFFEF9A9A))
-        : tieneAsesor
-            ? (isDarkTheme ? const Color(0xFF1E5A3C) : const Color(0xFFA5D6A7))
-            : lineCol;
+        : (isDarkTheme ? const Color(0xFF6B4A1E) : const Color(0xFFFDE68A));
 
-    final accentColor = rechazado
-        ? const Color(0xFFDC2626)
-        : tieneAsesor
-            ? const Color(0xFF16A34A)
-            : const Color(0xFF4F46E5);
+    final accentColor =
+        rechazado ? const Color(0xFFDC2626) : const Color(0xFFF59E0B);
     // El monto "SOLICITADO" se pinta con accentColor sobre un fondo teñido
     // con ese mismo color (ver container más abajo) — en modo oscuro el
     // índigo sobre índigo oscuro casi no se distinguía. Aquí sí se aclara
@@ -4516,13 +4870,19 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [
-                          Color.lerp(accentColor, Colors.white, 0.14) ??
-                              accentColor,
-                          accentColor,
-                          Color.lerp(accentColor, Colors.black, 0.24) ??
-                              accentColor,
-                        ],
+                        // Todas las cards no rechazadas usan el mismo par
+                        // exacto de colores del tab "Pendientes" (no un lerp
+                        // automático desde accentColor), para que el amarillo
+                        // calce siempre, tengan o no asesor asignado.
+                        colors: !rechazado
+                            ? const [Color(0xFF92400E), Color(0xFFF59E0B)]
+                            : [
+                                Color.lerp(accentColor, Colors.white, 0.14) ??
+                                    accentColor,
+                                accentColor,
+                                Color.lerp(accentColor, Colors.black, 0.24) ??
+                                    accentColor,
+                              ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -4563,48 +4923,73 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                       color: Colors.white)),
                               const SizedBox(height: 2),
                               if (doc.isNotEmpty)
-                                Text('Doc: $doc',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.white
-                                            .withValues(alpha: 0.75))),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Colors.black.withValues(alpha: 0.18),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text('Doc: $doc',
+                                      style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.white)),
+                                ),
                             ]),
                       ),
                       const SizedBox(width: 8),
                       Row(mainAxisSize: MainAxisSize.min, children: [
                         if (cod.isNotEmpty) ...[
-                          Text('#$cod',
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white.withValues(alpha: 0.65),
-                                  fontWeight: FontWeight.w600)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text('#$cod',
+                                style: const TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700)),
+                          ),
                           const SizedBox(width: 6),
                         ],
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.35),
-                                width: 1),
-                          ),
-                          child: Row(mainAxisSize: MainAxisSize.min, children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: const BoxDecoration(
-                                  color: Colors.white, shape: BoxShape.circle),
+                        Builder(builder: (_) {
+                          // Mismo patrón "chip blanco + acento" que el resto
+                          // de estados de la app — un chip con gradiente de
+                          // color saturado (probado antes) chocaba fuerte
+                          // contra el header naranja/rojo.
+                          final chipColor = (tieneAsesor && !rechazado)
+                              ? const Color(0xFF2563EB)
+                              : accentColor;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              // cardBg (no blanco fijo): en modo oscuro un
+                              // fondo blanco puro rompía con el resto de la
+                              // UI, aunque el contraste contra el header de
+                              // color siga funcionando igual.
+                              color: cardBg,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: chipColor, width: 1),
                             ),
-                            const SizedBox(width: 4),
-                            Text(estadoLabel,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700)),
-                          ]),
-                        ),
+                            child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _PulsingDot(color: chipColor),
+                                  const SizedBox(width: 5),
+                                  Text(estadoLabel,
+                                      style: TextStyle(
+                                          color: chipColor,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700)),
+                                ]),
+                          );
+                        }),
                       ]),
                       const SizedBox(width: 6),
                       AnimatedRotation(
@@ -4831,6 +5216,57 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         ), // closes AnimatedContainer
       ), // closes GestureDetector
     ); // closes TweenAnimationBuilder
+  }
+
+  // Igual criterio que gestion_usuarios.php: 'foto' (subida real) tiene
+  // prioridad sobre 'imagen' (asignada al crear el asesor, a veces solo el
+  // isotipo genérico de SAF) — cualquiera de las dos puede venir vacía.
+  String _advisorPhotoUrl(Map<String, dynamic> a) {
+    for (final k in ['foto', 'imagen']) {
+      final raw = (a[k] ?? '').toString().trim();
+      if (raw.isNotEmpty && !isNoPhotoValue(raw)) {
+        return raw.startsWith('http')
+            ? raw
+            : 'https://www.jorgemario.co/ext/saf/img/icons/$raw';
+      }
+    }
+    return '';
+  }
+
+  Widget _advisorAvatar(Map<String, dynamic> a, String nombre) {
+    final photoUrl = _advisorPhotoUrl(a);
+    final initials = nombre.trim().isNotEmpty
+        ? nombre
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((w) => w.isNotEmpty)
+            .take(2)
+            .map((w) => w[0])
+            .join()
+            .toUpperCase()
+        : '?';
+    final fallback = Container(
+      width: 22,
+      height: 22,
+      decoration: const BoxDecoration(
+        color: homeAccent,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(initials,
+          style: const TextStyle(
+              color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+    );
+    if (photoUrl.isEmpty) return fallback;
+    return ClipOval(
+      child: Image.network(
+        photoUrl,
+        width: 22,
+        height: 22,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => fallback,
+      ),
+    );
   }
 
   void _showEditarSolicitudDialog(Map<String, dynamic> p) {
@@ -5265,9 +5701,21 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                         .trim();
                                     return DropdownMenuItem(
                                         value: sigla,
-                                        child: Text(
-                                            nombre.isNotEmpty ? nombre : sigla,
-                                            overflow: TextOverflow.ellipsis));
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _advisorAvatar(a, nombre),
+                                            const SizedBox(width: 8),
+                                            Flexible(
+                                              child: Text(
+                                                  nombre.isNotEmpty
+                                                      ? nombre
+                                                      : sigla,
+                                                  overflow:
+                                                      TextOverflow.ellipsis),
+                                            ),
+                                          ],
+                                        ));
                                   }),
                                 ],
                                 (v) => setS(() => selectedAsesor = v)),
@@ -5310,7 +5758,25 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                       value: null, child: Text('[Seleccione]')),
                                   ...fuenteOpciones().map((p) =>
                                       DropdownMenuItem(
-                                          value: p.$1, child: Text(p.$2))),
+                                          value: p.$1,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Container(
+                                                width: 9,
+                                                height: 9,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: sourceColor(p.$2),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Flexible(
+                                                  child: Text(p.$2,
+                                                      overflow: TextOverflow
+                                                          .ellipsis)),
+                                            ],
+                                          ))),
                                 ],
                                 (v) => setS(() => selectedFuente = v)),
 
@@ -8075,7 +8541,7 @@ class _CreditoTabButtonState extends State<_CreditoTabButton>
 // badge de estado "Activo" de la tarjeta de crédito.
 class _PulsingDot extends StatefulWidget {
   final Color color;
-  static const double size = 6;
+  static const double size = 8;
 
   const _PulsingDot({required this.color});
 
@@ -8088,8 +8554,12 @@ class _PulsingDotState extends State<_PulsingDot>
   late final AnimationController _ctrl = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 900))
     ..repeat(reverse: true);
+  // El punto siempre queda a opacidad plena — solo el halo (boxShadow)
+  // respira entre 0.5 y 1.0. Antes el color base también se desvanecía con
+  // el pulso, así que en su punto más bajo el LED casi desaparecía sobre el
+  // chip translúcido.
   late final Animation<double> _pulse =
-      Tween<double>(begin: 0.55, end: 1.0).animate(
+      Tween<double>(begin: 0.5, end: 1.0).animate(
           CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
 
   @override
@@ -8103,18 +8573,18 @@ class _PulsingDotState extends State<_PulsingDot>
     return AnimatedBuilder(
       animation: _pulse,
       builder: (_, __) => Transform.scale(
-        scale: 0.85 + (_pulse.value * 0.3),
+        scale: 0.9 + (_pulse.value * 0.25),
         child: Container(
           width: _PulsingDot.size,
           height: _PulsingDot.size,
           decoration: BoxDecoration(
-            color: widget.color.withValues(alpha: _pulse.value),
+            color: widget.color,
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: widget.color.withValues(alpha: _pulse.value * 0.6),
-                blurRadius: _PulsingDot.size * 1.2,
-                spreadRadius: 0.5,
+                color: widget.color.withValues(alpha: _pulse.value * 0.9),
+                blurRadius: _PulsingDot.size * 2.0,
+                spreadRadius: 1,
               ),
             ],
           ),
