@@ -4808,6 +4808,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                       const SizedBox(width: 8),
                                       _miniIconBtn(Icons.edit_rounded, homeNavy,
                                           () => _showEditarSolicitudDialog(p)),
+                                      if (rechazado) ...[
+                                        const SizedBox(width: 8),
+                                        _miniIconBtn(
+                                            Icons.delete_rounded,
+                                            const Color(0xFFDC2626),
+                                            () => _confirmarEliminarSolicitud(
+                                                p)),
+                                      ],
                                     ]),
                               ),
                             ]),
@@ -7350,6 +7358,55 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     );
   }
 
+  // ── Confirmar eliminar solicitud rechazada ──────────────────────
+  Future<void> _confirmarEliminarSolicitud(Map<String, dynamic> p) async {
+    final cod = (p['codigo_solicitud'] ?? p['cod'] ?? '').toString();
+    final cliente = ([p['nombres'], p['apellidos']]
+            .where((x) => x != null && x.toString().isNotEmpty)
+            .join(' '))
+        .trim();
+    final ok = await showDialog<bool>(
+      context: screenContext,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (ctx) => _EliminarCreditoDialog(
+        cod: cod,
+        cliente: cliente,
+        titulo: 'Eliminar solicitud',
+        etiquetaItem: 'Solicitud',
+      ),
+    );
+    if (ok != true || !isMounted) return;
+    final r = await repository.post(
+        '/ajax/eliminar_solicitud_credito.php', {'codigo_solicitud': cod});
+    if (!isMounted) return;
+    final bodyLower = r.body.toLowerCase();
+    final decoded = decodeJsonMap(r.body);
+    final exito = r.statusCode == 200 &&
+        (decoded['success'] == true ||
+            decoded['resultado'] == 1 ||
+            bodyLower.contains('eliminad') ||
+            bodyLower.contains('exitoso') ||
+            bodyLower.contains('success'));
+    if (exito) {
+      repository.invalidateCache('/ajax/get_creditos_lista.php');
+      await fetchCredits('');
+      if (isMounted) refresh(() {});
+    }
+    if (!isMounted) return;
+    showDialog(
+      context: screenContext,
+      builder: (_) => buildResultDialog(
+        exito
+            ? 'La solicitud #$cod de $cliente fue eliminada.'
+            : 'No se pudo eliminar la solicitud. Por favor intenta de nuevo.',
+        exito,
+        title: exito ? 'Solicitud eliminada' : 'Algo salió mal',
+        icon:
+            exito ? Icons.delete_forever_rounded : Icons.error_outline_rounded,
+      ),
+    );
+  }
+
   Future<Uint8List> _generarPazYSalvoPdf({
     required String cliente,
     required String numDoc,
@@ -8155,9 +8212,16 @@ class _PaginationButtonState extends State<_PaginationButton>
 
 // ── Animated delete-confirmation dialog ─────────────────────────────────────
 class _EliminarCreditoDialog extends StatefulWidget {
-  const _EliminarCreditoDialog({required this.cod, required this.cliente});
+  const _EliminarCreditoDialog({
+    required this.cod,
+    required this.cliente,
+    this.titulo = 'Eliminar crédito',
+    this.etiquetaItem = 'Crédito',
+  });
   final String cod;
   final String cliente;
+  final String titulo;
+  final String etiquetaItem;
 
   @override
   State<_EliminarCreditoDialog> createState() => _EliminarCreditoDialogState();
@@ -8261,7 +8325,7 @@ class _EliminarCreditoDialogState extends State<_EliminarCreditoDialog>
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text('Eliminar crédito',
+                Text(widget.titulo,
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -8297,7 +8361,7 @@ class _EliminarCreditoDialogState extends State<_EliminarCreditoDialog>
                       child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Crédito #${widget.cod}',
+                            Text('${widget.etiquetaItem} #${widget.cod}',
                                 style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13,
