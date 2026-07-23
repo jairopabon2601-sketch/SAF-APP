@@ -2939,7 +2939,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 repository.invalidateCache('/ajax/listado_json_campos.php');
                 final u = repository.user;
                 await fetchCredits(u?['codigo_usuario']?.toString() ?? '');
-                if (isMounted) refresh(() {});
+                // El crédito genera movimientos/cambios de saldo automáticos
+                // (ver registrar_credito.php): sin esto, Movimientos y el
+                // saldo de Cuentas quedaban desactualizados hasta un
+                // pull-to-refresh manual en Inicio.
+                await refreshAfterMovementChange();
               }
             }
           } catch (e) {
@@ -3256,7 +3260,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 hint: '[Seleccione]',
                                 items: fuentes
                                     .map((p) => DropdownMenuItem(
-                                        value: p.$1, child: Text(p.$2)))
+                                        value: p.$1,
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Container(
+                                              width: 9,
+                                              height: 9,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: sourceColor(p.$2),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(p.$2),
+                                          ],
+                                        )))
                                     .toList(),
                                 onChanged: (v) =>
                                     setS(() => selectedFuente = v),
@@ -3278,7 +3297,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                   hint: '[Seleccione]',
                                   items: fuentes
                                       .map((p) => DropdownMenuItem(
-                                          value: p.$1, child: Text(p.$2)))
+                                          value: p.$1,
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Container(
+                                                width: 9,
+                                                height: 9,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: sourceColor(p.$2),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(p.$2),
+                                            ],
+                                          )))
                                       .toList(),
                                   onChanged: (v) =>
                                       setS(() => selectedCuentaDestino = v),
