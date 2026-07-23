@@ -5417,53 +5417,170 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         builder: (ctx) {
           String? tmp = advisors.first['sigla']?.toString() ?? '';
           return StatefulBuilder(
-              builder: (ctx, setS) => AlertDialog(
-                    backgroundColor: dialogBg,
-                    surfaceTintColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    title: Text('Asignar asesor',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: textMain)),
-                    content: InputDecorator(
-                      decoration: const InputDecoration(
-                          labelText: 'Asesor', border: OutlineInputBorder()),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: tmp,
-                          dropdownColor: dialogBg,
-                          isExpanded: true,
-                          items: advisors.map((a) {
-                            final sigla =
-                                (a['sigla'] ?? a['codigo_asesor'] ?? '')
-                                    .toString();
-                            final nombre = ([a['nombres'], a['apellidos']]
-                                    .where((x) =>
-                                        x != null && x.toString().isNotEmpty)
-                                    .join(' '))
-                                .trim();
-                            return DropdownMenuItem(
-                                value: sigla,
-                                child:
-                                    Text(nombre.isNotEmpty ? nombre : sigla));
-                          }).toList(),
-                          onChanged: (v) => setS(() => tmp = v),
+              builder: (ctx, setS) => AppAnimatedDialog(
+                    child: Dialog(
+                      backgroundColor: Colors.transparent,
+                      surfaceTintColor: Colors.transparent,
+                      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: cardBg,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.18),
+                                blurRadius: 48,
+                                offset: const Offset(0, 20)),
+                          ],
                         ),
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 26),
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Color(0xFF065F46), Color(0xFF16A34A)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius:
+                                  BorderRadius.vertical(top: Radius.circular(24)),
+                            ),
+                            child: Column(children: [
+                              Container(
+                                width: 64,
+                                height: 64,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.18),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.35),
+                                      width: 2),
+                                ),
+                                child: const Icon(Icons.person_add_alt_1_rounded,
+                                    color: Colors.white, size: 30),
+                              ),
+                              const SizedBox(height: 14),
+                              const Text('Asignar asesor',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: -0.3)),
+                            ]),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+                            child: Column(children: [
+                              Text(
+                                  'Selecciona el asesor responsable de esta solicitud.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                      fontSize: 13, color: textSoft, height: 1.4)),
+                              const SizedBox(height: 16),
+                              InputDecorator(
+                                decoration: InputDecoration(
+                                  labelText: 'Asesor',
+                                  filled: true,
+                                  fillColor: inputFill,
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: tmp,
+                                    dropdownColor: dialogBg,
+                                    isExpanded: true,
+                                    items: advisors.map((a) {
+                                      final sigla = (a['sigla'] ??
+                                              a['codigo_asesor'] ??
+                                              '')
+                                          .toString();
+                                      final nombre = ([
+                                        a['nombres'],
+                                        a['apellidos']
+                                      ]
+                                              .where((x) =>
+                                                  x != null &&
+                                                  x.toString().isNotEmpty)
+                                              .join(' '))
+                                          .trim();
+                                      return DropdownMenuItem(
+                                          value: sigla,
+                                          child: Text(nombre.isNotEmpty
+                                              ? nombre
+                                              : sigla));
+                                    }).toList(),
+                                    onChanged: (v) => setS(() => tmp = v),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 22),
+                              Row(children: [
+                                Expanded(
+                                  child: OutlinedButton(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: textSoft,
+                                      side: BorderSide(
+                                          color: lineCol, width: 1.5),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 13),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(14)),
+                                    ),
+                                    onPressed: () => Navigator.pop(ctx, null),
+                                    child: const Text('Cancelar',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14)),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF065F46),
+                                          Color(0xFF16A34A)
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF16A34A)
+                                              .withValues(alpha: 0.38),
+                                          blurRadius: 14,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        shadowColor: Colors.transparent,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 13),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(14)),
+                                      ),
+                                      onPressed: () => Navigator.pop(ctx, tmp),
+                                      child: const Text('Aprobar',
+                                          style: TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 14)),
+                                    ),
+                                  ),
+                                ),
+                              ]),
+                            ]),
+                          ),
+                        ]),
                       ),
                     ),
-                    actions: [
-                      appCancelButton(
-                          'Cancelar', () => Navigator.pop(ctx, null)),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF16A34A),
-                            foregroundColor: Colors.white),
-                        onPressed: () => Navigator.pop(ctx, tmp),
-                        child: const Text('Aprobar'),
-                      ),
-                    ],
                   ));
         },
       );
@@ -5496,31 +5613,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         .trim();
     final ok = await showDialog<bool>(
       context: screenContext,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: dialogBg,
-        surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          Icon(Icons.cancel_outlined, color: Color(0xFFDC2626)),
-          SizedBox(width: 8),
-          Text('Rechazar solicitud',
-              style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w700, color: textMain)),
-        ]),
-        content: Text('¿Rechazar la solicitud #$cod de $nombre?',
-            style: TextStyle(fontSize: 13, color: textMid)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('No')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFDC2626),
-                foregroundColor: Colors.white),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Rechazar'),
-          ),
-        ],
+      builder: (ctx) => AppConfirmDialog(
+        title: '¿Rechazar solicitud?',
+        message: 'La solicitud #$cod de $nombre será rechazada y no podrá deshacerse desde aquí.',
+        icon: Icons.cancel_rounded,
+        confirmLabel: 'Rechazar',
+        cancelLabel: 'No',
+        gradientColors: const [Color(0xFF7F1D1D), Color(0xFFEF4444)],
       ),
     );
     if (ok != true || !isMounted) return;
