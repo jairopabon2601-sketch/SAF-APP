@@ -6114,29 +6114,24 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         color: const Color(0xFF10B981)
                             .withValues(alpha: isDarkTheme ? 0.35 : 0.3)),
                   ),
-                  child: totalAbonado > 0
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            summaryRow(
-                                'Valor de la cuota', formatCop(valorCuota)),
-                            Divider(
-                                height: 12,
-                                color: lineCol.withValues(alpha: 0.6)),
-                            summaryRow('Total abonado',
-                                formatCop(totalAbonado)),
-                            Divider(
-                                height: 12,
-                                color: lineCol.withValues(alpha: 0.6)),
-                            summaryRow(
-                                'Saldo pendiente', formatCop(saldoPendiente),
-                                emphasize: true),
-                          ])
-                      // Sin abonos aún: "Valor de la cuota" y "Saldo
-                      // pendiente" serían el mismo número — se muestra un
-                      // único dato en vez de repetirlo en dos filas.
-                      : summaryRow('Cuota pendiente', formatCop(valorCuota),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      summaryRow('Valor de la cuota', formatCop(valorCuota)),
+                      if (totalAbonado > 0) ...[
+                        Divider(
+                            height: 12,
+                            color: lineCol.withValues(alpha: 0.6)),
+                        summaryRow(
+                            'Total abonado', formatCop(totalAbonado)),
+                      ],
+                      Divider(
+                          height: 12, color: lineCol.withValues(alpha: 0.6)),
+                      summaryRow(
+                          'Saldo pendiente', formatCop(saldoPendiente),
                           emphasize: true),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 18),
                 if (historialAbonos.isEmpty)
