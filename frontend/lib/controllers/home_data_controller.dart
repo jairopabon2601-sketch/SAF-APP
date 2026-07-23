@@ -3,54 +3,22 @@ import 'home_actions.dart';
 
 extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   Future<void> fetchMenuOptions() async {
-    // Asesor (perfil 1): ve Inicio y Ahorradores
-    if (isAsesor) {
-      if (isMounted) {
-        refresh(() {
-          allowedScreenIndices = [0, 2];
-          selectedIndex = 0;
-          menuOptionsLoaded = true;
-        });
-      }
-      return;
-    }
-    // Admin siempre ve todos los tabs
-    if (isAdmin) {
-      if (isMounted) {
-        refresh(() {
-          allowedScreenIndices = [0, 1, 2, 3];
-          menuOptionsLoaded = true;
-        });
-      }
-      return;
-    }
+    // Módulos habilitados para el perfil del usuario, gestionados desde la
+    // pantalla de Gestión de permisos (solo editable por perfil 6). Inicio
+    // (índice 0) siempre está visible; los demás dependen de
+    // tbl_procesos_perfiles vía listar_modulos_habilitados.php.
     try {
-      final r = await repository.post(
-          '/ajax/cargar_opciones.php', {}).timeout(const Duration(seconds: 10));
+      final r = await repository
+          .post('/ajax/listar_modulos_habilitados.php', {})
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
-        if (d['resultado'] == 1 && d['opciones'] is List) {
-          final opciones = d['opciones'] as List;
-          final allowed = <int>[0]; // Inicio siempre visible
-          for (final op in opciones.whereType<Map>()) {
-            final n = (op['nombre'] ?? '')
-                .toString()
-                .toLowerCase()
-                .replaceAll('é', 'e')
-                .replaceAll('á', 'a')
-                .replaceAll('ó', 'o')
-                .replaceAll('í', 'i')
-                .replaceAll('ú', 'u');
-            if ((n.contains('credito') || n.contains('prestamo')) &&
-                !allowed.contains(1)) {
-              allowed.add(1);
-            }
-            if (n.contains('ahorro') && !allowed.contains(2)) allowed.add(2);
-            if ((n.contains('gasto') || n.contains('movimiento')) &&
-                !allowed.contains(3)) {
-              allowed.add(3);
-            }
-          }
+        if (d['success'] == true && d['modulos'] is Map) {
+          final modulos = d['modulos'] as Map;
+          final allowed = <int>[0];
+          if (modulos['creditos'] == true) allowed.add(1);
+          if (modulos['ahorros'] == true) allowed.add(2);
+          if (modulos['movimientos'] == true) allowed.add(3);
           allowed.sort();
           if (isMounted) {
             refresh(() {
@@ -59,6 +27,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
               if (selectedIndex >= allowed.length) selectedIndex = 0;
             });
           }
+          return;
         }
       }
     } catch (e) {

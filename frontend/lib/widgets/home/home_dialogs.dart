@@ -5,8 +5,10 @@ import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
 import '../../controllers/home_actions.dart';
+import '../../controllers/home_permissions_dialog.dart';
 import '../../screens/home/home_dependencies.dart';
 import 'cached_avatar.dart';
+import 'shimmer_header_overlay.dart';
 
 Uint8List _toJpegBytes(Uint8List source) {
   var decoded = img.decodeImage(source);
@@ -67,6 +69,10 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
           Navigator.of(screenContext).pop();
           showUsersManagement();
         },
+        onGestionPermisos: () {
+          Navigator.of(screenContext).pop();
+          showGestionPermisos();
+        },
         onLogoutConfirmed: () {
           Navigator.of(screenContext).pop();
           logout();
@@ -85,6 +91,7 @@ class _ProfileSheetContent extends StatefulWidget {
   final Future<({String? filename, String? error})> Function(Uint8List)?
       onUploadPhoto;
   final VoidCallback onGestionUsuarios;
+  final VoidCallback onGestionPermisos;
   final VoidCallback onLogoutConfirmed;
 
   const _ProfileSheetContent({
@@ -96,6 +103,7 @@ class _ProfileSheetContent extends StatefulWidget {
     required this.showGestionUsuarios,
     this.onUploadPhoto,
     required this.onGestionUsuarios,
+    required this.onGestionPermisos,
     required this.onLogoutConfirmed,
   });
 
@@ -273,7 +281,7 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
                 Column(
                   children: [
                     // Drag handle sobre fondo oscuro
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     Center(
                       child: Container(
                         width: 40,
@@ -512,56 +520,160 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
                           ),
                         ],
                       ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: widget.onGestionUsuarios,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 46,
-                                  height: 46,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(Icons.manage_accounts_rounded,
-                                      color: Colors.white, size: 24),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(children: [
+                          const Positioned.fill(child: ShimmerHeaderOverlay()),
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: widget.onGestionUsuarios,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 46,
+                                      height: 46,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.16),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.28)),
+                                      ),
+                                      child: const Icon(
+                                          Icons.manage_accounts_rounded,
+                                          color: Colors.white, size: 24),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Gestión de usuarios',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w700)),
+                                          SizedBox(height: 2),
+                                          Text('Usuarios, perfiles y accesos',
+                                              style: TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 11)),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(Icons.arrow_forward_ios_rounded,
+                                        color: Colors.white54, size: 15),
+                                  ],
                                 ),
-                                const SizedBox(width: 14),
-                                const Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text('Gestión de usuarios',
-                                          style: TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w700)),
-                                      SizedBox(height: 2),
-                                      Text('Usuarios, perfiles y accesos',
-                                          style: TextStyle(
-                                              color: Colors.white70,
-                                              fontSize: 11)),
-                                    ],
-                                  ),
-                                ),
-                                const Icon(Icons.arrow_forward_ios_rounded,
-                                    color: Colors.white54, size: 15),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
+                        ]),
                       ),
                     ),
                   ),
                 ),
 
-                if (widget.showGestionUsuarios) const SizedBox(height: 12),
+                if (widget.showGestionUsuarios) const SizedBox(height: 14),
+
+                // Gestión de permisos por perfil (solo super admin)
+                if (widget.showGestionUsuarios) SlideTransition(
+                  position: _card1Slide,
+                  child: FadeTransition(
+                    opacity: _card1Fade,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [
+                            Color(0xFF3B0764),
+                            Color(0xFF7C3AED),
+                            Color(0xFFC026D3),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF7C3AED).withValues(alpha: 0.45),
+                            blurRadius: 18,
+                            offset: const Offset(0, 6),
+                          ),
+                          BoxShadow(
+                            color: const Color(0xFFC026D3).withValues(alpha: 0.20),
+                            blurRadius: 32,
+                            spreadRadius: -4,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(children: [
+                          const Positioned.fill(child: ShimmerHeaderOverlay()),
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: widget.onGestionPermisos,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 16),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 46,
+                                      height: 46,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.16),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.28)),
+                                      ),
+                                      child: const Icon(Icons.tune_rounded,
+                                          color: Colors.white, size: 24),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    const Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text('Gestión de permisos',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w700)),
+                                          SizedBox(height: 2),
+                                          Text('Qué módulos ve cada perfil',
+                                              style: TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 11)),
+                                        ],
+                                      ),
+                                    ),
+                                    const Icon(
+                                        Icons.arrow_forward_ios_rounded,
+                                        color: Colors.white54, size: 15),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
+
+                if (widget.showGestionUsuarios) const SizedBox(height: 14),
 
                 // Cerrar sesión
                 SlideTransition(

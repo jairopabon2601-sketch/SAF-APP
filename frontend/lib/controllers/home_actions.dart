@@ -3,6 +3,7 @@
 import '../screens/home/home_dependencies.dart';
 import '../screens/home/credits_screen.dart';
 import '../widgets/home/home_dialogs.dart';
+import '../widgets/home/shimmer_header_overlay.dart';
 
 // Cuentas sin foto propia: la columna no siempre queda vacía. Algunas traen
 // "0" (valor por defecto) y otras el isotipo de SAF (asignado como
@@ -687,6 +688,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                     Colors.transparent,
                   ]),
                 ))),
+        const Positioned.fill(child: ShimmerHeaderOverlay()),
         SafeArea(
           bottom: false,
           child: Padding(
