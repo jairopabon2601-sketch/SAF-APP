@@ -1307,16 +1307,25 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> fetchRates() async {
     try {
-      final r = await repository
-          .cachedPost('/ajax/listado_json_campos.php',
-              {'codigo_consulta': 'json_tasas', 'filtro': '', 'agrupacion': ''},
-              ttl: const Duration(hours: 1))
-          .timeout(const Duration(seconds: 10));
+      // listado_json_campos.php con codigo_consulta='json_tasas' dependía de
+      // una fila en tbl_conf_consultas que nunca existió — la app siempre
+      // caía al fallback hardcodeado (sin el 6.6%, agregado después en
+      // tbl_tasa_interes). Se usa el mismo camino que ya funciona en la web:
+      // listado_select.php directo sobre tbl_tasa_interes.
+      final r = await repository.cachedPost('/ajax/listado_select.php', {
+        'tabla': 'tbl_tasa_interes',
+        'valor': 'valor',
+        'etiqueta': 'valor',
+        'filtro': '1',
+        'campos_orden': 'valor',
+      }, ttl: const Duration(minutes: 30)).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
-        final d = decodeJsonMap(r.body);
-        final list = d['datos'] ?? d['data'] ?? d['tasas'];
-        if (list is List) {
-          rates = list
+        final raw = jsonDecode(r.body);
+        final list = raw is List
+            ? raw
+            : (raw is Map && raw['datos'] is List ? raw['datos'] : null);
+        if (list != null) {
+          rates = (list as List)
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList();

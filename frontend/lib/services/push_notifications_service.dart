@@ -78,16 +78,37 @@ class PushNotificationsService {
 
   Future<void> _registerToken() async {
     try {
+      // En iOS, FCM necesita primero el APNs token nativo antes de poder
+      // generar el token FCM — pedirlo demasiado pronto tras el login
+      // devuelve null silenciosamente. Se espera con reintentos cortos
+      // antes de darse por vencido.
+      if (Platform.isIOS) {
+        String? apnsToken = await _messaging.getAPNSToken();
+        var intentos = 0;
+        while (apnsToken == null && intentos < 10) {
+          await Future.delayed(const Duration(milliseconds: 500));
+          apnsToken = await _messaging.getAPNSToken();
+          intentos++;
+        }
+        if (apnsToken == null) {
+          debugPrint('[Push] APNs token no disponible tras esperar');
+          return;
+        }
+      }
+
       final token = await _messaging.getToken();
       final codigoUsuario = ApiService().user?['codigo_usuario']?.toString();
+      debugPrint('[Push] fcmToken=$token codigoUsuario=$codigoUsuario');
       if (token == null || codigoUsuario == null || codigoUsuario.isEmpty) {
         return;
       }
-      await ApiService().post('/ajax/registrar_token_push.php', {
+      final r = await ApiService().post('/ajax/registrar_token_push.php', {
         'codigo_usuario': codigoUsuario,
         'fcm_token': token,
         'plataforma': Platform.isIOS ? 'ios' : 'android',
       });
+      debugPrint(
+          '[Push] registrar_token_push respuesta: ${r.statusCode} ${r.body}');
     } catch (e) {
       debugPrint('[Push] Error registrando token: $e');
     }
