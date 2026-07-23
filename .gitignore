@@ -18,6 +18,7 @@ desktop.ini
 *.certSigningRequest
 *.p12
 *.cer
+.certs_tmp/
 
 # Firebase: la service account key SI es sensible (da control admin total,
 # usada solo en el backend PHP) — nunca comitear. google-services.json y
