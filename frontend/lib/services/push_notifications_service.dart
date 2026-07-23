@@ -43,6 +43,15 @@ class PushNotificationsService {
       sound: true,
     );
 
+    // En iOS, sin esto, el sistema NO presenta el banner/sonido nativo
+    // mientras la app está en foreground (a diferencia de background/killed,
+    // que sí funcionan por defecto) — se necesita habilitarlo explícitamente.
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
     await _localNotifications
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
