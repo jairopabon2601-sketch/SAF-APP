@@ -28,7 +28,11 @@ class PushNotificationsService {
   );
 
   bool _listenersReady = false;
-  bool _pendingRetry = false;
+  // Token ya confirmado registrado en el backend en esta sesión de la app.
+  // Distinto de "hubo un intento fallido": cubre también el caso en que el
+  // PRIMER intento nunca llegó a correr (condición de carrera en el arranque
+  // de un dispositivo nuevo) — sin esta bandera, ese caso nunca se reintentaba.
+  bool _tokenConfirmed = false;
 
   /// Pide el permiso del sistema y arma los listeners de FCM. Se llama al
   /// entrar por primera vez a la app (fin del onboarding), ANTES del login,
@@ -81,18 +85,32 @@ class PushNotificationsService {
 
   /// Registra/actualiza el token en el backend — requiere sesión iniciada
   /// (codigo_usuario), así que se llama después del login.
+  ///
+  /// En dispositivos nuevos, iOS puede tardar en completar el registro
+  /// remoto de APNs (necesario antes de que getToken() de FCM devuelva
+  /// algo) más de lo que tarda este primer intento — sin depender solo del
+  /// reintento en el próximo "resumed" (que requiere que el usuario minimice
+  /// y reabra la app), se reintenta unas pocas veces aquí mismo, en el
+  /// momento del login, con espera corta entre intentos.
   Future<void> init() async {
     await requestPermissionAndListen();
-    await _registerToken();
+    for (var intento = 0; intento < 5 && !_tokenConfirmed; intento++) {
+      if (intento > 0) {
+        await Future.delayed(const Duration(seconds: 2));
+      }
+      await _registerToken();
+    }
   }
 
   /// Se llama cuando la app vuelve a foreground (ver didChangeAppLifecycleState
-  /// en main.dart). Si un intento anterior no logró obtener el token FCM
-  /// (red lenta durante el login, registro APNs aún no completado por iOS),
-  /// esto le da una segunda oportunidad sin esperar a que el usuario cierre
-  /// sesión.
-  Future<void> retryIfPending() async {
-    if (!_pendingRetry) return;
+  /// en main.dart). Reintenta SIEMPRE mientras no haya token confirmado —no
+  /// solo si un intento anterior falló explícitamente— porque en un
+  /// dispositivo nuevo el PRIMER intento puede no haber corrido nunca (la
+  /// app se puso en background/se cerró antes de que iOS completara el
+  /// registro remoto de APNs), y sin este reintento incondicional el
+  /// registro se perdía para siempre en ese dispositivo.
+  Future<void> syncTokenIfNeeded() async {
+    if (_tokenConfirmed) return;
     await _registerToken();
   }
 
@@ -107,11 +125,9 @@ class PushNotificationsService {
       debugPrint('[Push] fcmToken=$token codigoUsuario=$codigoUsuario');
       if (token == null || codigoUsuario == null || codigoUsuario.isEmpty) {
         // token null: iOS aún no completó el registro remoto. Se reintenta
-        // cuando la app vuelva a foreground (ver retryIfPending).
-        _pendingRetry = token == null;
+        // en cada resumed (ver syncTokenIfNeeded) hasta que se confirme.
         return;
       }
-      _pendingRetry = false;
       final r = await ApiService().post('/ajax/registrar_token_push.php', {
         'codigo_usuario': codigoUsuario,
         'fcm_token': token,
@@ -119,9 +135,9 @@ class PushNotificationsService {
       });
       debugPrint(
           '[Push] registrar_token_push respuesta: ${r.statusCode} ${r.body}');
+      if (r.statusCode == 200) _tokenConfirmed = true;
     } catch (e) {
       debugPrint('[Push] Error registrando token: $e');
-      _pendingRetry = true;
     }
   }
 

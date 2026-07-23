@@ -96,7 +96,7 @@ class _SafAppState extends State<SafApp> with WidgetsBindingObserver {
         WidgetsBinding.instance
             .addPostFrameCallback((_) => _showInactivityDialog());
       } else {
-        unawaited(PushNotificationsService().retryIfPending());
+        unawaited(PushNotificationsService().syncTokenIfNeeded());
       }
     }
   }
