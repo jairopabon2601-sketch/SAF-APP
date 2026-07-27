@@ -1856,6 +1856,16 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                                                     'apellidos': apellidos,
                                                     'clave': clave,
                                                   });
+                                                  // Un usuario con perfil
+                                                  // asesor crea/actualiza una
+                                                  // fila en tbl_asesores —
+                                                  // sin invalidar, la lista
+                                                  // de asesores (cacheada 1h
+                                                  // en memoria) queda vieja
+                                                  // hasta el próximo hot
+                                                  // restart.
+                                                  repository.invalidateCache(
+                                                      '/ajax/get_asesores.php');
                                                   if (ctx.mounted) {
                                                     Navigator.pop(ctx, true);
                                                   }
