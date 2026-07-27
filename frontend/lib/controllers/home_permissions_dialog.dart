@@ -33,8 +33,12 @@ extension HomePermissionsDialog<T extends StatefulWidget> on HomeController<T> {
     ('creditos', 'Créditos', Icons.credit_card_rounded, Color(0xFF38BDF8)),
     ('ahorros', 'Ahorros', Icons.savings_rounded, Color(0xFF34D399)),
     ('movimientos', 'Movimientos', Icons.swap_horiz_rounded, Color(0xFFA78BFA)),
-    ('usuarios', 'Gestión de Usuarios', Icons.manage_accounts_rounded,
-        Color(0xFFFB7185)),
+    (
+      'usuarios',
+      'Gestión de Usuarios',
+      Icons.manage_accounts_rounded,
+      Color(0xFFFB7185)
+    ),
   ];
 
   void showGestionPermisos() {
@@ -55,15 +59,21 @@ extension HomePermissionsDialog<T extends StatefulWidget> on HomeController<T> {
           setS(() {
             permisos = raw.map((perfil, mods) => MapEntry(
                   int.parse(perfil.toString()),
-                  Map<String, bool>.from((mods as Map)
-                      .map((k, v) => MapEntry(k.toString(), v == true || v == 'true'))),
+                  Map<String, bool>.from((mods as Map).map((k, v) =>
+                      MapEntry(k.toString(), v == true || v == 'true'))),
                 ));
             loading = false;
             error = '';
           });
         } else {
           setS(() {
-            error = (d['msg'] ?? 'No se pudieron cargar los permisos.').toString();
+            // validarToken() responde {"error": "..."} sin "success", así que
+            // sin mirar esa clave el motivo real (token expirado, sin
+            // permiso) quedaba oculto tras un mensaje genérico.
+            error = (d['msg'] ??
+                    d['error'] ??
+                    'No se pudieron cargar los permisos.')
+                .toString();
             loading = false;
           });
         }
@@ -105,7 +115,10 @@ extension HomePermissionsDialog<T extends StatefulWidget> on HomeController<T> {
                     backgroundColor:
                         ok ? const Color(0xFF059669) : const Color(0xFFDC2626),
                     content: Text(
-                      (d['msg'] ?? (ok ? 'Permisos actualizados.' : 'No se pudo guardar.'))
+                      (d['msg'] ??
+                              (ok
+                                  ? 'Permisos actualizados.'
+                                  : 'No se pudo guardar.'))
                           .toString(),
                       style: const TextStyle(color: Colors.white),
                     ),
@@ -161,7 +174,8 @@ extension HomePermissionsDialog<T extends StatefulWidget> on HomeController<T> {
                                 ),
                               )
                             : ListView(
-                                padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 14, 16, 24),
                                 children: [
                                   for (var i = 0; i < _perfiles.length; i++)
                                     _PerfilPermisosCard(
@@ -175,7 +189,8 @@ extension HomePermissionsDialog<T extends StatefulWidget> on HomeController<T> {
                                       saving: saving.contains(_perfiles[i].$1),
                                       onToggle: (clave, valor) => setS(() {
                                         permisos[_perfiles[i].$1] ??= {};
-                                        permisos[_perfiles[i].$1]![clave] = valor;
+                                        permisos[_perfiles[i].$1]![clave] =
+                                            valor;
                                       }),
                                       onGuardar: () =>
                                           guardarPerfil(_perfiles[i].$1),
@@ -266,52 +281,67 @@ Widget _buildPermissionsHeader({
               GestureDetector(
                 onTap: onBack,
                 child: Container(
-                  width: 36,
-                  height: 36,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
+                    color: Colors.white.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(12),
                     border:
-                        Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                        Border.all(color: Colors.white.withValues(alpha: 0.16)),
                   ),
                   child: const Icon(Icons.arrow_back_rounded,
-                      color: Colors.white, size: 18),
+                      color: Colors.white, size: 19),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 11),
+              // Ícono del módulo: cristal con sombra propia, para que no se
+              // lea como un botón más de la fila.
               Container(
-                width: 42,
-                height: 42,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(colors: [
-                    Colors.white.withValues(alpha: 0.25),
-                    Colors.white.withValues(alpha: 0.10),
+                    Colors.white.withValues(alpha: 0.30),
+                    Colors.white.withValues(alpha: 0.08),
                   ], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                   border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                      Border.all(color: Colors.white.withValues(alpha: 0.30)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.18),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4)),
+                  ],
                 ),
                 child: const Icon(Icons.tune_rounded,
                     color: Colors.white, size: 24),
               ),
-              const SizedBox(width: 10),
-              const Expanded(
+              const SizedBox(width: 11),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Gestión de permisos',
+                    const Text('Gestión de permisos',
                         style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 16.5,
                             fontWeight: FontWeight.w900,
-                            letterSpacing: -0.3),
+                            letterSpacing: -0.4),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
-                    Text('Qué módulos ve cada perfil',
-                        style: TextStyle(
-                            color: Colors.white60,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 2),
+                    Row(children: [
+                      Icon(Icons.visibility_outlined,
+                          size: 9, color: Colors.white.withValues(alpha: 0.55)),
+                      const SizedBox(width: 4),
+                      Text('Qué módulos ve cada perfil',
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.60),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.1)),
+                    ]),
                   ],
                 ),
               ),
@@ -319,10 +349,12 @@ Widget _buildPermissionsHeader({
             const SizedBox(height: 12),
             Row(children: [
               _permStatChip(Icons.badge_rounded, totalPerfiles, 'Perfiles',
-                  const Color(0xFF60A5FA), index: 0),
+                  const Color(0xFF60A5FA),
+                  index: 0),
               const SizedBox(width: 8),
               _permStatChip(Icons.widgets_rounded, totalModulos, 'Módulos',
-                  const Color(0xFFE879F9), index: 1),
+                  const Color(0xFFE879F9),
+                  index: 1),
             ]),
           ]),
         ),
@@ -348,33 +380,91 @@ Widget _permStatChip(IconData icon, int value, String label, Color color,
           child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
         ),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+            // Vidrio oscuro con halo del color de la métrica, para que el
+            // número resalte sobre el degradado del header.
+            gradient: LinearGradient(
+              colors: [
+                Colors.white.withValues(alpha: 0.14),
+                Colors.white.withValues(alpha: 0.04),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: color.withValues(alpha: 0.45)),
+            boxShadow: [
+              BoxShadow(
+                  color: color.withValues(alpha: 0.28),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4)),
+            ],
           ),
-          child: Row(children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: 8),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              TweenAnimationBuilder<double>(
-                key: ValueKey('permstatval_${label}_$value'),
-                tween: Tween(begin: 0.0, end: value.toDouble()),
-                duration: const Duration(milliseconds: 700),
-                curve: Curves.easeOutCubic,
-                builder: (_, v, __) => Text(v.round().toString(),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5)),
+          child: Stack(children: [
+            Positioned(
+              left: -14,
+              top: -18,
+              child: Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(colors: [
+                    color.withValues(alpha: 0.35),
+                    Colors.transparent,
+                  ]),
+                ),
               ),
-              Text(label,
-                  style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.60),
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w600)),
+            ),
+            Row(children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [color, Color.lerp(color, Colors.white, 0.35)!],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                        color: color.withValues(alpha: 0.55),
+                        blurRadius: 9,
+                        offset: const Offset(0, 3)),
+                  ],
+                ),
+                child: Icon(icon, color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TweenAnimationBuilder<double>(
+                        key: ValueKey('permstatval_${label}_$value'),
+                        tween: Tween(begin: 0.0, end: value.toDouble()),
+                        duration: const Duration(milliseconds: 700),
+                        curve: Curves.easeOutCubic,
+                        builder: (_, v, __) => Text(v.round().toString(),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.6,
+                                height: 1.05)),
+                      ),
+                      Text(label.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.62),
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.5)),
+                    ]),
+              ),
             ]),
           ]),
         ),
@@ -429,9 +519,25 @@ class _PerfilPermisosCardState extends State<_PerfilPermisosCard> {
         margin: const EdgeInsets.only(bottom: 14),
         clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
-          color: cardBg,
+          // Tinte del color del perfil degradándose hacia el fondo normal,
+          // igual que las tarjetas de Gestión de usuarios.
+          gradient: LinearGradient(
+            colors: [
+              Color.alphaBlend(
+                  widget.gradient.last
+                      .withValues(alpha: isDarkTheme ? 0.13 : 0.055),
+                  cardBg),
+              cardBg,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            stops: const [0.0, 0.6],
+          ),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: lineCol),
+          border: Border.all(
+              color: widget.gradient.last
+                  .withValues(alpha: isDarkTheme ? 0.45 : 0.28),
+              width: 1.5),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -473,11 +579,10 @@ class _PerfilPermisosCardState extends State<_PerfilPermisosCard> {
               child: Row(children: [
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0.0, end: 1.0),
-                  duration: Duration(
-                      milliseconds: 550 + widget.index * 90),
+                  duration: Duration(milliseconds: 550 + widget.index * 90),
                   curve: Curves.elasticOut,
-                  builder: (_, t, child) => Transform.scale(
-                      scale: t.clamp(0.0, 1.3), child: child),
+                  builder: (_, t, child) =>
+                      Transform.scale(scale: t.clamp(0.0, 1.3), child: child),
                   child: Container(
                     width: 36,
                     height: 36,
@@ -490,7 +595,9 @@ class _PerfilPermisosCardState extends State<_PerfilPermisosCard> {
                       borderRadius: BorderRadius.circular(11),
                       boxShadow: [
                         BoxShadow(
-                            color: widget.glow, blurRadius: 12, offset: const Offset(0, 3)),
+                            color: widget.glow,
+                            blurRadius: 12,
+                            offset: const Offset(0, 3)),
                       ],
                     ),
                     child: Icon(widget.icon, color: Colors.white, size: 18),
@@ -499,11 +606,37 @@ class _PerfilPermisosCardState extends State<_PerfilPermisosCard> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(widget.nombre,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w800,
                           color: textMain)),
                 ),
+                // Cuántos módulos tiene habilitados: se lee sin recorrer la
+                // lista entera de checks.
+                Builder(builder: (_) {
+                  final activos = widget.modulos
+                      .where((m) => widget.valores[m.$1] == true)
+                      .length;
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: widget.gradient.last.withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: widget.gradient.last.withValues(alpha: 0.32)),
+                    ),
+                    child: Text('$activos/${widget.modulos.length}',
+                        style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w900,
+                            color: isDarkTheme
+                                ? widget.gradient.last
+                                : widget.gradient.first)),
+                  );
+                }),
               ]),
             ),
             Padding(
@@ -518,7 +651,8 @@ class _PerfilPermisosCardState extends State<_PerfilPermisosCard> {
                       label: widget.modulos[i].$2,
                       checked: widget.valores[widget.modulos[i].$1] == true,
                       disabled: widget.saving,
-                      onChanged: (v) => widget.onToggle(widget.modulos[i].$1, v),
+                      onChanged: (v) =>
+                          widget.onToggle(widget.modulos[i].$1, v),
                     ),
                 ],
               ),
@@ -543,7 +677,8 @@ class _PerfilPermisosCardState extends State<_PerfilPermisosCard> {
                           colors: [
                             widget.gradient.first,
                             widget.gradient.last,
-                            Color.lerp(widget.gradient.last, Colors.white, 0.22)!,
+                            Color.lerp(
+                                widget.gradient.last, Colors.white, 0.22)!,
                           ],
                           stops: const [0.0, 0.65, 1.0],
                           begin: Alignment.centerLeft,
@@ -573,12 +708,19 @@ class _PerfilPermisosCardState extends State<_PerfilPermisosCard> {
                                       child: CircularProgressIndicator(
                                           strokeWidth: 2, color: Colors.white),
                                     )
-                                  : const Text('Guardar',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.w800,
-                                          fontSize: 14,
-                                          letterSpacing: 0.2)),
+                                  : const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                          Icon(Icons.save_rounded,
+                                              color: Colors.white, size: 17),
+                                          SizedBox(width: 7),
+                                          Text('Guardar',
+                                              style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 14,
+                                                  letterSpacing: 0.2)),
+                                        ]),
                             ),
                           ),
                         ),

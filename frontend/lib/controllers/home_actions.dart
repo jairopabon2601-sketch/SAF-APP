@@ -12,6 +12,37 @@ import '../widgets/home/shimmer_header_overlay.dart';
 bool isNoPhotoValue(String raw) =>
     raw == 'null' || raw == '0' || raw == 'saf_isotipo.png';
 
+// Paleta por rol, compartida entre el formulario y las tarjetas del listado
+// para que un mismo perfil se vea siempre del mismo color.
+({List<Color> grad, IconData icon}) perfilTheme(String nombreOCodigo) {
+  final n = nombreOCodigo.toLowerCase();
+  if (n == '6' || n.contains('admin')) {
+    return (
+      grad: const [Color(0xFF7C3AED), Color(0xFFA855F7)],
+      icon: Icons.admin_panel_settings_rounded
+    );
+  }
+  if (n == '5' ||
+      n.contains('crédito') ||
+      n.contains('credito') ||
+      n.contains('contrat')) {
+    return (
+      grad: const [Color(0xFFD97706), Color(0xFFF59E0B)],
+      icon: Icons.credit_card_rounded
+    );
+  }
+  if (n == '1' || n.contains('ahorro') || n.contains('socio')) {
+    return (
+      grad: const [Color(0xFF059669), Color(0xFF10B981)],
+      icon: Icons.savings_rounded
+    );
+  }
+  return (
+    grad: const [Color(0xFF4361EE), Color(0xFF00D2FF)],
+    icon: Icons.shield_outlined
+  );
+}
+
 extension HomeActions<T extends StatefulWidget> on HomeController<T> {
   void invalidateComputedCache() {
     cachedBalanceTotal = null;
@@ -616,6 +647,14 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                                           await reload(setS, ctx);
                                         }
                                       },
+                                      onDelete: () async {
+                                        final removed =
+                                            await _confirmDeleteUser(
+                                                filtrados[i]);
+                                        if (removed && ctx.mounted) {
+                                          await reload(setS, ctx);
+                                        }
+                                      },
                                     ),
                                   ),
                   ),
@@ -699,91 +738,103 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                 _PressScale(
                   onTap: onBack,
                   child: Container(
-                    width: 36,
-                    height: 36,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
+                      color: Colors.white.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.18)),
+                          color: Colors.white.withValues(alpha: 0.16)),
                     ),
                     child: const Icon(Icons.arrow_back_rounded,
-                        color: Colors.white, size: 18),
+                        color: Colors.white, size: 19),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 11),
+                // Ícono del módulo: cristal con brillo superior, para que no
+                // se lea como un botón más de la fila.
                 Container(
-                  width: 42,
-                  height: 42,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: [
-                      Colors.white.withValues(alpha: 0.25),
-                      Colors.white.withValues(alpha: 0.10),
+                      Colors.white.withValues(alpha: 0.30),
+                      Colors.white.withValues(alpha: 0.08),
                     ], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                     border:
-                        Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                        Border.all(color: Colors.white.withValues(alpha: 0.30)),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4)),
+                    ],
                   ),
                   child: const Icon(Icons.manage_accounts_rounded,
                       color: Colors.white, size: 24),
                 ),
-                const SizedBox(width: 10),
-                const Expanded(
+                const SizedBox(width: 11),
+                Expanded(
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Gestión de usuarios',
+                        const Text('Gestión de usuarios',
                             style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 16,
+                                fontSize: 16.5,
                                 fontWeight: FontWeight.w900,
-                                letterSpacing: -0.3),
+                                letterSpacing: -0.4),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
-                        Text('Administración · Acceso restringido',
-                            style: TextStyle(
-                                color: Colors.white60,
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w500)),
+                        const SizedBox(height: 2),
+                        Row(children: [
+                          Icon(Icons.lock_rounded,
+                              size: 9,
+                              color: Colors.white.withValues(alpha: 0.55)),
+                          const SizedBox(width: 4),
+                          Text('Acceso restringido',
+                              style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.60),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.1)),
+                        ]),
                       ]),
                 ),
                 const SizedBox(width: 8),
                 _PressScale(
                   onTap: onNew,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 15, vertical: 10),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF6EE7B7),
-                          Color(0xFF34D399),
-                          Color(0xFF059669)
-                        ],
-                        stops: [0.0, 0.5, 1.0],
+                        colors: [Color(0xFF34D399), Color(0xFF059669)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.25)),
                       boxShadow: [
                         BoxShadow(
                           color:
-                              const Color(0xFF059669).withValues(alpha: 0.40),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
+                              const Color(0xFF059669).withValues(alpha: 0.50),
+                          blurRadius: 14,
+                          offset: const Offset(0, 5),
                         ),
                       ],
                     ),
                     child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.person_add_alt_1_rounded,
-                          color: Colors.white, size: 16),
-                      SizedBox(width: 6),
+                      Icon(Icons.add_rounded, color: Colors.white, size: 17),
+                      SizedBox(width: 5),
                       Text('Nuevo',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 0.2)),
+                              letterSpacing: 0.1)),
                     ]),
                   ),
                 ),
@@ -830,33 +881,95 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
             child: Transform.scale(scale: 0.85 + 0.15 * t, child: child),
           ),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+              // Vidrio oscuro con un halo del color propio de la métrica:
+              // el número queda como protagonista sobre el header azul.
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withValues(alpha: 0.14),
+                  Colors.white.withValues(alpha: 0.04),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: color.withValues(alpha: 0.45)),
+              boxShadow: [
+                BoxShadow(
+                    color: color.withValues(alpha: 0.28),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4)),
+              ],
             ),
-            child: Row(children: [
-              Icon(icon, color: color, size: 18),
-              const SizedBox(width: 8),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                TweenAnimationBuilder<double>(
-                  key: ValueKey('userstatval_${label}_$value'),
-                  tween: Tween(begin: 0.0, end: value.toDouble()),
-                  duration: const Duration(milliseconds: 700),
-                  curve: Curves.easeOutCubic,
-                  builder: (_, v, __) => Text(v.round().toString(),
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.5)),
+            child: Stack(children: [
+              // Resplandor difuso detrás del ícono.
+              Positioned(
+                left: -14,
+                top: -18,
+                child: Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(colors: [
+                      color.withValues(alpha: 0.35),
+                      Colors.transparent,
+                    ]),
+                  ),
                 ),
-                Text(label,
-                    style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.60),
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w600)),
+              ),
+              Row(children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        color,
+                        Color.lerp(color, Colors.white, 0.35)!,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                          color: color.withValues(alpha: 0.55),
+                          blurRadius: 9,
+                          offset: const Offset(0, 3)),
+                    ],
+                  ),
+                  child: Icon(icon, color: Colors.white, size: 16),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TweenAnimationBuilder<double>(
+                          key: ValueKey('userstatval_${label}_$value'),
+                          tween: Tween(begin: 0.0, end: value.toDouble()),
+                          duration: const Duration(milliseconds: 700),
+                          curve: Curves.easeOutCubic,
+                          builder: (_, v, __) => Text(v.round().toString(),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.6,
+                                  height: 1.05)),
+                        ),
+                        Text(label.toUpperCase(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.62),
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5)),
+                      ]),
+                ),
               ]),
             ]),
           ),
@@ -1042,6 +1155,140 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
         child: child,
       );
 
+  Future<bool> _confirmDeleteUser(Map<String, dynamic> user) async {
+    final codigoUsuario =
+        (user['codigo_usuario'] ?? user['codigo'] ?? '').toString();
+    if (codigoUsuario.isEmpty) return false;
+    final email = (user['usuario'] ?? user['email'] ?? '').toString();
+
+    // El soft delete es reversible: si ya está inactivo, el botón reactiva.
+    final estadoRaw =
+        (user['estado'] ?? user['codigo_estado'] ?? user['activo'] ?? '')
+            .toString();
+    final activo = estadoRaw.isEmpty ||
+        estadoRaw == '1' ||
+        estadoRaw.toLowerCase() == 'activo' ||
+        estadoRaw.toLowerCase() == 'true';
+
+    final accionColor =
+        activo ? const Color(0xFFDC2626) : const Color(0xFF059669);
+    final accionTexto = activo ? 'Desactivar' : 'Activar';
+
+    final confirmed = await showDialog<bool>(
+      context: screenContext,
+      builder: (ctx) => AppAnimatedDialog(
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: BoxDecoration(
+                  color: accionColor.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                    activo
+                        ? Icons.delete_outline_rounded
+                        : Icons.restart_alt_rounded,
+                    color: accionColor,
+                    size: 28),
+              ),
+              const SizedBox(height: 16),
+              Text('$accionTexto usuario',
+                  style: TextStyle(
+                      color: textMain,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              Text(
+                activo
+                    ? '$email dejará de tener acceso al sistema. Podrás reactivarlo cuando quieras.'
+                    : '$email volverá a tener acceso al sistema con sus mismas credenciales.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: textSoft, fontSize: 13, height: 1.4),
+              ),
+              const SizedBox(height: 22),
+              Row(children: [
+                // Neutro: el color fuerte se reserva para la acción principal,
+                // si ambos van igual no se distingue cuál es cuál.
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(ctx, false),
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: inputFill,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: lineCol),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text('Cancelar',
+                          style: TextStyle(
+                              color: textSoft,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(ctx, true),
+                    child: Container(
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                            colors: activo
+                                ? const [Color(0xFF991B1B), Color(0xFFDC2626)]
+                                : const [Color(0xFF047857), Color(0xFF10B981)]),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(accionTexto,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14)),
+                    ),
+                  ),
+                ),
+              ]),
+            ]),
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true) return false;
+
+    try {
+      await _usuariosRequest({
+        'accion': 'estado',
+        'codigo_usuario': codigoUsuario,
+        'activar': activo ? '0' : '1',
+      });
+      showResult(
+          true,
+          activo
+              ? 'Usuario desactivado correctamente'
+              : 'Usuario activado correctamente');
+      return true;
+    } catch (e) {
+      showResult(false, friendlyError(e));
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>> _usuariosRequest(
       Map<String, dynamic> body) async {
     final response = await repository.post('/ajax/gestion_usuarios.php', body);
@@ -1077,28 +1324,13 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
     bool loadingData = true;
     String loadError = '';
     List<Map<String, dynamic>> perfiles = [];
-    List<Map<String, dynamic>> tipos = [];
     final emailCtrl = TextEditingController();
+    final nombresCtrl = TextEditingController();
+    final apellidosCtrl = TextEditingController();
+    final claveCtrl = TextEditingController();
     String perfil = '';
-    String tipo = '';
-    String origen = '';
-    List<Map<String, dynamic>> origenes = [];
-    bool loadingOrigenes = false;
     bool saving = false;
     bool initStarted = false;
-
-    Future<List<Map<String, dynamic>>> loadOrigins(String tipoCodigo) async {
-      if (tipoCodigo.isEmpty) return [];
-      final response = await _usuariosRequest(
-          {'accion': 'origenes', 'codigo_tipo_usuario': tipoCodigo});
-      final raw = response['datos'];
-      return raw is List
-          ? raw
-              .whereType<Map>()
-              .map((e) => Map<String, dynamic>.from(e))
-              .toList()
-          : [];
-    }
 
     final saved = await showDialog<bool>(
       context: screenContext,
@@ -1118,11 +1350,6 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                         .whereType<Map>()
                         .map((e) => Map<String, dynamic>.from(e))
                         .toList();
-                final loadedTipos =
-                    (data['tipos'] is List ? data['tipos'] as List : [])
-                        .whereType<Map>()
-                        .map((e) => Map<String, dynamic>.from(e))
-                        .toList();
 
                 Map<String, dynamic> detail = {};
                 if (editing) {
@@ -1139,24 +1366,15 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                         '')
                     .toString();
                 final initPerfil = (detail['codigo_perfil'] ?? '').toString();
-                final initTipo =
-                    (detail['codigo_tipo_usuario'] ?? '').toString();
-                final initOrigen = (detail['codigo_origen'] ?? '').toString();
-                List<Map<String, dynamic>> loadedOrigenes = [];
-                if (initTipo.isNotEmpty) {
-                  try {
-                    loadedOrigenes = await loadOrigins(initTipo);
-                  } catch (_) {}
-                }
+                final initNombres = (detail['nombres'] ?? '').toString();
+                final initApellidos = (detail['apellidos'] ?? '').toString();
                 if (ctx.mounted) {
                   setS(() {
                     perfiles = loadedPerfiles;
-                    tipos = loadedTipos;
                     emailCtrl.text = initEmail;
+                    nombresCtrl.text = initNombres;
+                    apellidosCtrl.text = initApellidos;
                     perfil = initPerfil;
-                    tipo = initTipo;
-                    origen = initOrigen;
-                    origenes = loadedOrigenes;
                     loadingData = false;
                   });
                 }
@@ -1172,8 +1390,14 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
           }
 
           // ─── helpers ───────────────────────────────────────────────────
+          // Cada campo lleva su propio par de colores para que los íconos no
+          // se vean idénticos cuando varios están llenos a la vez.
           InputDecoration fieldDeco(String hint, IconData icon,
-                  {bool active = false}) =>
+                  {bool active = false,
+                  List<Color> tint = const [
+                    Color(0xFF4361EE),
+                    Color(0xFF00D2FF)
+                  ]}) =>
               InputDecoration(
                 hintText: hint,
                 hintStyle: TextStyle(
@@ -1184,8 +1408,8 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                   height: 34,
                   decoration: BoxDecoration(
                     gradient: active
-                        ? const LinearGradient(
-                            colors: [Color(0xFF4361EE), Color(0xFF00D2FF)],
+                        ? LinearGradient(
+                            colors: tint,
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight)
                         : null,
@@ -1194,7 +1418,7 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                     boxShadow: active
                         ? [
                             BoxShadow(
-                                color: homeAccent.withValues(alpha: 0.35),
+                                color: tint.first.withValues(alpha: 0.35),
                                 blurRadius: 8,
                                 offset: const Offset(0, 3))
                           ]
@@ -1203,6 +1427,9 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                   child: Icon(icon,
                       color: active ? Colors.white : textSoft, size: 17),
                 ),
+                // Sin esto el prefixIcon del dropdown se sale de la caja.
+                prefixIconConstraints:
+                    const BoxConstraints(minWidth: 52, minHeight: 52),
                 filled: true,
                 fillColor: active ? cardBgAlt : inputFill,
                 contentPadding:
@@ -1214,353 +1441,68 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(
                         color: active
-                            ? homeAccent.withValues(alpha: 0.45)
+                            ? tint.first.withValues(alpha: 0.45)
                             : lineCol,
                         width: active ? 1.4 : 1)),
                 focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide:
-                        const BorderSide(color: homeAccent, width: 1.8)),
+                    borderSide: BorderSide(
+                        color: active ? tint.first : homeAccent, width: 1.8)),
               );
 
-          Widget sectionLabel(String text, IconData icon) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+          Widget sectionLabel(String text, IconData icon,
+                  {List<Color>? tint}) =>
+              Padding(
+                padding: const EdgeInsets.only(bottom: 9),
                 child: Row(children: [
                   Container(
                       width: 3,
                       height: 13,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                            colors: [homeAccent, homeCyan],
+                        gradient: LinearGradient(
+                            colors: tint ?? const [homeAccent, homeCyan],
                             begin: Alignment.topCenter,
                             end: Alignment.bottomCenter),
                         borderRadius: BorderRadius.circular(2),
                       )),
                   const SizedBox(width: 8),
-                  Icon(icon, size: 13, color: textSoft),
+                  Icon(icon, size: 13, color: tint?.first ?? textSoft),
                   const SizedBox(width: 5),
                   Text(text,
                       style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: textSoft,
+                          color: tint?.first ?? textSoft,
                           letterSpacing: 0.3)),
                 ]),
               );
 
-          // ─── picker de usuario asociado ──────────────────────────────
-          Widget origenPicker() => GestureDetector(
-                onTap: (saving || loadingOrigenes || origenes.isEmpty)
-                    ? null
-                    : () async {
-                        final searchCtrl = TextEditingController();
-                        List<Map<String, dynamic>> filtered =
-                            List.from(origenes);
-                        final picked = await showDialog<Map<String, dynamic>>(
-                          context: ctx,
-                          builder: (dCtx) =>
-                              StatefulBuilder(builder: (dCtx, setSrch) {
-                            return AppAnimatedDialog(
-                              child: Dialog(
-                                backgroundColor: Colors.transparent,
-                                surfaceTintColor: Colors.transparent,
-                                insetPadding: const EdgeInsets.symmetric(
-                                    horizontal: 20, vertical: 60),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: cardBg,
-                                    borderRadius: BorderRadius.circular(20),
-                                    boxShadow: [
-                                      BoxShadow(
-                                          color: homeAccent.withValues(
-                                              alpha: 0.15),
-                                          blurRadius: 32,
-                                          offset: const Offset(0, 12))
-                                    ],
-                                  ),
-                                  child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.fromLTRB(
-                                              18, 18, 14, 16),
-                                          decoration: const BoxDecoration(
-                                            gradient: LinearGradient(
-                                                colors: [
-                                                  Color(0xFF060E35),
-                                                  Color(0xFF0D1B6E),
-                                                  Color(0xFF1435A8)
-                                                ],
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight),
-                                            borderRadius: BorderRadius.vertical(
-                                                top: Radius.circular(20)),
-                                          ),
-                                          child: Row(children: [
-                                            Container(
-                                                width: 36,
-                                                height: 36,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.15),
-                                                  borderRadius:
-                                                      BorderRadius.circular(10),
-                                                ),
-                                                child: const Icon(
-                                                    Icons.person_search_rounded,
-                                                    color: Colors.white,
-                                                    size: 18)),
-                                            const SizedBox(width: 11),
-                                            const Expanded(
-                                                child: Text(
-                                                    'Seleccionar Usuario',
-                                                    style: TextStyle(
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                        fontSize: 15))),
-                                            appCloseX(
-                                                () => Navigator.pop(dCtx)),
-                                          ]),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.fromLTRB(
-                                              12, 12, 12, 4),
-                                          child: TextField(
-                                            controller: searchCtrl,
-                                            autofocus: true,
-                                            decoration: InputDecoration(
-                                              hintText: 'Buscar usuario...',
-                                              hintStyle: const TextStyle(
-                                                  color: Color(0xFFB0BCCF),
-                                                  fontSize: 13),
-                                              prefixIcon: Container(
-                                                  margin:
-                                                      const EdgeInsets.all(8),
-                                                  width: 30,
-                                                  height: 30,
-                                                  decoration: BoxDecoration(
-                                                      gradient:
-                                                          const LinearGradient(
-                                                              colors: [
-                                                            homeAccent,
-                                                            homeCyan
-                                                          ]),
-                                                      borderRadius:
-                                                          BorderRadius.circular(
-                                                              8)),
-                                                  child: const Icon(
-                                                      Icons.search_rounded,
-                                                      color: Colors.white,
-                                                      size: 15)),
-                                              filled: true,
-                                              fillColor: inputFill,
-                                              contentPadding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 12),
-                                              border: OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  borderSide: const BorderSide(
-                                                      color:
-                                                          Color(0xFFE0E7FF))),
-                                              enabledBorder: OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  borderSide: const BorderSide(
-                                                      color:
-                                                          Color(0xFFE0E7FF))),
-                                              focusedBorder: OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                  borderSide: const BorderSide(
-                                                      color: homeAccent,
-                                                      width: 1.5)),
-                                            ),
-                                            onChanged: (q) => setSrch(() {
-                                              filtered = origenes
-                                                  .where((item) =>
-                                                      (item['nombre'] ?? '')
-                                                          .toString()
-                                                          .toLowerCase()
-                                                          .contains(
-                                                              q.toLowerCase()))
-                                                  .toList();
-                                            }),
-                                          ),
-                                        ),
-                                        Flexible(
-                                            child: ListView.builder(
-                                          shrinkWrap: true,
-                                          padding: const EdgeInsets.symmetric(
-                                              vertical: 4),
-                                          itemCount: filtered.length,
-                                          itemBuilder: (_, i) {
-                                            final item = filtered[i];
-                                            final nom = (item['nombre'] ?? '')
-                                                .toString();
-                                            final cod = (item['codigo'] ?? '')
-                                                .toString();
-                                            final isSel = cod == origen;
-                                            return InkWell(
-                                              onTap: () =>
-                                                  Navigator.pop(dCtx, item),
-                                              child: Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 16,
-                                                        vertical: 13),
-                                                decoration: BoxDecoration(
-                                                  color: isSel
-                                                      ? homeAccent.withValues(
-                                                          alpha: 0.07)
-                                                      : null,
-                                                  border: Border(
-                                                      bottom: BorderSide(
-                                                          color: lineCol,
-                                                          width: i <
-                                                                  filtered.length -
-                                                                      1
-                                                              ? 1
-                                                              : 0)),
-                                                ),
-                                                child: Row(children: [
-                                                  Container(
-                                                      width: 32,
-                                                      height: 32,
-                                                      decoration: BoxDecoration(
-                                                        gradient: isSel
-                                                            ? const LinearGradient(
-                                                                colors: [
-                                                                    homeAccent,
-                                                                    homeCyan
-                                                                  ])
-                                                            : null,
-                                                        color: isSel
-                                                            ? null
-                                                            : const Color(
-                                                                0xFFEEF0F8),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(9),
-                                                      ),
-                                                      child: Icon(
-                                                          Icons.person_rounded,
-                                                          size: 16,
-                                                          color: isSel
-                                                              ? Colors.white
-                                                              : textSoft)),
-                                                  const SizedBox(width: 10),
-                                                  Expanded(
-                                                      child: Text(nom,
-                                                          style: TextStyle(
-                                                              fontSize: 13,
-                                                              color: isSel
-                                                                  ? homeAccent
-                                                                  : textMid,
-                                                              fontWeight: isSel
-                                                                  ? FontWeight
-                                                                      .w700
-                                                                  : FontWeight
-                                                                      .w500))),
-                                                  if (isSel)
-                                                    const Icon(
-                                                        Icons
-                                                            .check_circle_rounded,
-                                                        size: 17,
-                                                        color: homeAccent),
-                                                ]),
-                                              ),
-                                            );
-                                          },
-                                        )),
-                                        const SizedBox(height: 8),
-                                      ]),
-                                ),
-                              ),
-                            );
-                          }),
-                        );
-                        if (picked != null) {
-                          setS(() {
-                            origen = (picked['codigo'] ?? '').toString();
-                          });
-                        }
-                      },
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-                  decoration: BoxDecoration(
-                    color: inputFill,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                        color: origen.isNotEmpty
-                            ? homeAccent.withValues(alpha: 0.5)
-                            : const Color(0xFFE0E7FF),
-                        width: origen.isNotEmpty ? 1.5 : 1),
-                  ),
-                  child: Row(children: [
-                    Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          gradient: origen.isNotEmpty
-                              ? const LinearGradient(
-                                  colors: [homeAccent, homeCyan],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight)
-                              : null,
-                          color: origen.isNotEmpty
-                              ? null
-                              : const Color(0xFFE7ECFB),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(Icons.person_search_outlined,
-                            size: 17,
-                            color: origen.isNotEmpty
-                                ? Colors.white
-                                : const Color(0xFF7E8DB8))),
-                    const SizedBox(width: 10),
-                    Expanded(
-                        child: Text(
-                      loadingOrigenes
-                          ? 'Cargando usuarios...'
-                          : origen.isNotEmpty
-                              ? (origenes.firstWhere(
-                                          (e) =>
-                                              (e['codigo'] ?? '').toString() ==
-                                              origen,
-                                          orElse: () => {
-                                                'nombre': 'Usuario seleccionado'
-                                              })['nombre'] ??
-                                      '')
-                                  .toString()
-                              : origenes.isEmpty && !loadingOrigenes
-                                  ? 'Seleccione primero el tipo'
-                                  : 'Seleccione un usuario',
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: origen.isNotEmpty
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: origen.isNotEmpty && !loadingOrigenes
-                              ? textMain
-                              : textSoft),
-                    )),
-                    if (loadingOrigenes)
-                      const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: homeAccent))
-                    else
-                      Icon(Icons.keyboard_arrow_down_rounded,
-                          size: 20,
-                          color: origen.isNotEmpty ? homeAccent : textSoft),
-                  ]),
-                ),
-              );
+          IconData iconoPerfil(String codigo) {
+            switch (codigo) {
+              case '6':
+                return Icons.admin_panel_settings_rounded;
+              case '5':
+                return Icons.credit_card_rounded;
+              case '1':
+                return Icons.savings_rounded;
+              default:
+                return Icons.shield_outlined;
+            }
+          }
+
+          // Color propio por rol: admin morado, créditos ámbar, ahorros verde.
+          List<Color> colorPerfil(String codigo) {
+            switch (codigo) {
+              case '6':
+                return const [Color(0xFF7C3AED), Color(0xFFA855F7)];
+              case '5':
+                return const [Color(0xFFD97706), Color(0xFFF59E0B)];
+              case '1':
+                return const [Color(0xFF059669), Color(0xFF10B981)];
+              default:
+                return const [Color(0xFF4361EE), Color(0xFF00D2FF)];
+            }
+          }
 
           return AppAnimatedDialog(
             child: Dialog(
@@ -1703,255 +1645,325 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                     ]),
                   ),
                   // ── CONTENT ──────────────────────────────────────
-                  if (loadingData)
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: 44),
+                  // Scrollable: con el teclado abierto el formulario no cabe
+                  // en pantallas chicas y el Column reventaba por overflow.
+                  Flexible(
+                    child: SingleChildScrollView(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        CircularProgressIndicator(color: homeAccent),
-                        SizedBox(height: 14),
-                        Text('Cargando datos...',
-                            style: TextStyle(color: textSoft, fontSize: 13)),
-                      ]),
-                    )
-                  else if (loadError.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 36, horizontal: 20),
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.error_outline_rounded,
-                            size: 38, color: Color(0xFFDC2626)),
-                        const SizedBox(height: 10),
-                        Text(loadError,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: Color(0xFFDC2626), fontSize: 13)),
-                        const SizedBox(height: 16),
-                        appCancelButton(
-                            'Cerrar', () => Navigator.pop(ctx, false)),
-                      ]),
-                    )
-                  else
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
-                      child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        sectionLabel('CORREO ELECTRÓNICO',
-                            Icons.alternate_email_rounded),
-                        TextField(
-                          controller: emailCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          style: TextStyle(
-                              color: textMain,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600),
-                          decoration: fieldDeco(
-                              'Email usuario', Icons.alternate_email_rounded,
-                              active: emailCtrl.text.isNotEmpty),
-                        ),
-                        const SizedBox(height: 16),
-                        sectionLabel('ACCESO Y PERMISOS',
-                            Icons.admin_panel_settings_rounded),
-                        DropdownButtonFormField<String>(
-                          initialValue: perfil.isEmpty ? null : perfil,
-                          isExpanded: true,
-                          dropdownColor: dialogBg,
-                          borderRadius: BorderRadius.circular(14),
-                          style: TextStyle(
-                              color: textMain,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600),
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                              color: Color(0xFF7E8DB8)),
-                          hint: const Text('Seleccione un perfil',
-                              style: TextStyle(
-                                  color: Color(0xFF8E9BBA),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500)),
-                          decoration: fieldDeco(
-                              'Seleccione un perfil', Icons.shield_outlined,
-                              active: perfil.isNotEmpty),
-                          items: perfiles
-                              .map((item) => DropdownMenuItem(
-                                    value: (item['codigo'] ?? '').toString(),
-                                    child: Text(
-                                        (item['nombre'] ?? '').toString(),
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(color: textMain)),
-                                  ))
-                              .toList(),
-                          onChanged: saving
-                              ? null
-                              : (v) => setS(() => perfil = v ?? ''),
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          initialValue: tipo.isEmpty ? null : tipo,
-                          isExpanded: true,
-                          dropdownColor: dialogBg,
-                          borderRadius: BorderRadius.circular(14),
-                          style: TextStyle(
-                              color: textMain,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600),
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                              color: Color(0xFF7E8DB8)),
-                          hint: const Text('Seleccione un tipo',
-                              style: TextStyle(
-                                  color: Color(0xFF8E9BBA),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500)),
-                          decoration: fieldDeco(
-                              'Seleccione un tipo', Icons.badge_outlined,
-                              active: tipo.isNotEmpty),
-                          items: tipos
-                              .map((item) => DropdownMenuItem(
-                                    value: (item['codigo'] ?? '').toString(),
-                                    child: Text(
-                                        (item['nombre'] ?? '').toString(),
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(color: textMain)),
-                                  ))
-                              .toList(),
-                          onChanged: saving
-                              ? null
-                              : (v) async {
-                                  final selected = v ?? '';
-                                  setS(() {
-                                    tipo = selected;
-                                    origen = '';
-                                    origenes = [];
-                                    loadingOrigenes = selected.isNotEmpty;
-                                  });
-                                  if (selected.isEmpty) return;
-                                  try {
-                                    final result = await loadOrigins(selected);
-                                    if (ctx.mounted) {
-                                      setS(() {
-                                        origenes = result;
-                                        loadingOrigenes = false;
-                                      });
-                                    }
-                                  } catch (e) {
-                                    if (ctx.mounted) {
-                                      setS(() => loadingOrigenes = false);
-                                      showResult(false, friendlyError(e));
-                                    }
-                                  }
-                                },
-                        ),
-                        const SizedBox(height: 16),
-                        sectionLabel(
-                            'USUARIO ASOCIADO', Icons.person_search_rounded),
-                        origenPicker(),
-                        const SizedBox(height: 20),
-                        // ── BUTTONS ────────────────────────────────
-                        Row(children: [
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: saving
-                                  ? null
-                                  : () => Navigator.pop(ctx, false),
-                              child:
-                                  appCancelButton('Cancelar', null, height: 50),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: GestureDetector(
-                              onTap: saving
-                                  ? null
-                                  : () async {
-                                      final email = emailCtrl.text.trim();
-                                      if (!email.contains('@') ||
-                                          perfil.isEmpty ||
-                                          tipo.isEmpty ||
-                                          origen.isEmpty) {
-                                        showResult(false,
-                                            'Complete todos los campos antes de guardar');
-                                        return;
-                                      }
-                                      setS(() => saving = true);
-                                      try {
-                                        await _usuariosRequest({
-                                          'accion': 'guardar',
-                                          'codigo_usuario': codigoUsuario,
-                                          'usuario': email,
-                                          'codigo_perfil': perfil,
-                                          'codigo_tipo_usuario': tipo,
-                                          'codigo_origen': origen,
-                                        });
-                                        if (ctx.mounted) {
-                                          Navigator.pop(ctx, true);
-                                        }
-                                        showResult(
-                                            true,
-                                            editing
-                                                ? 'Usuario actualizado exitosamente'
-                                                : 'Usuario registrado exitosamente');
-                                      } catch (e) {
-                                        if (ctx.mounted) {
-                                          setS(() => saving = false);
-                                        }
-                                        showResult(false, friendlyError(e));
-                                      }
-                                    },
-                              child: Container(
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  gradient: saving
-                                      ? null
-                                      : const LinearGradient(
-                                          colors: [
-                                              Color(0xFF0D1B4B),
-                                              Color(0xFF1E3A8A),
-                                              Color(0xFF3B82F6)
+                        if (loadingData)
+                          Padding(
+                            padding: EdgeInsets.symmetric(vertical: 44),
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircularProgressIndicator(color: homeAccent),
+                                  SizedBox(height: 14),
+                                  Text('Cargando datos...',
+                                      style: TextStyle(
+                                          color: textSoft, fontSize: 13)),
+                                ]),
+                          )
+                        else if (loadError.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 36, horizontal: 20),
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.error_outline_rounded,
+                                      size: 38, color: Color(0xFFDC2626)),
+                                  const SizedBox(height: 10),
+                                  Text(loadError,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          color: Color(0xFFDC2626),
+                                          fontSize: 13)),
+                                  const SizedBox(height: 16),
+                                  appCancelButton('Cerrar',
+                                      () => Navigator.pop(ctx, false)),
+                                ]),
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(18, 20, 18, 0),
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  sectionLabel('NOMBRES Y APELLIDOS',
+                                      Icons.badge_outlined),
+                                  TextField(
+                                    controller: nombresCtrl,
+                                    textCapitalization:
+                                        TextCapitalization.words,
+                                    style: TextStyle(
+                                        color: textMain,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600),
+                                    decoration: fieldDeco('Nombres',
+                                        Icons.person_outline_rounded),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  TextField(
+                                    controller: apellidosCtrl,
+                                    textCapitalization:
+                                        TextCapitalization.words,
+                                    style: TextStyle(
+                                        color: textMain,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600),
+                                    decoration: fieldDeco('Apellidos',
+                                        Icons.people_outline_rounded),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  sectionLabel('ACCESO Y PERMISOS',
+                                      Icons.admin_panel_settings_rounded,
+                                      tint: perfil.isEmpty
+                                          ? null
+                                          : colorPerfil(perfil)),
+                                  DropdownButtonFormField<String>(
+                                    initialValue:
+                                        perfil.isEmpty ? null : perfil,
+                                    isExpanded: true,
+                                    dropdownColor: dialogBg,
+                                    borderRadius: BorderRadius.circular(14),
+                                    style: TextStyle(
+                                        color: textMain,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600),
+                                    icon: const Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: Color(0xFF7E8DB8)),
+                                    hint: const Text('Seleccione un perfil',
+                                        style: TextStyle(
+                                            color: Color(0xFF8E9BBA),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500)),
+                                    decoration: fieldDeco(
+                                        'Seleccione un perfil',
+                                        iconoPerfil(perfil),
+                                        active: perfil.isNotEmpty,
+                                        tint: colorPerfil(perfil)),
+                                    items: perfiles
+                                        .map((item) => DropdownMenuItem(
+                                              value: (item['codigo'] ?? '')
+                                                  .toString(),
+                                              child: Text(
+                                                  (item['nombre'] ?? '')
+                                                      .toString(),
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                      color: textMain)),
+                                            ))
+                                        .toList(),
+                                    onChanged: saving
+                                        ? null
+                                        : (v) => setS(() => perfil = v ?? ''),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  sectionLabel('CORREO ELECTRÓNICO',
+                                      Icons.alternate_email_rounded),
+                                  TextField(
+                                    controller: emailCtrl,
+                                    keyboardType: TextInputType.emailAddress,
+                                    style: TextStyle(
+                                        color: textMain,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600),
+                                    decoration: fieldDeco('Email usuario',
+                                        Icons.alternate_email_rounded),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  sectionLabel(
+                                      editing
+                                          ? 'CONTRASEÑA (dejar vacío para no cambiarla)'
+                                          : 'CONTRASEÑA',
+                                      Icons.lock_outline_rounded),
+                                  TextField(
+                                    controller: claveCtrl,
+                                    obscureText: true,
+                                    style: TextStyle(
+                                        color: textMain,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600),
+                                    decoration: fieldDeco(
+                                        editing
+                                            ? 'Nueva contraseña (opcional)'
+                                            : 'Contraseña',
+                                        Icons.lock_outline_rounded),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  // ── BUTTONS ────────────────────────────────
+                                  Row(children: [
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: saving
+                                            ? null
+                                            : () => Navigator.pop(ctx, false),
+                                        child: Container(
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            gradient: const LinearGradient(
+                                              colors: [
+                                                Color(0xFF991B1B),
+                                                Color(0xFFDC2626),
+                                                Color(0xFFF43F5E)
+                                              ],
+                                              stops: [0.0, 0.55, 1.0],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                  color: const Color(0xFFDC2626)
+                                                      .withValues(alpha: 0.40),
+                                                  blurRadius: 14,
+                                                  offset: const Offset(0, 5)),
                                             ],
-                                          stops: [
-                                              0.0,
-                                              0.5,
-                                              1.0
-                                            ],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight),
-                                  color:
-                                      saving ? const Color(0xFFCBD5E1) : null,
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: saving
-                                      ? null
-                                      : [
-                                          BoxShadow(
-                                              color: homeAccent.withValues(
-                                                  alpha: 0.40),
-                                              blurRadius: 14,
-                                              offset: const Offset(0, 5)),
-                                        ],
-                                ),
-                                alignment: Alignment.center,
-                                child: saving
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            color: Colors.white))
-                                    : const Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                            Icon(Icons.save_rounded,
-                                                color: Colors.white, size: 18),
-                                            SizedBox(width: 8),
-                                            Text('Guardar',
-                                                style: TextStyle(
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.close_rounded,
                                                     color: Colors.white,
-                                                    fontWeight: FontWeight.w800,
-                                                    fontSize: 14)),
-                                          ]),
-                              ),
-                            ),
+                                                    size: 18),
+                                                SizedBox(width: 7),
+                                                Text('Cancelar',
+                                                    style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        fontSize: 14)),
+                                              ]),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: GestureDetector(
+                                        onTap: saving
+                                            ? null
+                                            : () async {
+                                                final email =
+                                                    emailCtrl.text.trim();
+                                                final nombres =
+                                                    nombresCtrl.text.trim();
+                                                final apellidos =
+                                                    apellidosCtrl.text.trim();
+                                                final clave =
+                                                    claveCtrl.text.trim();
+                                                if (!email.contains('@') ||
+                                                    perfil.isEmpty ||
+                                                    nombres.isEmpty ||
+                                                    apellidos.isEmpty ||
+                                                    (!editing &&
+                                                        clave.isEmpty)) {
+                                                  showResult(false,
+                                                      'Complete todos los campos antes de guardar');
+                                                  return;
+                                                }
+                                                setS(() => saving = true);
+                                                try {
+                                                  await _usuariosRequest({
+                                                    'accion': 'guardar',
+                                                    'codigo_usuario':
+                                                        codigoUsuario,
+                                                    'usuario': email,
+                                                    'codigo_perfil': perfil,
+                                                    'nombres': nombres,
+                                                    'apellidos': apellidos,
+                                                    'clave': clave,
+                                                  });
+                                                  if (ctx.mounted) {
+                                                    Navigator.pop(ctx, true);
+                                                  }
+                                                  showResult(
+                                                      true,
+                                                      editing
+                                                          ? 'Usuario actualizado exitosamente'
+                                                          : 'Usuario registrado exitosamente');
+                                                } catch (e) {
+                                                  if (ctx.mounted) {
+                                                    setS(() => saving = false);
+                                                  }
+                                                  showResult(
+                                                      false, friendlyError(e));
+                                                }
+                                              },
+                                        child: Container(
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            gradient: saving
+                                                ? null
+                                                : const LinearGradient(
+                                                    colors: [
+                                                        Color(0xFF0D1B4B),
+                                                        Color(0xFF1E3A8A),
+                                                        Color(0xFF3B82F6)
+                                                      ],
+                                                    stops: [
+                                                        0.0,
+                                                        0.5,
+                                                        1.0
+                                                      ],
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight),
+                                            color: saving
+                                                ? const Color(0xFFCBD5E1)
+                                                : null,
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                            boxShadow: saving
+                                                ? null
+                                                : [
+                                                    BoxShadow(
+                                                        color: homeAccent
+                                                            .withValues(
+                                                                alpha: 0.40),
+                                                        blurRadius: 14,
+                                                        offset:
+                                                            const Offset(0, 5)),
+                                                  ],
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: saving
+                                              ? const SizedBox(
+                                                  width: 20,
+                                                  height: 20,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          strokeWidth: 2.5,
+                                                          color: Colors.white))
+                                              : const Row(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                      Icon(Icons.save_rounded,
+                                                          color: Colors.white,
+                                                          size: 18),
+                                                      SizedBox(width: 8),
+                                                      Text('Guardar',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w800,
+                                                              fontSize: 14)),
+                                                    ]),
+                                        ),
+                                      ),
+                                    ),
+                                  ]),
+                                  const SizedBox(height: 18),
+                                ]),
                           ),
-                        ]),
-                        const SizedBox(height: 18),
                       ]),
                     ),
+                  ),
                 ]),
               ),
             ),
@@ -1959,7 +1971,16 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
         },
       ),
     );
-    emailCtrl.dispose();
+    // showDialog retorna apenas se llama Navigator.pop, pero AppAnimatedDialog
+    // sigue animando la salida y reconstruye los TextField unos frames más.
+    // Liberar los controllers de inmediato dispara "TextEditingController was
+    // used after being disposed", así que se difiere hasta que termine.
+    Future.delayed(const Duration(milliseconds: 400), () {
+      emailCtrl.dispose();
+      nombresCtrl.dispose();
+      apellidosCtrl.dispose();
+      claveCtrl.dispose();
+    });
     return saved == true;
   }
 }
@@ -1971,12 +1992,14 @@ class _AdminUserTile extends StatefulWidget {
   final Map<String, dynamic> user;
   final int index;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const _AdminUserTile({
     super.key,
     required this.user,
     required this.index,
     required this.onEdit,
+    required this.onDelete,
   });
 
   @override
@@ -1990,11 +2013,17 @@ class _AdminUserTileState extends State<_AdminUserTile>
     duration: const Duration(milliseconds: 500),
   );
   late final Animation<Offset> _slide = Tween<Offset>(
-    begin: const Offset(0, 0.30),
+    begin: const Offset(0.12, 0.22),
     end: Offset.zero,
   ).animate(CurvedAnimation(parent: _entrance, curve: Curves.easeOutCubic));
   late final Animation<double> _fade =
       CurvedAnimation(parent: _entrance, curve: Curves.easeOut);
+  // Escala de entrada: acompaña al slide para que la tarjeta "aterrice"
+  // en vez de solo deslizarse.
+  late final Animation<double> _entranceScale = Tween<double>(
+    begin: 0.94,
+    end: 1.0,
+  ).animate(CurvedAnimation(parent: _entrance, curve: Curves.easeOutBack));
 
   late final AnimationController _press = AnimationController(
     vsync: this,
@@ -2038,6 +2067,19 @@ class _AdminUserTileState extends State<_AdminUserTile>
     _press.dispose();
     _shimmer.dispose();
     super.dispose();
+  }
+
+  // Iniciales a partir del nombre real: "Gabriel Padilla" → "GP".
+  String _initialsFromName(String nombre) {
+    final parts =
+        nombre.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    if (parts.length >= 2) {
+      return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
+    }
+    if (parts.isNotEmpty && parts.first.length >= 2) {
+      return parts.first.substring(0, 2).toUpperCase();
+    }
+    return parts.isNotEmpty ? parts.first[0].toUpperCase() : '?';
   }
 
   String _initials(String email) {
@@ -2086,17 +2128,31 @@ class _AdminUserTileState extends State<_AdminUserTile>
             .toString();
     final tipo = (user['tipo_usuario'] ?? user['tipo'] ?? '').toString();
     final perfil = (user['perfil'] ?? user['nombre_perfil'] ?? '').toString();
-    final estadoRaw = (user['estado'] ?? user['activo'] ?? '').toString();
+    final estadoRaw =
+        (user['estado'] ?? user['codigo_estado'] ?? user['activo'] ?? '')
+            .toString();
     final activo = estadoRaw.isEmpty ||
         estadoRaw == '1' ||
         estadoRaw.toLowerCase() == 'activo' ||
         estadoRaw.toLowerCase() == 'true';
-    final initials = _initials(email);
+    // El nombre real (de tbl_asesores, vía el enriquecido de
+    // gestion_usuarios.php) es el dato principal; el correo pasa a ser
+    // secundario. Si no hay nombre, el correo lo sustituye como título.
+    final nombreCompleto = [
+      (user['nombres'] ?? '').toString().trim(),
+      (user['apellidos'] ?? '').toString().trim(),
+    ].where((p) => p.isNotEmpty).join(' ');
+    final titulo = nombreCompleto.isNotEmpty ? nombreCompleto : email;
+    final initials = nombreCompleto.isNotEmpty
+        ? _initialsFromName(nombreCompleto)
+        : _initials(email);
     final photoUrl = _photoUrlFor(user);
 
-    const activeGrad = LinearGradient(
-      colors: [Color(0xFF0D1B4B), Color(0xFF1E3A8A), Color(0xFF3B82F6)],
-      stops: [0.0, 0.5, 1.0],
+    // El color de la tarjeta lo marca el rol, no un azul genérico: así se
+    // distingue de un vistazo quién es admin, asesor de créditos o de ahorros.
+    final theme = perfilTheme(perfil.isNotEmpty ? perfil : tipo);
+    final activeGrad = LinearGradient(
+      colors: theme.grad,
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     );
@@ -2110,171 +2166,272 @@ class _AdminUserTileState extends State<_AdminUserTile>
       position: _slide,
       child: FadeTransition(
         opacity: _fade,
-        child: GestureDetector(
-          onTapDown: (_) => _press.reverse(),
-          onTapUp: (_) => _press.forward(),
-          onTapCancel: () => _press.forward(),
-          child: ScaleTransition(
-            scale: _press,
-            child: Container(
-              decoration: BoxDecoration(
-                color: cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: lineCol),
-                boxShadow: [
-                  BoxShadow(
-                    color: (activo
-                            ? const Color(0xFF4361EE)
-                            : const Color(0xFF94A3B8))
-                        .withValues(alpha: 0.09),
-                    blurRadius: 16,
-                    offset: const Offset(0, 5),
+        child: ScaleTransition(
+          scale: _entranceScale,
+          child: GestureDetector(
+            onTapDown: (_) => _press.reverse(),
+            onTapUp: (_) => _press.forward(),
+            onTapCancel: () => _press.forward(),
+            child: ScaleTransition(
+              scale: _press,
+              child: Container(
+                decoration: BoxDecoration(
+                  // Tinte del rol degradándose hacia el fondo normal de tarjeta.
+                  gradient: LinearGradient(
+                    colors: [
+                      Color.alphaBlend(
+                          theme.grad.first.withValues(
+                              alpha:
+                                  activo ? (isDarkTheme ? 0.13 : 0.055) : 0.0),
+                          cardBg),
+                      cardBg,
+                    ],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    stops: const [0.0, 0.55],
                   ),
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: Row(children: [
-                  // Left accent strip
-                  Container(
-                    width: 4,
-                    decoration: BoxDecoration(
-                      gradient: activo ? activeGrad : inactiveGrad,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                      color: activo
+                          ? theme.grad.first
+                              .withValues(alpha: isDarkTheme ? 0.55 : 0.38)
+                          : lineCol,
+                      width: activo ? 1.5 : 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          (activo ? theme.grad.first : const Color(0xFF94A3B8))
+                              .withValues(alpha: 0.13),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  // Avatar with shimmer sweep
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: Stack(children: [
-                      Builder(builder: (_) {
-                        final initialsBox = Container(
-                          width: 46,
-                          height: 46,
-                          decoration: BoxDecoration(
-                            gradient: activo ? activeGrad : inactiveGrad,
-                            borderRadius: BorderRadius.circular(13),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            initials,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        );
-                        if (photoUrl.isEmpty) return initialsBox;
-                        return Image.network(
-                          photoUrl,
-                          width: 46,
-                          height: 46,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => initialsBox,
-                        );
-                      }),
-                      Positioned.fill(
-                        child: AnimatedBuilder(
-                          animation: _shimmer,
-                          builder: (_, __) => Align(
-                            alignment: Alignment.lerp(
-                              const Alignment(-2.5, -2.5),
-                              const Alignment(2.5, 2.5),
-                              _shimmer.value,
-                            )!,
-                            child: Transform.rotate(
-                              angle: pi / 4,
-                              child: Container(
-                                width: 14,
-                                height: 56,
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: Row(children: [
+                    // Left accent strip
+                    Container(
+                      width: 5,
+                      decoration: BoxDecoration(
+                        gradient: activo ? activeGrad : inactiveGrad,
+                        boxShadow: activo
+                            ? [
+                                BoxShadow(
+                                    color: theme.grad.first
+                                        .withValues(alpha: 0.55),
+                                    blurRadius: 10)
+                              ]
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Avatar con barrido shimmer + punto de estado encima
+                    SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Stack(clipBehavior: Clip.none, children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Stack(children: [
+                            Builder(builder: (_) {
+                              final initialsBox = Container(
+                                width: 46,
+                                height: 46,
                                 decoration: BoxDecoration(
-                                  gradient: LinearGradient(colors: [
-                                    Colors.transparent,
-                                    Colors.white.withValues(alpha: 0.45),
-                                    Colors.transparent,
-                                  ]),
+                                  gradient: activo ? activeGrad : inactiveGrad,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  initials,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                              );
+                              if (photoUrl.isEmpty) return initialsBox;
+                              return Image.network(
+                                photoUrl,
+                                width: 46,
+                                height: 46,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => initialsBox,
+                              );
+                            }),
+                            Positioned.fill(
+                              child: AnimatedBuilder(
+                                animation: _shimmer,
+                                builder: (_, __) => Align(
+                                  alignment: Alignment.lerp(
+                                    const Alignment(-2.5, -2.5),
+                                    const Alignment(2.5, 2.5),
+                                    _shimmer.value,
+                                  )!,
+                                  child: Transform.rotate(
+                                    angle: pi / 4,
+                                    child: Container(
+                                      width: 14,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(colors: [
+                                          Colors.transparent,
+                                          Colors.white.withValues(alpha: 0.45),
+                                          Colors.transparent,
+                                        ]),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
+                          ]),
+                        ),
+                        // Estado como punto sobre el avatar: libera una etiqueta
+                        // entera de la fila y se lee de un golpe.
+                        Positioned(
+                          right: 0,
+                          bottom: 2,
+                          child: Container(
+                            width: 13,
+                            height: 13,
+                            decoration: BoxDecoration(
+                              color: activo
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFF94A3B8),
+                              shape: BoxShape.circle,
+                              border: Border.all(color: cardBg, width: 2.2),
+                              boxShadow: activo
+                                  ? [
+                                      BoxShadow(
+                                          color: const Color(0xFF10B981)
+                                              .withValues(alpha: 0.55),
+                                          blurRadius: 6)
+                                    ]
+                                  : null,
+                            ),
                           ),
                         ),
-                      ),
-                    ]),
-                  ),
-                  const SizedBox(width: 12),
-                  // Info column
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            email,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: textMain,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Wrap(spacing: 5, runSpacing: 3, children: [
-                            if (tipo.isNotEmpty)
-                              _tileBadge(tipo, const Color(0xFF4361EE)),
-                            if (perfil.isNotEmpty)
-                              _tileBadge(perfil, const Color(0xFF7C3AED)),
-                            _tileBadge(
-                              activo ? 'Activo' : 'Inactivo',
-                              activo
-                                  ? const Color(0xFF059669)
-                                  : const Color(0xFFDC2626),
-                              dot: true,
-                            ),
-                          ]),
-                        ],
-                      ),
+                      ]),
                     ),
-                  ),
-                  // Edit button
-                  _PressScale(
-                    onTap: widget.onEdit,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        gradient: isDarkTheme
-                            ? null
-                            : const LinearGradient(
-                                colors: [Color(0xFFEEF2FF), Color(0xFFE0E7FF)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+                    const SizedBox(width: 12),
+                    // Info column
+                    Expanded(
+                      child: Padding(
+                        // Margen a la derecha: el texto deslizante no debe
+                        // llegar a tocar los botones de acción.
+                        padding: const EdgeInsets.fromLTRB(0, 12, 10, 12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Nombre real como dato principal. Si no cabe se
+                            // desliza en bucle en vez de cortarse con "…".
+                            _MarqueeText(
+                              titulo,
+                              style: TextStyle(
+                                color: textMain,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.2,
                               ),
-                        color: isDarkTheme
-                            ? homeAccent.withValues(alpha: 0.18)
-                            : null,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: homeAccent.withValues(
-                                alpha: isDarkTheme ? 0.35 : 0.20)),
+                            ),
+                            // El correo baja a secundario; si ya se usó como
+                            // título (usuario sin nombre) no se repite.
+                            if (nombreCompleto.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              _MarqueeText(
+                                email,
+                                style: TextStyle(
+                                  color: textSoft,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 6),
+                            // Un solo chip con el rol (el "tipo" era siempre
+                            // "Asesor" para todos, no aportaba nada).
+                            if (perfil.isNotEmpty)
+                              _roleChip(perfil, theme.grad, theme.icon)
+                            else if (tipo.isNotEmpty)
+                              _roleChip(tipo, theme.grad, theme.icon),
+                          ],
+                        ),
                       ),
-                      child: Icon(Icons.edit_rounded,
-                          color: isDarkTheme
-                              ? const Color(0xFFA5B4FC)
-                              : homeAccent,
-                          size: 17),
                     ),
-                  ),
-                ]),
+                    // Edit button — gradiente sólido, ícono blanco.
+                    _PressScale(
+                      onTap: widget.onEdit,
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF4361EE), Color(0xFF00D2FF)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                                color: const Color(0xFF4361EE)
+                                    .withValues(alpha: 0.45),
+                                blurRadius: 12,
+                                offset: const Offset(0, 4))
+                          ],
+                        ),
+                        child: const Icon(Icons.edit_rounded,
+                            color: Colors.white, size: 17),
+                      ),
+                    ),
+                    // Desactivar / reactivar: el soft delete es reversible,
+                    // así que un usuario inactivo muestra el botón para
+                    // devolverle el acceso en vez de la papelera.
+                    _PressScale(
+                      onTap: widget.onDelete,
+                      child: Builder(builder: (_) {
+                        final accionGrad = activo
+                            ? const [Color(0xFFEF4444), Color(0xFFF43F5E)]
+                            : const [Color(0xFF059669), Color(0xFF10B981)];
+                        return Container(
+                          width: 36,
+                          height: 36,
+                          margin: const EdgeInsets.only(right: 12),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: accionGrad,
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                  color:
+                                      accionGrad.first.withValues(alpha: 0.45),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4))
+                            ],
+                          ),
+                          child: Icon(
+                              activo
+                                  ? Icons.delete_outline_rounded
+                                  : Icons.restart_alt_rounded,
+                              color: Colors.white,
+                              size: 17),
+                        );
+                      }),
+                    ),
+                  ]),
+                ),
               ),
             ),
           ),
@@ -2283,25 +2440,42 @@ class _AdminUserTileState extends State<_AdminUserTile>
     );
   }
 
-  Widget _tileBadge(String text, Color color, {bool dot = false}) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+  // Chip del rol: ícono + texto sobre un degradado suave del color del perfil.
+  Widget _roleChip(String text, List<Color> grad, IconData icon) => Container(
+        padding: const EdgeInsets.fromLTRB(6, 3.5, 9, 3.5),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: color.withValues(alpha: 0.20)),
+          gradient: LinearGradient(
+            colors: [
+              grad.first.withValues(alpha: isDarkTheme ? 0.28 : 0.14),
+              grad.last.withValues(alpha: isDarkTheme ? 0.16 : 0.07),
+            ],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: grad.first.withValues(alpha: 0.30)),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (dot) ...[
-            Container(
-                width: 5,
-                height: 5,
-                decoration:
-                    BoxDecoration(color: color, shape: BoxShape.circle)),
-            const SizedBox(width: 4),
-          ],
-          Text(text,
-              style: TextStyle(
-                  color: color, fontSize: 9.5, fontWeight: FontWeight.w700)),
+          Container(
+            width: 15,
+            height: 15,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: grad),
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Icon(icon, size: 9.5, color: Colors.white),
+          ),
+          const SizedBox(width: 5),
+          Flexible(
+            child: Text(text,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: isDarkTheme ? grad.last : grad.first,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.1)),
+          ),
         ]),
       );
 }
@@ -2342,4 +2516,129 @@ class _PressScaleState extends State<_PressScale>
         onTapCancel: () => _ctrl.forward(),
         child: ScaleTransition(scale: _ctrl, child: widget.child),
       );
+}
+
+// ── Texto que se desliza si no cabe (marquesina) ────────────────────────────
+/// Muestra el texto normal cuando cabe en el ancho disponible; si se
+/// desbordaría (antes se cortaba con "…"), lo desplaza en bucle para poder
+/// leerlo completo, con una pausa a cada extremo.
+class _MarqueeText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+
+  const _MarqueeText(this.text, {required this.style});
+
+  @override
+  State<_MarqueeText> createState() => _MarqueeTextState();
+}
+
+class _MarqueeTextState extends State<_MarqueeText> {
+  final ScrollController _scroll = ScrollController();
+  // Progreso 0..1 del recorrido, para desvanecer el degradado del lado al
+  // que ya se llegó (si no, el final del texto nunca se ve completo).
+  final ValueNotifier<double> _progress = ValueNotifier(0);
+  bool _disposed = false;
+  bool _running = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    final max = _scroll.position.maxScrollExtent;
+    _progress.value = max <= 0 ? 0 : (_scroll.offset / max).clamp(0.0, 1.0);
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _scroll.removeListener(_onScroll);
+    _scroll.dispose();
+    _progress.dispose();
+    super.dispose();
+  }
+
+  Future<void> _cycle() async {
+    if (_running) return;
+    _running = true;
+    while (!_disposed) {
+      await Future.delayed(const Duration(milliseconds: 1600));
+      if (_disposed || !_scroll.hasClients) break;
+      final max = _scroll.position.maxScrollExtent;
+      if (max <= 0) continue;
+      // Velocidad constante (~28 px/s) para que textos largos no corran más.
+      await _scroll.animateTo(max,
+          duration: Duration(milliseconds: (max * 36).round().clamp(900, 9000)),
+          curve: Curves.easeInOut);
+      if (_disposed || !_scroll.hasClients) break;
+      // Pausa larga al final: es el momento en que se lee el tramo que
+      // estaba oculto, así que el degradado derecho ya está apagado.
+      await Future.delayed(const Duration(milliseconds: 1800));
+      if (_disposed || !_scroll.hasClients) break;
+      await _scroll.animateTo(0,
+          duration: Duration(milliseconds: (max * 20).round().clamp(600, 5000)),
+          curve: Curves.easeInOut);
+    }
+    _running = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (_, constraints) {
+      final painter = TextPainter(
+        text: TextSpan(text: widget.text, style: widget.style),
+        maxLines: 1,
+        textDirection: Directionality.of(context),
+      )..layout();
+
+      // Si cabe, es un Text normal: sin scroll ni animación de fondo.
+      if (painter.width <= constraints.maxWidth) {
+        return Text(widget.text, maxLines: 1, style: widget.style);
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_disposed && mounted) _cycle();
+      });
+
+      final scroller = SingleChildScrollView(
+        controller: _scroll,
+        scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
+        child: Text(widget.text, maxLines: 1, style: widget.style),
+      );
+
+      // Degradado en los bordes, pero solo del lado donde queda texto por
+      // ver: al llegar al final el borde derecho se apaga y la última
+      // palabra se lee nítida.
+      return ValueListenableBuilder<double>(
+        valueListenable: _progress,
+        child: scroller,
+        builder: (_, p, child) {
+          final fadeLeft = (p * 4).clamp(0.0, 1.0);
+          final fadeRight = ((1 - p) * 4).clamp(0.0, 1.0);
+          return ShaderMask(
+            shaderCallback: (rect) {
+              final edge = (16 / rect.width).clamp(0.02, 0.3);
+              return LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  Colors.white.withValues(alpha: 1 - fadeLeft),
+                  Colors.white,
+                  Colors.white,
+                  Colors.white.withValues(alpha: 1 - fadeRight),
+                ],
+                stops: [0.0, edge, 1.0 - edge, 1.0],
+              ).createShader(rect);
+            },
+            blendMode: BlendMode.dstIn,
+            child: child,
+          );
+        },
+      );
+    });
+  }
 }
