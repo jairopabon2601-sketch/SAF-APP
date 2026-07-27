@@ -18,7 +18,8 @@ bool isNoPhotoValue(String raw) =>
   final n = nombreOCodigo.toLowerCase();
   if (n == '6' || n.contains('admin')) {
     return (
-      grad: const [Color(0xFF7C3AED), Color(0xFFA855F7)],
+      // Mismo azul-índigo que "Super Admin" en Gestión de permisos.
+      grad: const [Color(0xFF1E3A8A), Color(0xFF4F46E5)],
       icon: Icons.admin_panel_settings_rounded
     );
   }
@@ -1477,32 +1478,10 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
                 ]),
               );
 
-          IconData iconoPerfil(String codigo) {
-            switch (codigo) {
-              case '6':
-                return Icons.admin_panel_settings_rounded;
-              case '5':
-                return Icons.credit_card_rounded;
-              case '1':
-                return Icons.savings_rounded;
-              default:
-                return Icons.shield_outlined;
-            }
-          }
-
-          // Color propio por rol: admin morado, créditos ámbar, ahorros verde.
-          List<Color> colorPerfil(String codigo) {
-            switch (codigo) {
-              case '6':
-                return const [Color(0xFF7C3AED), Color(0xFFA855F7)];
-              case '5':
-                return const [Color(0xFFD97706), Color(0xFFF59E0B)];
-              case '1':
-                return const [Color(0xFF059669), Color(0xFF10B981)];
-              default:
-                return const [Color(0xFF4361EE), Color(0xFF00D2FF)];
-            }
-          }
+          // Ambos delegan en perfilTheme para que el formulario y las
+          // tarjetas del listado nunca se desincronicen de color/ícono.
+          IconData iconoPerfil(String codigo) => perfilTheme(codigo).icon;
+          List<Color> colorPerfil(String codigo) => perfilTheme(codigo).grad;
 
           return AppAnimatedDialog(
             child: Dialog(
