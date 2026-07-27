@@ -4,6 +4,14 @@ import 'home_dependencies.dart';
 import 'movements_screen.dart';
 
 extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
+  // Mismo corte horario (hora Colombia) que arma el saludo en home_screen.dart:
+  // "días"/"tardes" (antes de las 18h) es de día, "noches" es de noche.
+  bool greetingIsDaytime() {
+    final hourColombia =
+        DateTime.now().toUtc().subtract(const Duration(hours: 5)).hour;
+    return hourColombia < 18;
+  }
+
   Widget buildDashboard(String greeting, String firstName) {
     if (loadingData || !serverTotalsLoaded) return _dashboardSkeleton();
 
@@ -524,11 +532,34 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(greeting,
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.60),
-                          fontSize: 12.5,
-                          letterSpacing: 0.3)),
+                  Row(children: [
+                    Text(greeting,
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.60),
+                            fontSize: 12.5,
+                            letterSpacing: 0.3)),
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: greetingIsDaytime()
+                              ? const [Color(0xFFFBBF24), Color(0xFFF59E0B)]
+                              : const [Color(0xFF818CF8), Color(0xFF4F46E5)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Icon(
+                          greetingIsDaytime()
+                              ? Icons.wb_sunny_rounded
+                              : Icons.dark_mode_rounded,
+                          color: Colors.white,
+                          size: 12),
+                    ),
+                  ]),
                   const SizedBox(height: 2),
                   Text(name,
                       maxLines: 1,
@@ -1387,11 +1418,36 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(greeting,
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.60),
-                          fontSize: 12.5,
-                          letterSpacing: 0.3)),
+                  Row(children: [
+                    Text(greeting,
+                        style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.60),
+                            fontSize: 12.5,
+                            letterSpacing: 0.3)),
+                    const SizedBox(width: 6),
+                    // Sol/luna según la hora del dispositivo, a juego con el
+                    // saludo (Buenos días / Buenas tardes / Buenas noches).
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: greetingIsDaytime()
+                              ? const [Color(0xFFFBBF24), Color(0xFFF59E0B)]
+                              : const [Color(0xFF818CF8), Color(0xFF4F46E5)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Icon(
+                          greetingIsDaytime()
+                              ? Icons.wb_sunny_rounded
+                              : Icons.dark_mode_rounded,
+                          color: Colors.white,
+                          size: 12),
+                    ),
+                  ]),
                   const SizedBox(height: 2),
                   Text(name,
                       maxLines: 1,
@@ -2133,7 +2189,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             border: Border.all(color: lineCol),
             boxShadow: [
               BoxShadow(
-                color: statusColor.withValues(alpha: 0.10 + 0.05 * shimmer.value),
+                color:
+                    statusColor.withValues(alpha: 0.10 + 0.05 * shimmer.value),
                 blurRadius: 16 + 4 * shimmer.value,
                 offset: const Offset(0, 5),
               ),
@@ -2155,8 +2212,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                         height: 22 + 10 * shimmer.value,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: statusColor
-                              .withValues(alpha: 0.16 - 0.10 * shimmer.value),
+                          color: statusColor.withValues(
+                              alpha: 0.16 - 0.10 * shimmer.value),
                         ),
                       ),
                       Container(
@@ -2208,8 +2265,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
-                      border:
-                          Border.all(color: statusColor.withValues(alpha: 0.30)),
+                      border: Border.all(
+                          color: statusColor.withValues(alpha: 0.30)),
                     ),
                     child: TweenAnimationBuilder<double>(
                       tween: Tween(begin: 0.0, end: ratio * 100),
@@ -2255,8 +2312,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF34D399)
-                                  .withValues(alpha: 0.35 + 0.2 * shimmer.value),
+                              color: const Color(0xFF34D399).withValues(
+                                  alpha: 0.35 + 0.2 * shimmer.value),
                               blurRadius: 6,
                             ),
                           ],
@@ -2504,13 +2561,44 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        greeting,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.60),
-                          fontSize: 12.5,
-                          letterSpacing: 0.3,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            greeting,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.60),
+                              fontSize: 12.5,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            width: 20,
+                            height: 20,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: greetingIsDaytime()
+                                    ? const [
+                                        Color(0xFFFBBF24),
+                                        Color(0xFFF59E0B)
+                                      ]
+                                    : const [
+                                        Color(0xFF818CF8),
+                                        Color(0xFF4F46E5)
+                                      ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Icon(
+                                greetingIsDaytime()
+                                    ? Icons.wb_sunny_rounded
+                                    : Icons.dark_mode_rounded,
+                                color: Colors.white,
+                                size: 12),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -3138,8 +3226,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                 child: Container(
                   width: 74,
                   height: 19,
-                  color: Colors.white.withValues(
-                      alpha: 0.16 + 0.10 * shimmer.value),
+                  color: Colors.white
+                      .withValues(alpha: 0.16 + 0.10 * shimmer.value),
                 ),
               )
             else
@@ -3450,17 +3538,13 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
   }) =>
       Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(22, 26, 22, 26),
+        padding: const EdgeInsets.fromLTRB(22, 30, 22, 30),
         decoration: BoxDecoration(
+          // Sólido, sin gradiente ni sombra difusa — con ambas cosas a la
+          // vez la tarjeta se veía "manchada" en las esquinas.
           color: cardBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: lineCol),
-          boxShadow: [
-            BoxShadow(
-                color: homeNavy.withValues(alpha: 0.06),
-                blurRadius: 18,
-                offset: const Offset(0, 8))
-          ],
+          border: Border.all(color: lineCol, width: 1),
         ),
         child: Column(
           children: [
@@ -3468,16 +3552,8 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
               width: 58,
               height: 58,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    accent.withValues(alpha: 0.16),
-                    accent.withValues(alpha: 0.07),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: accent.withValues(alpha: 0.10),
                 borderRadius: BorderRadius.circular(17),
-                border: Border.all(color: accent.withValues(alpha: 0.10)),
               ),
               child: Icon(icon, color: accent, size: 27),
             ),

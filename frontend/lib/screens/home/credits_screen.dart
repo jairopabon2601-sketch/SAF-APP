@@ -2609,7 +2609,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
 
   void _showCrearDeudorDialog() {
     final formKey = GlobalKey<FormState>();
-    String? selectedAsesor;
+    // Un asesor (no admin) solo puede crear deudores para sí mismo: se
+    // preselecciona su propio codigo_asesor y el dropdown queda bloqueado,
+    // en vez de dejarlo elegir cualquier asesor de la lista.
+    String? selectedAsesor = isAdmin ? null : codigoOrigen;
     final docCtrl = TextEditingController();
     final nombresCtrl = TextEditingController();
     final apellidosCtrl = TextEditingController();
@@ -2651,7 +2654,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               final label = name.isNotEmpty
                   ? name
                   : (advisorNames[acronym.toUpperCase()] ?? acronym);
-              return (code: code, label: label);
+              return (code: code, label: label, sigla: acronym);
             })
             .where((advisor) => advisor.code.isNotEmpty)
             .toList();
@@ -2750,7 +2753,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           constraints: const BoxConstraints()),
                     ]),
                     const Divider(height: 20),
-                    // Asesor
+                    // Asesor: bloqueado para quien no es admin — ya viene
+                    // preseleccionado con su propio codigo_asesor arriba, y
+                    // no debe poder crear un deudor a nombre de otro asesor.
                     buildDialogRow(
                       'Asesor',
                       buildDialogDropdown<String>(
@@ -2761,13 +2766,17 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         items: advisorOptions
                             .map((advisor) => DropdownMenuItem(
                                 value: advisor.code,
-                                child: Text(advisor.label)))
+                                child: Row(children: [
+                                  advisorAvatarMini(advisor.sigla, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                      child: Text(advisor.label,
+                                          overflow: TextOverflow.ellipsis)),
+                                ])))
                             .toList(),
-                        onChanged: (v) {
-                          if (!loadingAdvisors) {
-                            setS(() => selectedAsesor = v);
-                          }
-                        },
+                        onChanged: (!isAdmin || loadingAdvisors)
+                            ? null
+                            : (v) => setS(() => selectedAsesor = v),
                         validator: (v) => v == null || v.isEmpty
                             ? 'Seleccione un asesor'
                             : null,
@@ -3053,7 +3062,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     String? selectedTipoInt = '1'; // 1=Fijo, 2=Variable
     String? selectedTasa;
     String? selectedFuente;
-    String? selectedCuentaDestino;
     DateTime? fechaPrestamo;
     final valorCtrl = TextEditingController();
     final numCuotasCtrl = TextEditingController();
@@ -3165,6 +3173,19 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
 
         Future<void> grabar() async {
           if (!formKey.currentState!.validate()) return;
+          // Sin una cuenta marcada como "de préstamos" (en Cuentas) no hay a
+          // dónde acreditar el desembolso — antes se pedía elegir una cuenta
+          // destino aquí mismo, pero si el asesor no tiene ninguna cuenta
+          // creada el dropdown quedaba vacío ("No hay cuentas") sin forma de
+          // avanzar. Ahora se exige configurarla primero.
+          if (!hayCuentaPrestamosMarcada()) {
+            showDialog(
+                context: ctx,
+                builder: (_) => buildResultDialog(
+                    'Debes marcar una cuenta como "cuenta de préstamos" en Cuentas antes de crear un crédito.',
+                    false));
+            return;
+          }
           if (fechaPrestamo == null) {
             showDialog(
                 context: ctx,
@@ -3184,7 +3205,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               'tipo_interes': selectedTipoInt ?? '',
               'codigo_tasa_interes_reg': selectedTasa ?? '',
               'fuente_credito_reg': selectedFuente ?? '',
-              'cuenta_destino_reg': selectedCuentaDestino ?? '',
+              // Ya no se pide "cuenta destino" en el formulario: el backend
+              // debe resolverla a partir de la cuenta marcada como
+              // es_cuenta_prestamos, cuya existencia se valida arriba antes
+              // de llegar aquí.
               'total_pagar': totalAPagar.toStringAsFixed(0),
             });
             final bodyLower = r.body.toLowerCase();
@@ -3529,7 +3553,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     fuentes.any((p) => p.$1 == selectedFuente)
                                         ? selectedFuente
                                         : null,
-                                hint: '[Seleccione]',
+                                hint: fuentes.isEmpty
+                                    ? 'No hay cuentas'
+                                    : '[Seleccione]',
                                 items: fuentes
                                     .map((p) => DropdownMenuItem(
                                         value: p.$1,
@@ -3555,45 +3581,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                     v == null ? 'Seleccione una fuente' : null,
                               ),
                             ),
-                            // Cuenta destino del total a pagar — solo si el
-                            // usuario no marcó ya una cuenta fija en Cuentas.
-                            if (!hayCuentaPrestamosMarcada()) ...[
-                              const SizedBox(height: 8),
-                              buildDialogRow(
-                                'Cuenta destino',
-                                buildDialogDropdown<String>(
-                                  value: fuentes.any(
-                                          (p) => p.$1 == selectedCuentaDestino)
-                                      ? selectedCuentaDestino
-                                      : null,
-                                  hint: '[Seleccione]',
-                                  items: fuentes
-                                      .map((p) => DropdownMenuItem(
-                                          value: p.$1,
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Container(
-                                                width: 9,
-                                                height: 9,
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  color: sourceColor(p.$2),
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(p.$2),
-                                            ],
-                                          )))
-                                      .toList(),
-                                  onChanged: (v) =>
-                                      setS(() => selectedCuentaDestino = v),
-                                  validator: (v) => v == null
-                                      ? 'Seleccione la cuenta destino'
-                                      : null,
-                                ),
-                              ),
-                            ],
                             const SizedBox(height: 8),
                             // Total a Pagar (read-only calculado)
                             buildDialogRow(
@@ -5900,10 +5887,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> _aprobarSolicitud(Map<String, dynamic> p) async {
     final cod = (p['codigo_solicitud'] ?? '').toString();
-    String? asesorSel =
-        creditAdvisorFilter.isNotEmpty ? creditAdvisorFilter : null;
+    // Un asesor (no admin) siempre aprueba a nombre suyo — sin esto quedaba
+    // a criterio del filtro visual (creditAdvisorFilter) o de un diálogo que
+    // dejaba elegir cualquier asesor de la lista.
+    String? asesorSel = !isAdmin && mySigla.isNotEmpty
+        ? mySigla
+        : (creditAdvisorFilter.isNotEmpty ? creditAdvisorFilter : null);
 
-    // Si no hay asesor preseleccionado, pedir al usuario
+    // Si no hay asesor preseleccionado (solo puede pasar siendo admin sin
+    // filtro elegido), pedir al usuario
     if (asesorSel == null && advisors.isNotEmpty) {
       asesorSel = await showDialog<String>(
         context: screenContext,
@@ -6124,8 +6116,16 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
       ),
     );
     if (ok != true || !isMounted) return;
-    final r = await repository
-        .post('/ajax/rechazar_solicitud.php', {'codigo_solicitud': cod});
+    // Igual que al aprobar: un asesor (no admin) queda registrado como el
+    // asesor de la solicitud que rechazó, para que le aparezca en SU lista
+    // de "Rechazadas" y no en la de todos.
+    final asesorSel = !isAdmin && mySigla.isNotEmpty
+        ? mySigla
+        : (creditAdvisorFilter.isNotEmpty ? creditAdvisorFilter : '');
+    final r = await repository.post('/ajax/rechazar_solicitud.php', {
+      'codigo_solicitud': cod,
+      'codigo_asesor': asesorSel,
+    });
     if (!isMounted) return;
     final exito =
         r.statusCode == 200 && r.body.toLowerCase().contains('rechazado');

@@ -172,6 +172,11 @@ extension HomeActions<T extends StatefulWidget> on HomeController<T> {
     return codigoOSigla;
   }
 
+  // Sigla del asesor logueado (no admin) — para que aprobar/rechazar quede
+  // asociado automáticamente a quien procesó la solicitud, sin pedirle que
+  // elija manualmente entre la lista de todos los asesores.
+  String get mySigla => creditAdvisorInitials(codigoOrigen);
+
   // Ahorradores tras aplicar el filtro de asesor (memoizado)
   List<Map<String, dynamic>> get filteredSavers {
     // Perfil asesor (1): siempre filtra por su propio codigoOrigen

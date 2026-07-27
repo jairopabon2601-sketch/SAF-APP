@@ -93,9 +93,13 @@ class ApiService {
           data['success'] == true;
 
       if (success) {
-        _token = (data['token'] ?? data['access_token'] ?? data['jwt'])?.toString();
-        final raw = data['usuario'] ?? data['user'] ?? data['data'] ??
-            data['info'] ?? data['perfil'];
+        _token =
+            (data['token'] ?? data['access_token'] ?? data['jwt'])?.toString();
+        final raw = data['usuario'] ??
+            data['user'] ??
+            data['data'] ??
+            data['info'] ??
+            data['perfil'];
         if (raw is Map) {
           _user = Map<String, dynamic>.from(raw);
         } else {
@@ -122,7 +126,12 @@ class ApiService {
               ? 'Error del servidor (respuesta no es JSON)'
               : 'Error desconocido');
 
-      return {'success': success, 'token': _token, 'user': _user, 'message': msg};
+      return {
+        'success': success,
+        'token': _token,
+        'user': _user,
+        'message': msg
+      };
     } catch (e, st) {
       debugPrint('ApiService.login error: $e\n$st');
       rethrow;
@@ -273,16 +282,19 @@ class ApiService {
     final prefs = await _getPrefs();
     if (_token != null) await prefs.setString(_tokenKey, _token!);
     if (_user != null) await prefs.setString(_userKey, jsonEncode(_user));
-    if (_sessionCookie != null) await prefs.setString(_sessionKey, _sessionCookie!);
+    if (_sessionCookie != null)
+      await prefs.setString(_sessionKey, _sessionCookie!);
   }
 
   // ── Local data cache helpers ──────────────────────────────────────
 
-  Future<void> saveLocalData(String key, List<Map<String, dynamic>> data) async {
+  Future<void> saveLocalData(
+      String key, List<Map<String, dynamic>> data) async {
     try {
       final prefs = await _getPrefs();
       await prefs.setString('cache_$key', jsonEncode(data));
-      await prefs.setInt('cache_${key}_ts', DateTime.now().millisecondsSinceEpoch);
+      await prefs.setInt(
+          'cache_${key}_ts', DateTime.now().millisecondsSinceEpoch);
     } catch (_) {}
   }
 

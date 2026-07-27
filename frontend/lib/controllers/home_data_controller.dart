@@ -8,9 +8,8 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // (índice 0) siempre está visible; los demás dependen de
     // tbl_procesos_perfiles vía listar_modulos_habilitados.php.
     try {
-      final r = await repository
-          .post('/ajax/listar_modulos_habilitados.php', {})
-          .timeout(const Duration(seconds: 10));
+      final r = await repository.post('/ajax/listar_modulos_habilitados.php',
+          {}).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         if (d['success'] == true && d['modulos'] is Map) {
@@ -1254,7 +1253,12 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
             }
           }
         }
-        if (list != null && list.isNotEmpty) {
+        if (list != null) {
+          // [] es una respuesta válida (ej. un asesor sin deudores
+          // asignados) — antes se trataba igual que una respuesta mal
+          // formada y caía al fallback de abajo, que reconstruye desde
+          // `credits` SIN el filtro por asesor que aplica este endpoint,
+          // mostrando deudores de otros asesores.
           debtors = list
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
@@ -1268,7 +1272,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       debugPrint('[SAF] deudores fetch: $e');
     }
 
-    // Fallback: extraer desde creditosLista (campo real: 'cliente')
+    // Fallback SOLO si el endpoint realmente falló (excepción, status != 200,
+    // o body no reconocible) — no si respondió correctamente con una lista
+    // vacía, que es un resultado legítimo y no debe "completarse" con datos
+    // sin filtrar de otros asesores.
     if (debtors.isEmpty && credits.isNotEmpty) {
       final seen = <String>{};
       final lista = <Map<String, dynamic>>[];
@@ -1312,13 +1319,18 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       // caía al fallback hardcodeado (sin el 6.6%, agregado después en
       // tbl_tasa_interes). Se usa el mismo camino que ya funciona en la web:
       // listado_select.php directo sobre tbl_tasa_interes.
-      final r = await repository.cachedPost('/ajax/listado_select.php', {
-        'tabla': 'tbl_tasa_interes',
-        'valor': 'valor',
-        'etiqueta': 'valor',
-        'filtro': '1',
-        'campos_orden': 'valor',
-      }, ttl: const Duration(minutes: 30)).timeout(const Duration(seconds: 10));
+      final r = await repository
+          .cachedPost(
+              '/ajax/listado_select.php',
+              {
+                'tabla': 'tbl_tasa_interes',
+                'valor': 'valor',
+                'etiqueta': 'valor',
+                'filtro': '1',
+                'campos_orden': 'valor',
+              },
+              ttl: const Duration(minutes: 30))
+          .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final raw = jsonDecode(r.body);
         final list = raw is List

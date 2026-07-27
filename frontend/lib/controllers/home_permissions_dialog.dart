@@ -109,32 +109,29 @@ extension HomePermissionsDialog<T extends StatefulWidget> on HomeController<T> {
               final d = decodeJsonMap(r.body);
               final ok = d['success'] == true;
               if (ctx.mounted) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor:
-                        ok ? const Color(0xFF059669) : const Color(0xFFDC2626),
-                    content: Text(
-                      (d['msg'] ??
-                              (ok
-                                  ? 'Permisos actualizados.'
-                                  : 'No se pudo guardar.'))
-                          .toString(),
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                unawaited(showDialog(
+                  context: ctx,
+                  builder: (_) => AppResultDialog(
+                    success: ok,
+                    title: ok ? '¡Permisos guardados!' : 'No se pudo guardar',
+                    message: (d['msg'] ??
+                            (ok
+                                ? 'Los permisos se actualizaron correctamente.'
+                                : 'Intenta nuevamente en unos segundos.'))
+                        .toString(),
                   ),
-                );
+                ));
               }
             } catch (e) {
               if (ctx.mounted) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  SnackBar(
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: const Color(0xFFDC2626),
-                    content: Text(e.toString().replaceFirst('Exception: ', ''),
-                        style: const TextStyle(color: Colors.white)),
+                unawaited(showDialog(
+                  context: ctx,
+                  builder: (_) => AppResultDialog(
+                    success: false,
+                    title: 'No se pudo guardar',
+                    message: e.toString().replaceFirst('Exception: ', ''),
                   ),
-                );
+                ));
               }
             } finally {
               if (ctx.mounted) setS(() => saving.remove(codigoPerfil));

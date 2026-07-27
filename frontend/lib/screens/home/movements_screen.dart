@@ -1269,7 +1269,10 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           ),
           if (filtrados.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              // Margen inferior: sin esto la tarjeta llegaba hasta el borde
+              // de la pantalla y se fundía visualmente con la barra de
+              // navegación oscura de abajo, sin límite claro entre ambas.
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               child: buildEmptyActivity(
                 badge: hasUserFilter
                     ? 'Ajusta los filtros'
@@ -1814,7 +1817,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   Widget buildDialogDropdown<ValueType>({
     required ValueType? value,
     required List<DropdownMenuItem<ValueType>> items,
-    required ValueChanged<ValueType?> onChanged,
+    required ValueChanged<ValueType?>? onChanged,
     String? hint,
     String? Function(ValueType?)? validator,
     bool isExpanded = true,
@@ -1823,6 +1826,9 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         // ignore: deprecated_member_use
         value: value,
         isExpanded: isExpanded,
+        // onChanged: null vuelve el campo de solo lectura (fondo/ícono
+        // atenuados por Flutter) — usado cuando un asesor no admin no debe
+        // poder cambiar su propio valor preseleccionado.
         decoration: dialogInputDecoration(),
         dropdownColor: dialogBg,
         style: dialogTextStyle,
@@ -4517,11 +4523,11 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                                   a['es_cuenta_prestamos']
                                                           ?.toString() ==
                                                       '1' &&
-                                                  (a['codigo'] ?? a['codigo_cuenta'])
+                                                  (a['codigo'] ??
+                                                              a['codigo_cuenta'])
                                                           ?.toString() !=
                                                       codigo,
-                                              orElse: () =>
-                                                  <String, dynamic>{},
+                                              orElse: () => <String, dynamic>{},
                                             )
                                           : <String, dynamic>{};
                                       setS(() => savingPrestamos = true);
@@ -4541,8 +4547,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                               esCuentaPrestamos = marcando);
                                           repository.invalidateCache(
                                               '/ajax/listar_cuentas_gasto.php');
-                                          unawaited(fetchAccounts(
-                                                  codigoUsuario)
+                                          unawaited(fetchAccounts(codigoUsuario)
                                               .then((_) {
                                             if (isMounted) refresh(() {});
                                           }));
@@ -4551,17 +4556,18 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                             (otraPrestamosPrevia['nombre'] ??
                                                     '')
                                                 .toString();
-                                        final msgBase =
-                                            (j['msg'] ?? '').toString().isNotEmpty
-                                                ? j['msg'].toString()
-                                                : (ok
-                                                    ? 'Cuenta actualizada'
-                                                    : 'No se pudo actualizar');
+                                        final msgBase = (j['msg'] ?? '')
+                                                .toString()
+                                                .isNotEmpty
+                                            ? j['msg'].toString()
+                                            : (ok
+                                                ? 'Cuenta actualizada'
+                                                : 'No se pudo actualizar');
                                         showResult(ok, msgBase);
                                         if (ok && nombreOtra.isNotEmpty) {
                                           Future.delayed(
-                                              const Duration(
-                                                  milliseconds: 900), () {
+                                              const Duration(milliseconds: 900),
+                                              () {
                                             if (ctx.mounted) {
                                               showDialog(
                                                 context: ctx,
@@ -4600,8 +4606,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                                           height: 20,
                                           child: CircularProgressIndicator(
                                               strokeWidth: 2,
-                                              color:
-                                                  const Color(0xFF10B981)))
+                                              color: const Color(0xFF10B981)))
                                       : Icon(
                                           esCuentaPrestamos
                                               ? Icons.check_box_rounded

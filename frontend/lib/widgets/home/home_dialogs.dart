@@ -35,8 +35,7 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
               const SizedBox(height: 16),
               Text('Cargando datos...',
                   style: TextStyle(
-                      color: textSoft.withValues(alpha: 0.8),
-                      fontSize: 13)),
+                      color: textSoft.withValues(alpha: 0.8), fontSize: 13)),
             ],
           ),
         ),
@@ -65,6 +64,43 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
         avatarFallback: buildAvatarFallback(fullName.split(' ').first),
         showGestionUsuarios: isAdmin,
         onUploadPhoto: onUploadPhoto,
+        // Solo personal interno (admin/asesores) tiene ficha en
+        // tbl_asesores — mismo universo que gestiona gestion_usuarios.php.
+        canEditName: isAdmin || isAsesor || isCreditsProfile,
+        onEditName: (nombres, apellidos) async {
+          final r =
+              await repository.post('/ajax/actualizar_perfil_nombre.php', {
+            'nombres': nombres,
+            'apellidos': apellidos,
+          });
+          final decoded = decodeJsonMap(r.body);
+          final ok = decoded['success'] == true || decoded['resultado'] == 1;
+          if (ok) {
+            // Mismo patrón que la foto de perfil (ver _pickAndUpload de más
+            // abajo): mutar repository.user in-place y persistir, para que
+            // fullName (getter derivado de user['perfil']) refleje el
+            // cambio sin esperar al próximo login.
+            final u = repository.user;
+            if (u != null) {
+              final perfil = u['perfil'];
+              if (perfil is Map) {
+                perfil['nombres'] = nombres;
+                perfil['apellidos'] = apellidos;
+              } else {
+                u['nombres'] = nombres;
+                u['apellidos'] = apellidos;
+              }
+              await repository.persistUser();
+            }
+            if (isMounted) refresh(() {});
+          }
+          return (
+            ok: ok,
+            error: ok
+                ? null
+                : (decoded['mensaje']?.toString() ?? 'No se pudo actualizar.')
+          );
+        },
         onGestionUsuarios: () {
           Navigator.of(screenContext).pop();
           showUsersManagement();
@@ -90,6 +126,9 @@ class _ProfileSheetContent extends StatefulWidget {
   final bool showGestionUsuarios;
   final Future<({String? filename, String? error})> Function(Uint8List)?
       onUploadPhoto;
+  final bool canEditName;
+  final Future<({bool ok, String? error})> Function(
+      String nombres, String apellidos)? onEditName;
   final VoidCallback onGestionUsuarios;
   final VoidCallback onGestionPermisos;
   final VoidCallback onLogoutConfirmed;
@@ -102,6 +141,8 @@ class _ProfileSheetContent extends StatefulWidget {
     required this.avatarFallback,
     required this.showGestionUsuarios,
     this.onUploadPhoto,
+    this.canEditName = false,
+    this.onEditName,
     required this.onGestionUsuarios,
     required this.onGestionPermisos,
     required this.onLogoutConfirmed,
@@ -115,6 +156,256 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
     with TickerProviderStateMixin {
   String _currentPhotoUrl = '';
   bool _uploading = false;
+  late String _currentFullName = widget.fullName;
+  bool _savingName = false;
+
+  Future<void> _editName() async {
+    if (widget.onEditName == null || _savingName) return;
+    final parts = _currentFullName.trim().split(RegExp(r'\s+'));
+    final nombresCtrl =
+        TextEditingController(text: parts.isNotEmpty ? parts.first : '');
+    final apellidosCtrl = TextEditingController(
+        text: parts.length > 1 ? parts.sublist(1).join(' ') : '');
+
+    InputDecoration fieldDeco(String hint, IconData icon) => InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(
+              color: textSoft, fontSize: 14, fontWeight: FontWeight.w500),
+          prefixIcon: Container(
+            margin: const EdgeInsets.all(9),
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: inputFill,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: textSoft, size: 17),
+          ),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 52, minHeight: 52),
+          filled: true,
+          fillColor: inputFill,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: lineCol)),
+          enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: lineCol)),
+          focusedBorder: const OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+              borderSide: BorderSide(color: homeAccent, width: 1.8)),
+        );
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AppAnimatedDialog(
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          insetPadding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                    color: homeAccent.withValues(alpha: 0.18),
+                    blurRadius: 32,
+                    offset: const Offset(0, 14)),
+              ],
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              // Header con el mismo gradiente que Crear usuario / Crear Deudor.
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 20, 16, 18),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF060E35),
+                      Color(0xFF0D1B6E),
+                      Color(0xFF1435A8),
+                      Color(0xFF0077BB)
+                    ],
+                    stops: [0.0, 0.35, 0.70, 1.0],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Row(children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [
+                        Colors.white.withValues(alpha: 0.25),
+                        Colors.white.withValues(alpha: 0.10),
+                      ], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.28)),
+                    ),
+                    child: const Icon(Icons.edit_rounded,
+                        color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('Editar nombre',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.3)),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(ctx, false),
+                    child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(colors: [
+                            Color(0xFF991B1B),
+                            Color(0xFFDC2626),
+                          ]),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.close_rounded,
+                            color: Colors.white, size: 16)),
+                  ),
+                ]),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  TextField(
+                    controller: nombresCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    style: TextStyle(
+                        color: textMain,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600),
+                    decoration:
+                        fieldDeco('Nombres', Icons.person_outline_rounded),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: apellidosCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    style: TextStyle(
+                        color: textMain,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600),
+                    decoration:
+                        fieldDeco('Apellidos', Icons.people_outline_rounded),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(ctx, false),
+                        child: Container(
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: inputFill,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: lineCol),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text('Cancelar',
+                              style: TextStyle(
+                                  color: textSoft,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(ctx, true),
+                        child: Container(
+                          height: 48,
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF065F46), Color(0xFF059669)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                  color: const Color(0xFF059669)
+                                      .withValues(alpha: 0.40),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 5)),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_rounded,
+                                    color: Colors.white, size: 18),
+                                SizedBox(width: 7),
+                                Text('Guardar',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 14)),
+                              ]),
+                        ),
+                      ),
+                    ),
+                  ]),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+
+    if (result != true || !mounted) return;
+    final nombres = nombresCtrl.text.trim();
+    final apellidos = apellidosCtrl.text.trim();
+    if (nombres.isEmpty || apellidos.isEmpty) return;
+
+    setState(() => _savingName = true);
+    final res = await widget.onEditName!(nombres, apellidos);
+    if (!mounted) return;
+    setState(() {
+      _savingName = false;
+      if (res.ok) _currentFullName = '$nombres $apellidos';
+    });
+    if (res.ok) {
+      // Mismo diálogo de éxito (con auto-cierre) que usa la foto de perfil,
+      // en vez de un SnackBar que quedaba poco visible detrás del bottom
+      // sheet de perfil, que sigue abierto encima.
+      unawaited(showDialog(
+        context: context,
+        barrierColor: Colors.black.withValues(alpha: 0.45),
+        builder: (_) => const _PhotoSuccessDialog(
+          title: '¡Nombre actualizado!',
+          subtitle: 'Tu nombre se guardó correctamente.',
+        ),
+      ));
+    } else {
+      // AppResultDialog: mismo diálogo de error usado en todo el resto de
+      // la app (ver buildResultDialog en credits_screen.dart) — nada de
+      // SnackBar en ningún flujo.
+      unawaited(showDialog(
+        context: context,
+        builder: (_) => AppResultDialog(
+          success: false,
+          message: res.error ?? 'No se pudo actualizar el nombre.',
+        ),
+      ));
+    }
+  }
 
   Future<void> _pickAndUpload() async {
     if (widget.onUploadPhoto == null || _uploading) return;
@@ -141,9 +432,14 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
           builder: (_) => const _PhotoSuccessDialog(),
         ));
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.error ?? 'No se pudo subir la foto')),
-        );
+        unawaited(showDialog(
+          context: context,
+          builder: (_) => AppResultDialog(
+            success: false,
+            title: 'No se pudo subir la foto',
+            message: result.error ?? 'Intenta nuevamente en unos segundos.',
+          ),
+        ));
       }
     } finally {
       if (mounted) setState(() => _uploading = false);
@@ -244,8 +540,12 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
 
   @override
   Widget build(BuildContext context) {
-    final initials = widget.fullName.isNotEmpty
-        ? widget.fullName.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join()
+    final initials = _currentFullName.isNotEmpty
+        ? _currentFullName
+            .split(' ')
+            .map((w) => w.isNotEmpty ? w[0] : '')
+            .take(2)
+            .join()
         : 'U';
 
     return ClipRRect(
@@ -255,495 +555,565 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-          // ── Header dark: drag handle + orbes + avatar ─────────────
-          Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF060D2E), Color(0xFF0D1B4B), Color(0xFF1E3A8A)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+            // ── Header dark: drag handle + orbes + avatar ─────────────
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFF060D2E),
+                    Color(0xFF0D1B4B),
+                    Color(0xFF1E3A8A)
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
-            ),
-            child: Stack(
-              children: [
-                // Orbes decorativos
-                Positioned(
-                    top: -28, right: -24,
-                    child: _orb(130, const Color(0xFF3B82F6), 0.18)),
-                Positioned(
-                    top: 10, left: -40,
-                    child: _orb(100, const Color(0xFF6366F1), 0.13)),
-                Positioned(
-                    bottom: -10, right: 60,
-                    child: _orb(70, const Color(0xFF06B6D4), 0.10)),
-                // Contenido
-                Column(
-                  children: [
-                    // Drag handle sobre fondo oscuro
-                    const SizedBox(height: 14),
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.30),
-                          borderRadius: BorderRadius.circular(2),
+              child: Stack(
+                children: [
+                  // Orbes decorativos
+                  Positioned(
+                      top: -28,
+                      right: -24,
+                      child: _orb(130, const Color(0xFF3B82F6), 0.18)),
+                  Positioned(
+                      top: 10,
+                      left: -40,
+                      child: _orb(100, const Color(0xFF6366F1), 0.13)),
+                  Positioned(
+                      bottom: -10,
+                      right: 60,
+                      child: _orb(70, const Color(0xFF06B6D4), 0.10)),
+                  // Contenido
+                  Column(
+                    children: [
+                      // Drag handle sobre fondo oscuro
+                      const SizedBox(height: 14),
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.30),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Avatar con glow pulsante
-                    AnimatedBuilder(
-                      animation: _pulse,
-                      builder: (_, child) => ScaleTransition(
-                        scale: _avatarScale,
-                        child: FadeTransition(
-                          opacity: _avatarFade,
-                          child: Container(
+                      const SizedBox(height: 20),
+                      // Avatar con glow pulsante
+                      AnimatedBuilder(
+                        animation: _pulse,
+                        builder: (_, child) => ScaleTransition(
+                          scale: _avatarScale,
+                          child: FadeTransition(
+                            opacity: _avatarFade,
+                            child: Container(
+                              width: 96,
+                              height: 96,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF60A5FA)
+                                        .withValues(alpha: _glowAlpha.value),
+                                    blurRadius: _glowRadius.value,
+                                    spreadRadius: 4,
+                                  ),
+                                  BoxShadow(
+                                    color: const Color(0xFF818CF8).withValues(
+                                        alpha: _glowAlpha.value * 0.5),
+                                    blurRadius: _glowRadius.value * 1.6,
+                                    spreadRadius: 1,
+                                  ),
+                                ],
+                              ),
+                              child: child,
+                            ),
+                          ),
+                        ),
+                        child: GestureDetector(
+                          onTap: widget.onUploadPhoto != null
+                              ? _pickAndUpload
+                              : null,
+                          child: SizedBox(
                             width: 96,
                             height: 96,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF60A5FA)
-                                      .withValues(alpha: _glowAlpha.value),
-                                  blurRadius: _glowRadius.value,
-                                  spreadRadius: 4,
-                                ),
-                                BoxShadow(
-                                  color: const Color(0xFF818CF8)
-                                      .withValues(alpha: _glowAlpha.value * 0.5),
-                                  blurRadius: _glowRadius.value * 1.6,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                            child: child,
-                          ),
-                        ),
-                      ),
-                      child: GestureDetector(
-                        onTap: widget.onUploadPhoto != null
-                            ? _pickAndUpload
-                            : null,
-                        child: SizedBox(
-                          width: 96,
-                          height: 96,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Positioned.fill(
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color:
-                                            Colors.white.withValues(alpha: 0.90),
-                                        width: 3),
-                                  ),
-                                  child: ClipOval(
-                                    child: _uploading
-                                        ? Container(
-                                            color: Colors.black54,
-                                            child: const Center(
-                                              child: SizedBox(
-                                                width: 28,
-                                                height: 28,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  color: Colors.white,
-                                                  strokeWidth: 2.5,
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                        : SizedBox(
-                                            width: 96,
-                                            height: 96,
-                                            child: CachedAvatarImage(
-                                              url: _currentPhotoUrl,
-                                              cacheKey: widget.photoCacheKey,
-                                              fallback: widget.avatarFallback,
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                              ),
-                              if (widget.onUploadPhoto != null)
-                                Positioned(
-                                  bottom: -6,
-                                  right: -6,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Positioned.fill(
                                   child: Container(
-                                    width: 34,
-                                    height: 34,
                                     decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF4361EE),
-                                          Color(0xFF00D2FF)
-                                        ],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                          color: Colors.white, width: 2.5),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color:
-                                              Colors.black.withValues(alpha: 0.25),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
+                                          color: Colors.white
+                                              .withValues(alpha: 0.90),
+                                          width: 3),
                                     ),
-                                    child: const Icon(
-                                      Icons.camera_alt_rounded,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    // Nombre + email con slide up
-                    SlideTransition(
-                      position: _nameSlide,
-                      child: FadeTransition(
-                        opacity: _nameFade,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Column(
-                            children: [
-                              Text(
-                                widget.fullName,
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  letterSpacing: -0.4,
-                                ),
-                              ),
-                              if (widget.email.isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 5),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                        color: Colors.white.withValues(alpha: 0.20)),
-                                  ),
-                                  child: Text(
-                                    widget.email,
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.white.withValues(alpha: 0.85),
-                                      fontWeight: FontWeight.w500,
-                                      letterSpacing: 0.2,
+                                    child: ClipOval(
+                                      child: _uploading
+                                          ? Container(
+                                              color: Colors.black54,
+                                              child: const Center(
+                                                child: SizedBox(
+                                                  width: 28,
+                                                  height: 28,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    color: Colors.white,
+                                                    strokeWidth: 2.5,
+                                                  ),
+                                                ),
+                                              ),
+                                            )
+                                          : SizedBox(
+                                              width: 96,
+                                              height: 96,
+                                              child: CachedAvatarImage(
+                                                url: _currentPhotoUrl,
+                                                cacheKey: widget.photoCacheKey,
+                                                fallback: widget.avatarFallback,
+                                              ),
+                                            ),
                                     ),
                                   ),
                                 ),
-                              ],
-                              const SizedBox(height: 10),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  initials.toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.white70,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // ── Opciones ──────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-            child: Column(
-              children: [
-                // Gestión de usuarios (solo admin)
-                if (widget.showGestionUsuarios) SlideTransition(
-                  position: _card1Slide,
-                  child: FadeTransition(
-                    opacity: _card1Fade,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF0B0D2E),
-                            Color(0xFF1A1B6E),
-                            Color(0xFF2563EB),
-                            Color(0xFF38BDF8),
-                          ],
-                          stops: [0.0, 0.35, 0.70, 1.0],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.45),
-                            blurRadius: 18,
-                            offset: const Offset(0, 6),
-                          ),
-                          BoxShadow(
-                            color: const Color(0xFF38BDF8).withValues(alpha: 0.20),
-                            blurRadius: 32,
-                            spreadRadius: -4,
-                            offset: const Offset(0, 12),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Stack(children: [
-                          const Positioned.fill(child: ShimmerHeaderOverlay()),
-                          Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: widget.onGestionUsuarios,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 16),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 46,
-                                      height: 46,
+                                if (widget.onUploadPhoto != null)
+                                  Positioned(
+                                    bottom: -6,
+                                    right: -6,
+                                    child: Container(
+                                      width: 34,
+                                      height: 34,
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.16),
-                                        borderRadius: BorderRadius.circular(12),
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFF4361EE),
+                                            Color(0xFF00D2FF)
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        shape: BoxShape.circle,
                                         border: Border.all(
-                                            color: Colors.white
-                                                .withValues(alpha: 0.28)),
+                                            color: Colors.white, width: 2.5),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black
+                                                .withValues(alpha: 0.25),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
                                       ),
                                       child: const Icon(
-                                          Icons.manage_accounts_rounded,
-                                          color: Colors.white, size: 24),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    const Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text('Gestión de usuarios',
-                                              style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w700)),
-                                          SizedBox(height: 2),
-                                          Text('Usuarios, perfiles y accesos',
-                                              style: TextStyle(
-                                                  color: Colors.white70,
-                                                  fontSize: 11)),
-                                        ],
+                                        Icons.camera_alt_rounded,
+                                        color: Colors.white,
+                                        size: 16,
                                       ),
                                     ),
-                                    const Icon(Icons.arrow_forward_ios_rounded,
-                                        color: Colors.white54, size: 15),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ]),
-                      ),
-                    ),
-                  ),
-                ),
-
-                if (widget.showGestionUsuarios) const SizedBox(height: 14),
-
-                // Gestión de permisos por perfil (solo super admin)
-                if (widget.showGestionUsuarios) SlideTransition(
-                  position: _card1Slide,
-                  child: FadeTransition(
-                    opacity: _card1Fade,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF3B0764),
-                            Color(0xFF7C3AED),
-                            Color(0xFFC026D3),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF7C3AED).withValues(alpha: 0.45),
-                            blurRadius: 18,
-                            offset: const Offset(0, 6),
-                          ),
-                          BoxShadow(
-                            color: const Color(0xFFC026D3).withValues(alpha: 0.20),
-                            blurRadius: 32,
-                            spreadRadius: -4,
-                            offset: const Offset(0, 12),
-                          ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Stack(children: [
-                          const Positioned.fill(child: ShimmerHeaderOverlay()),
-                          Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(16),
-                              onTap: widget.onGestionPermisos,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 16),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 46,
-                                      height: 46,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withValues(alpha: 0.16),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                            color: Colors.white
-                                                .withValues(alpha: 0.28)),
-                                      ),
-                                      child: const Icon(Icons.tune_rounded,
-                                          color: Colors.white, size: 24),
-                                    ),
-                                    const SizedBox(width: 14),
-                                    const Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text('Gestión de permisos',
-                                              style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w700)),
-                                          SizedBox(height: 2),
-                                          Text('Qué módulos ve cada perfil',
-                                              style: TextStyle(
-                                                  color: Colors.white70,
-                                                  fontSize: 11)),
-                                        ],
-                                      ),
-                                    ),
-                                    const Icon(
-                                        Icons.arrow_forward_ios_rounded,
-                                        color: Colors.white54, size: 15),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ]),
-                      ),
-                    ),
-                  ),
-                ),
-
-                if (widget.showGestionUsuarios) const SizedBox(height: 14),
-
-                // Cerrar sesión
-                SlideTransition(
-                  position: _card2Slide,
-                  child: FadeTransition(
-                    opacity: _card2Fade,
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [
-                            Color(0xFF4A0010),
-                            Color(0xFF9B0028),
-                            Color(0xFFE5003A),
-                            Color(0xFFFF4D6D),
-                          ],
-                          stops: [0.0, 0.30, 0.65, 1.0],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFE5003A).withValues(alpha: 0.50),
-                            blurRadius: 20,
-                            offset: const Offset(0, 7),
-                          ),
-                          BoxShadow(
-                            color: const Color(0xFFFF4D6D).withValues(alpha: 0.25),
-                            blurRadius: 36,
-                            spreadRadius: -4,
-                            offset: const Offset(0, 14),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: _handleLogout,
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.logout_rounded,
-                                    color: Colors.white, size: 20),
-                                SizedBox(width: 10),
-                                Text('Cerrar sesión',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 15,
-                                      letterSpacing: 0.3,
-                                    )),
+                                  ),
                               ],
                             ),
                           ),
                         ),
                       ),
+                      const SizedBox(height: 16),
+                      // Nombre + email con slide up
+                      SlideTransition(
+                        position: _nameSlide,
+                        child: FadeTransition(
+                          opacity: _nameFade,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        _currentFullName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                          letterSpacing: -0.4,
+                                        ),
+                                      ),
+                                    ),
+                                    if (widget.canEditName &&
+                                        widget.onEditName != null) ...[
+                                      const SizedBox(width: 8),
+                                      GestureDetector(
+                                        onTap: _savingName ? null : _editName,
+                                        child: Container(
+                                          width: 26,
+                                          height: 26,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.16),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.25)),
+                                          ),
+                                          child: _savingName
+                                              ? const Padding(
+                                                  padding: EdgeInsets.all(6),
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Colors.white),
+                                                )
+                                              : const Icon(Icons.edit_rounded,
+                                                  color: Colors.white,
+                                                  size: 13),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                if (widget.email.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 14, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                          color: Colors.white
+                                              .withValues(alpha: 0.20)),
+                                    ),
+                                    child: Text(
+                                      widget.email,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white
+                                            .withValues(alpha: 0.85),
+                                        fontWeight: FontWeight.w500,
+                                        letterSpacing: 0.2,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 10),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    initials.toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.white70,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 2,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Opciones ──────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+              child: Column(
+                children: [
+                  // Gestión de usuarios (solo admin)
+                  if (widget.showGestionUsuarios)
+                    SlideTransition(
+                      position: _card1Slide,
+                      child: FadeTransition(
+                        opacity: _card1Fade,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF0B0D2E),
+                                Color(0xFF1A1B6E),
+                                Color(0xFF2563EB),
+                                Color(0xFF38BDF8),
+                              ],
+                              stops: [0.0, 0.35, 0.70, 1.0],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF2563EB)
+                                    .withValues(alpha: 0.45),
+                                blurRadius: 18,
+                                offset: const Offset(0, 6),
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFF38BDF8)
+                                    .withValues(alpha: 0.20),
+                                blurRadius: 32,
+                                spreadRadius: -4,
+                                offset: const Offset(0, 12),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Stack(children: [
+                              const Positioned.fill(
+                                  child: ShimmerHeaderOverlay()),
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: widget.onGestionUsuarios,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 16),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 46,
+                                          height: 46,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.16),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.28)),
+                                          ),
+                                          child: const Icon(
+                                              Icons.manage_accounts_rounded,
+                                              color: Colors.white,
+                                              size: 24),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        const Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Gestión de usuarios',
+                                                  style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w700)),
+                                              SizedBox(height: 2),
+                                              Text(
+                                                  'Usuarios, perfiles y accesos',
+                                                  style: TextStyle(
+                                                      color: Colors.white70,
+                                                      fontSize: 11)),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(
+                                            Icons.arrow_forward_ios_rounded,
+                                            color: Colors.white54,
+                                            size: 15),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  if (widget.showGestionUsuarios) const SizedBox(height: 14),
+
+                  // Gestión de permisos por perfil (solo super admin)
+                  if (widget.showGestionUsuarios)
+                    SlideTransition(
+                      position: _card1Slide,
+                      child: FadeTransition(
+                        opacity: _card1Fade,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF3B0764),
+                                Color(0xFF7C3AED),
+                                Color(0xFFC026D3),
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF7C3AED)
+                                    .withValues(alpha: 0.45),
+                                blurRadius: 18,
+                                offset: const Offset(0, 6),
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFFC026D3)
+                                    .withValues(alpha: 0.20),
+                                blurRadius: 32,
+                                spreadRadius: -4,
+                                offset: const Offset(0, 12),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Stack(children: [
+                              const Positioned.fill(
+                                  child: ShimmerHeaderOverlay()),
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: widget.onGestionPermisos,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 16),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 46,
+                                          height: 46,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.16),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.28)),
+                                          ),
+                                          child: const Icon(Icons.tune_rounded,
+                                              color: Colors.white, size: 24),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        const Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Gestión de permisos',
+                                                  style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w700)),
+                                              SizedBox(height: 2),
+                                              Text('Qué módulos ve cada perfil',
+                                                  style: TextStyle(
+                                                      color: Colors.white70,
+                                                      fontSize: 11)),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(
+                                            Icons.arrow_forward_ios_rounded,
+                                            color: Colors.white54,
+                                            size: 15),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  if (widget.showGestionUsuarios) const SizedBox(height: 14),
+
+                  // Cerrar sesión
+                  SlideTransition(
+                    position: _card2Slide,
+                    child: FadeTransition(
+                      opacity: _card2Fade,
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              Color(0xFF4A0010),
+                              Color(0xFF9B0028),
+                              Color(0xFFE5003A),
+                              Color(0xFFFF4D6D),
+                            ],
+                            stops: [0.0, 0.30, 0.65, 1.0],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFE5003A)
+                                  .withValues(alpha: 0.50),
+                              blurRadius: 20,
+                              offset: const Offset(0, 7),
+                            ),
+                            BoxShadow(
+                              color: const Color(0xFFFF4D6D)
+                                  .withValues(alpha: 0.25),
+                              blurRadius: 36,
+                              spreadRadius: -4,
+                              offset: const Offset(0, 14),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: _handleLogout,
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.logout_rounded,
+                                      color: Colors.white, size: 20),
+                                  SizedBox(width: 10),
+                                  Text('Cerrar sesión',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 15,
+                                        letterSpacing: 0.3,
+                                      )),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
   }
 }
 
@@ -766,22 +1136,22 @@ class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
       vsync: this, duration: const Duration(milliseconds: 460));
   late final AnimationController _iconCtrl = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 620));
-  late final Animation<double> _scale = Tween(begin: 0.78, end: 1.0).animate(
-      CurvedAnimation(parent: _entryCtrl, curve: Curves.elasticOut));
+  late final Animation<double> _scale = Tween(begin: 0.78, end: 1.0)
+      .animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.elasticOut));
   late final Animation<double> _fade = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
           parent: _entryCtrl,
           curve: const Interval(0.0, 0.45, curve: Curves.easeOut)));
-  late final Animation<double> _iconScale =
-      Tween(begin: 0.0, end: 1.0).animate(
-          CurvedAnimation(parent: _iconCtrl, curve: Curves.elasticOut));
+  late final Animation<double> _iconScale = Tween(begin: 0.0, end: 1.0)
+      .animate(CurvedAnimation(parent: _iconCtrl, curve: Curves.elasticOut));
 
   @override
   void initState() {
     super.initState();
     _entryCtrl.forward();
-    Future.delayed(const Duration(milliseconds: 190),
-        () { if (mounted) _iconCtrl.forward(); });
+    Future.delayed(const Duration(milliseconds: 190), () {
+      if (mounted) _iconCtrl.forward();
+    });
   }
 
   @override
@@ -792,7 +1162,12 @@ class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
   }
 
   static const _grad = LinearGradient(
-    colors: [Color(0xFF4A0010), Color(0xFF9B0028), Color(0xFFE5003A), Color(0xFFFF4D6D)],
+    colors: [
+      Color(0xFF4A0010),
+      Color(0xFF9B0028),
+      Color(0xFFE5003A),
+      Color(0xFFFF4D6D)
+    ],
     stops: [0.0, 0.30, 0.65, 1.0],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -830,8 +1205,7 @@ class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
                 padding: const EdgeInsets.symmetric(vertical: 32),
                 decoration: const BoxDecoration(
                   gradient: _grad,
-                  borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(24)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: Column(children: [
                   ScaleTransition(
@@ -873,10 +1247,8 @@ class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
                   Text(
                     'Se cerrará tu sesión activa y tendrás que\nvolver a iniciar sesión para continuar.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 13,
-                        color: textSoft,
-                        height: 1.6),
+                    style:
+                        TextStyle(fontSize: 13, color: textSoft, height: 1.6),
                   ),
                   const SizedBox(height: 22),
                   // Confirm button (full width, gradient)
@@ -886,8 +1258,8 @@ class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                            color: const Color(0xFFE5003A)
-                                .withValues(alpha: 0.40),
+                            color:
+                                const Color(0xFFE5003A).withValues(alpha: 0.40),
                             blurRadius: 14,
                             offset: const Offset(0, 5)),
                       ],
@@ -920,8 +1292,7 @@ class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF8899BB),
                       minimumSize: const Size(double.infinity, 46),
-                      side: BorderSide(
-                          color: lineCol, width: 1.5),
+                      side: BorderSide(color: lineCol, width: 1.5),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
                     ),
@@ -941,9 +1312,17 @@ class _LogoutConfirmDialogState extends State<_LogoutConfirmDialog>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pop-up de éxito al actualizar la foto de perfil. Se cierra solo.
+// Pop-up de éxito genérico con auto-cierre. Para errores se usa
+// AppResultDialog (app_dialogs.dart), el mismo de todo el resto de la app —
+// en la app no se usan SnackBar en ninguna pantalla.
 class _PhotoSuccessDialog extends StatefulWidget {
-  const _PhotoSuccessDialog();
+  final String title;
+  final String subtitle;
+
+  const _PhotoSuccessDialog({
+    this.title = '¡Foto actualizada!',
+    this.subtitle = 'Tu nueva foto de perfil se guardó correctamente.',
+  });
 
   @override
   State<_PhotoSuccessDialog> createState() => _PhotoSuccessDialogState();
@@ -957,15 +1336,14 @@ class _PhotoSuccessDialogState extends State<_PhotoSuccessDialog>
       vsync: this, duration: const Duration(milliseconds: 620));
   late final AnimationController _pulse = AnimationController(
       vsync: this, duration: const Duration(milliseconds: 1100));
-  late final Animation<double> _scale = Tween(begin: 0.78, end: 1.0).animate(
-      CurvedAnimation(parent: _entryCtrl, curve: Curves.elasticOut));
+  late final Animation<double> _scale = Tween(begin: 0.78, end: 1.0)
+      .animate(CurvedAnimation(parent: _entryCtrl, curve: Curves.elasticOut));
   late final Animation<double> _fade = Tween(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
           parent: _entryCtrl,
           curve: const Interval(0.0, 0.45, curve: Curves.easeOut)));
-  late final Animation<double> _iconScale =
-      Tween(begin: 0.0, end: 1.0).animate(
-          CurvedAnimation(parent: _iconCtrl, curve: Curves.elasticOut));
+  late final Animation<double> _iconScale = Tween(begin: 0.0, end: 1.0)
+      .animate(CurvedAnimation(parent: _iconCtrl, curve: Curves.elasticOut));
   late final Animation<double> _glow =
       Tween(begin: 0.25, end: 0.6).animate(_pulse);
 
@@ -1029,14 +1407,14 @@ class _PhotoSuccessDialogState extends State<_PhotoSuccessDialog>
               ],
             ),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
-              // ── Cabecera con gradiente + check animado ─────────────
+              // ── Cabecera con gradiente + check/error animado ───────
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 30),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: _grad,
                   borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(24)),
+                      const BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: Center(
                   child: AnimatedBuilder(
@@ -1049,8 +1427,7 @@ class _PhotoSuccessDialogState extends State<_PhotoSuccessDialog>
                         color: Colors.white.withValues(alpha: 0.18),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.white
-                                .withValues(alpha: _glow.value),
+                            color: Colors.white.withValues(alpha: _glow.value),
                             blurRadius: 30,
                             spreadRadius: 2,
                           ),
@@ -1070,14 +1447,14 @@ class _PhotoSuccessDialogState extends State<_PhotoSuccessDialog>
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 22, 24, 26),
                 child: Column(children: [
-                  Text('¡Foto actualizada!',
+                  Text(widget.title,
                       style: TextStyle(
                           color: textMain,
                           fontSize: 18,
                           fontWeight: FontWeight.w800)),
                   const SizedBox(height: 8),
                   Text(
-                    'Tu nueva foto de perfil se guardó correctamente.',
+                    widget.subtitle,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         color: textSoft.withValues(alpha: 0.85),
