@@ -3140,6 +3140,112 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
       setS(() => totalAPagar = total);
     }
 
+    // Proyección de cuotas (fecha/valor por cuota) — misma fórmula que
+    // recalcTotal, mostrada como vista previa antes de grabar el crédito.
+    List<Map<String, dynamic>> cuotasProyectadasCrear() {
+      final valor = double.tryParse(
+              valorCtrl.text.replaceAll('.', '').replaceAll(',', '.')) ??
+          0;
+      final cuotas = int.tryParse(numCuotasCtrl.text) ?? 0;
+      if (valor <= 0 || cuotas <= 0 || selectedTasa == null) return [];
+      final tasa =
+          double.tryParse((selectedTasa ?? '0').replaceAll('%', '').trim()) ??
+              0;
+      final diasPorCuota = {
+            '1': 30,
+            '2': 15,
+            '4': 7,
+            '30': 1,
+          }[selectedTiempoC ?? '1'] ??
+          30;
+      final totalDias = cuotas * diasPorCuota;
+      final tasaDiaria = tasa / 100 / 30;
+      final total = valor + (valor * tasaDiaria * totalDias);
+      final valorCuota = total / cuotas;
+      final base = fechaPrestamo ?? DateTime.now();
+      return List.generate(cuotas, (i) {
+        final fecha = base.add(Duration(days: diasPorCuota * (i + 1)));
+        return {'fecha': fecha, 'valor': valorCuota};
+      });
+    }
+
+    Widget cuotasTableCrear() {
+      final cuotas = cuotasProyectadasCrear();
+      if (cuotas.isEmpty) return const SizedBox.shrink();
+      return Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: lineCol),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(children: [
+          Container(
+            color: const Color(0xFF064E3B),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: const Row(children: [
+              Expanded(
+                  child: Text('Fecha',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12))),
+              Expanded(
+                  child: Text('Valor',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12))),
+            ]),
+          ),
+          ...List.generate(cuotas.length, (i) {
+            final fecha = cuotas[i]['fecha'] as DateTime;
+            final valor = cuotas[i]['valor'] as double;
+            final fechaStr =
+                '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}';
+            return Container(
+              color: i.isOdd ? cardBgAlt : cardBg,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              child: Row(children: [
+                Expanded(
+                    child: Text(fechaStr,
+                        style: TextStyle(fontSize: 12.5, color: textMain))),
+                Expanded(
+                    child: Text(formatCop(valor),
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: textMain))),
+              ]),
+            );
+          }),
+          Container(
+            color: const Color(0xFF10B981),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(children: [
+              const Expanded(
+                  child: Text('Total a pagar',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12))),
+              Expanded(
+                  child: Text(
+                      formatCop(cuotas.fold<double>(
+                          0, (s, c) => s + (c['valor'] as double))),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12))),
+            ]),
+          ),
+        ]),
+      );
+    }
+
     bool saving = false;
 
     showDialog(
@@ -3603,6 +3709,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 ),
                               ),
                             ),
+                            const SizedBox(height: 8),
+                            // Proyección de cuotas (vista previa antes de grabar)
+                            cuotasTableCrear(),
                             const SizedBox(height: 20),
                             // Botones
                             Row(
@@ -5585,6 +5694,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               fontSize: 12))),
                   Expanded(
                       child: Text('Valor',
+                          textAlign: TextAlign.right,
                           style: TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
@@ -5597,7 +5707,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 final fechaStr =
                     '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}';
                 return Container(
-                  color: i.isOdd ? const Color(0xFFF8F9FC) : Colors.white,
+                  color: i.isOdd ? cardBgAlt : cardBg,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                   child: Row(children: [
@@ -5606,6 +5716,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             style: TextStyle(fontSize: 12.5, color: textMain))),
                     Expanded(
                         child: Text(formatCop(valor),
+                            textAlign: TextAlign.right,
                             style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w600,
