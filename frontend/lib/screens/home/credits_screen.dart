@@ -3151,20 +3151,40 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
       final tasa =
           double.tryParse((selectedTasa ?? '0').replaceAll('%', '').trim()) ??
               0;
+      final tiempoCuotasCod = selectedTiempoC ?? '1';
       final diasPorCuota = {
             '1': 30,
             '2': 15,
             '4': 7,
             '30': 1,
-          }[selectedTiempoC ?? '1'] ??
+          }[tiempoCuotasCod] ??
           30;
       final totalDias = cuotas * diasPorCuota;
       final tasaDiaria = tasa / 100 / 30;
       final total = valor + (valor * tasaDiaria * totalDias);
-      final valorCuota = total / cuotas;
       final base = fechaPrestamo ?? DateTime.now();
+      // Misma fórmula que registrar_credito.php: cada cuota se redondea al
+      // mil siguiente (ceil), así la vista previa coincide con lo que el
+      // backend va a guardar (la suma real queda por encima del "total"
+      // teórico sin redondear).
+      final tasaDecimal = tasa / 100;
+      final tiempoCuotasNum = double.tryParse(tiempoCuotasCod) ?? 1;
+      double saldoRestante = valor;
       return List.generate(cuotas, (i) {
         final fecha = base.add(Duration(days: diasPorCuota * (i + 1)));
+        double valorCuota;
+        if (selectedTipoInt == '1') {
+          // Interés Fijo - valor constante, redondeado al mil siguiente
+          valorCuota = (total / cuotas / 1000).ceilToDouble() * 1000;
+        } else {
+          // Interés Variable - sobre saldo restante, redondeado al mil siguiente
+          final tasaPeriodo =
+              tiempoCuotasNum > 0 ? (tasaDecimal / tiempoCuotasNum) : tasaDecimal;
+          final interesCuota = saldoRestante * tasaPeriodo;
+          final amortizacion = valor / cuotas;
+          valorCuota = ((amortizacion + interesCuota) / 1000).ceilToDouble() * 1000;
+          saldoRestante -= amortizacion;
+        }
         return {'fecha': fecha, 'valor': valorCuota};
       });
     }
@@ -5503,10 +5523,27 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           final totalDias = cuotas * diasPorCuota;
           final tasaDiaria = tasa / 100 / 30;
           final total = valor + (valor * tasaDiaria * totalDias);
-          final valorCuota = total / cuotas;
           final hoy = DateTime.now();
+          // Misma fórmula que registrar_credito.php: cada cuota se redondea
+          // al mil siguiente (ceil).
+          final tasaDecimal = tasa / 100;
+          final tiempoCuotasNum = double.tryParse(tiempoCod) ?? 1;
+          double saldoRestante = valor;
           return List.generate(cuotas, (i) {
             final fecha = hoy.add(Duration(days: diasPorCuota * (i + 1)));
+            double valorCuota;
+            if (selectedTipoInt == '1') {
+              valorCuota = (total / cuotas / 1000).ceilToDouble() * 1000;
+            } else {
+              final tasaPeriodo = tiempoCuotasNum > 0
+                  ? (tasaDecimal / tiempoCuotasNum)
+                  : tasaDecimal;
+              final interesCuota = saldoRestante * tasaPeriodo;
+              final amortizacion = valor / cuotas;
+              valorCuota =
+                  ((amortizacion + interesCuota) / 1000).ceilToDouble() * 1000;
+              saldoRestante -= amortizacion;
+            }
             return {'fecha': fecha, 'valor': valorCuota};
           });
         }
