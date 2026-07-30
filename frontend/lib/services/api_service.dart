@@ -282,8 +282,9 @@ class ApiService {
     final prefs = await _getPrefs();
     if (_token != null) await prefs.setString(_tokenKey, _token!);
     if (_user != null) await prefs.setString(_userKey, jsonEncode(_user));
-    if (_sessionCookie != null)
+    if (_sessionCookie != null) {
       await prefs.setString(_sessionKey, _sessionCookie!);
+    }
   }
 
   // ── Local data cache helpers ──────────────────────────────────────

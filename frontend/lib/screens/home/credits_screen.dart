@@ -1795,9 +1795,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     const Expanded(child: Text('Pagados')),
                   ]),
                 ),
-                // "Atrasado" no es un codigo_estado del servidor: es un
-                // crédito Activo cuya próxima cuota ya venció (igual que
-                // el filtro "Atrasados" del listado de Créditos).
+                // Clave interna del dropdown; home_data_controller.dart la
+                // traduce a codigo_estado=4 (Atrasado) antes de llamar al
+                // backend.
                 DropdownMenuItem(
                   value: 'atrasado',
                   child: Row(children: [
@@ -3575,8 +3575,8 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                             : 'dd/mm/aaaa',
                                         style: dialogTextStyle.copyWith(
                                             color: fechaPrestamo != null
-                                                ? const Color(0xFF374151)
-                                                : const Color(0xFF9CA3AF)),
+                                                ? textMain
+                                                : textSoft),
                                       ),
                                     ),
                                     Icon(Icons.calendar_today_outlined,
@@ -3832,7 +3832,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
     final proxima = (c['proxima_fecha'] ?? '').toString();
     final estado = (c['estado'] ?? 'Activo').toString();
     final activo = estado.toLowerCase().contains('activ');
-    final vencido = isCreditoVencido(c);
+    // codigo_estado=4 (Atrasado) lo mantiene el servidor sincronizado contra
+    // las cuotas reales en cada carga (ver get_creditos_lista.php) — ya no
+    // hace falta recalcularlo aquí.
+    final vencido = estado.toLowerCase().contains('atrasad') ||
+        c['codigo_estado']?.toString() == '4';
 
     final cardKey = cod.isNotEmpty ? cod : nombre;
     final expanded = expandedCredits.contains(cardKey);
@@ -7064,11 +7068,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             ? 'El abono supera el saldo pendiente'
                             : 'Saldo tras este abono: ${formatCop(saldoTrasAbono)}',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                           color: excede
-                              ? const Color(0xFFB71C1C)
-                              : const Color(0xFF1B5E20),
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF10B981),
                         ),
                       ),
                     );
@@ -7409,6 +7413,11 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               if (ok) {
                                 Navigator.pop(ctx);
                                 onSaved();
+                                // El abono genera movimientos/cambios de
+                                // saldo automáticos (ver
+                                // registrar_abono_cuota.php), igual que al
+                                // crear un crédito.
+                                await refreshAfterMovementChange();
                               }
                               showResult(
                                   ok,
@@ -7454,6 +7463,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             if (ok) {
                               Navigator.pop(ctx);
                               onSaved();
+                              // El pago genera movimientos/cambios de saldo
+                              // automáticos (ver registrar_cuota_credito.php),
+                              // igual que al crear un crédito.
+                              await refreshAfterMovementChange();
                             }
                             showResult(
                                 ok,
@@ -7787,6 +7800,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(color: lineCol),
                         ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: lineCol),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide:
+                              const BorderSide(color: Color(0xFF7C3AED), width: 1.5),
+                        ),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 14),
                       ),
@@ -7798,8 +7820,21 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         ),
                         ...fuentesPago.map((f) => DropdownMenuItem(
                             value: f['codigo'],
-                            child: Text(f['nombre']!,
-                                overflow: TextOverflow.ellipsis))),
+                            child: Row(children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.only(right: 8),
+                                decoration: BoxDecoration(
+                                    color: sourceColor(f['nombre']!),
+                                    shape: BoxShape.circle),
+                              ),
+                              Expanded(
+                                child: Text(f['nombre']!,
+                                    style: TextStyle(color: textMain),
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                            ]))),
                       ],
                       onChanged: (v) => setS(() => fuente = v ?? ''),
                     ),
@@ -7820,6 +7855,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide(color: lineCol),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide(color: lineCol),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide:
+                              const BorderSide(color: Color(0xFF7C3AED), width: 1.5),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 14),
@@ -7888,10 +7932,6 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                   decoded['success'] == true;
                               if (ok) {
                                 Navigator.pop(ctx);
-                                repository.invalidateCache(
-                                    '/ajax/get_creditos_lista.php');
-                                await fetchCredits('');
-                                if (isMounted) refresh(() {});
                               }
                               showResult(
                                   ok,
@@ -7900,6 +7940,24 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                       : friendlyError(
                                           (decoded['error'] ?? r.body)
                                               .toString()));
+                              if (ok) {
+                                // La liquidación ya quedó confirmada por el
+                                // servidor — el popup de éxito no debe
+                                // esperar a que listas/saldos/movimientos se
+                                // recarguen (3-4 llamadas de red más), eso
+                                // corre en segundo plano igual que hace
+                                // applyLocalMovement en otros flujos.
+                                repository.invalidateCache(
+                                    '/ajax/get_creditos_lista.php');
+                                unawaited(fetchCredits('').then((_) {
+                                  if (isMounted) refresh(() {});
+                                }));
+                                // La liquidación genera movimientos/cambios
+                                // de saldo automáticos (ver
+                                // liquidar_credito.php), igual que al crear
+                                // un crédito.
+                                unawaited(refreshAfterMovementChange());
+                              }
                             },
                       child: Opacity(
                         opacity: (calculo == null || confirmando) ? 0.4 : 1,

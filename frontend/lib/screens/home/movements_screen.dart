@@ -6690,6 +6690,154 @@ class _ActionTileState extends State<_ActionTile>
   }
 }
 
+// ── Texto que se desliza (marquee) solo cuando no cabe en el ancho ─────────
+// Evita animar textos cortos que ya caben completos — solo entra en juego
+// cuando el título del movimiento se corta con "..." y el usuario necesita
+// verlo completo.
+class _MarqueeText extends StatefulWidget {
+  final String text;
+  final TextStyle style;
+
+  const _MarqueeText({required this.text, required this.style});
+
+  @override
+  State<_MarqueeText> createState() => _MarqueeTextState();
+}
+
+class _MarqueeTextState extends State<_MarqueeText>
+    with SingleTickerProviderStateMixin {
+  // Anima un valor 0..1 con un AnimationController propio (no depende del
+  // árbol de Scrollable/RenderObject como ScrollController.animateTo), así
+  // que es seguro de detener en dispose() sin importar en qué punto del
+  // loop esté el widget cuando la card se recicla o se quita de la lista.
+  //
+  // Se crea en initState() (no con `late final` inicializado perezosamente
+  // en el campo) porque un `late final` sin tocar antes de dispose() se
+  // inicializa DENTRO de dispose() mismo si el elemento nunca llegó a hacer
+  // build — y en ese punto el TickerProvider ya está inactivo, lo que
+  // revienta "Looking up a deactivated widget's ancestor is unsafe".
+  late final AnimationController _controller;
+  bool _needsMarquee = false;
+  bool _checked = false;
+  bool _disposed = false;
+  bool _looping = false;
+  double _overflow = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    );
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MarqueeText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // El ListView recicla el State de esta card para textos de movimientos
+    // distintos al hacer scroll (sin key propia por movimiento) — sin este
+    // reset, el nuevo texto heredaba el _overflow y la posición de scroll
+    // del texto anterior, mostrándose cortado a mitad de palabra.
+    if (oldWidget.text != widget.text) {
+      _checked = false;
+      _needsMarquee = false;
+      _looping = false;
+      _overflow = 0;
+      _controller.stop();
+      _controller.value = 0;
+    }
+  }
+
+  void _checkOverflow(double maxWidth) {
+    if (_checked) return;
+    // La card de movimiento entra con SlideTransition/Opacity animados: el
+    // primer par de builds puede recibir un maxWidth todavía inestable (0 o
+    // el del frame de entrada). No fiable para medir overflow, así que se
+    // descarta sin marcar _checked hasta tener un ancho utilizable.
+    if (maxWidth <= 0 || !maxWidth.isFinite) return;
+    _checked = true;
+    final painter = TextPainter(
+      text: TextSpan(text: widget.text, style: widget.style),
+      maxLines: 1,
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final overflow = painter.width - maxWidth;
+    if (overflow > 4) {
+      _needsMarquee = true;
+      _overflow = overflow + 12;
+      if (!_looping) {
+        _looping = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _loop());
+      }
+    }
+  }
+
+  Future<void> _loop() async {
+    while (!_disposed && mounted && _needsMarquee) {
+      await Future.delayed(const Duration(milliseconds: 1400));
+      if (_disposed || !mounted || !_needsMarquee) break;
+      await _controller.animateTo(
+        1,
+        duration: Duration(milliseconds: (_overflow * 55).clamp(2200, 9000).toInt()),
+        curve: Curves.linear,
+      );
+      if (_disposed || !mounted || !_needsMarquee) break;
+      await Future.delayed(const Duration(milliseconds: 1400));
+      if (_disposed || !mounted || !_needsMarquee) break;
+      await _controller.animateBack(
+        0,
+        duration: Duration(milliseconds: (_overflow * 35).clamp(1400, 5000).toInt()),
+        curve: Curves.easeInOut,
+      );
+    }
+    _looping = false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (context, constraints) {
+      _checkOverflow(constraints.maxWidth);
+      if (!_needsMarquee) {
+        return Text(widget.text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: widget.style);
+      }
+      return ClipRect(
+        child: SizedBox(
+          width: constraints.maxWidth,
+          height: (widget.style.fontSize ?? 14) * 1.35,
+          child: Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              AnimatedBuilder(
+                animation: _controller,
+                child: Text(widget.text,
+                    maxLines: 1,
+                    overflow: TextOverflow.visible,
+                    style: widget.style),
+                builder: (context, child) => Positioned(
+                  left: -_overflow * _controller.value,
+                  top: 0,
+                  child: child!,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+}
+
 // ── Card de movimiento animada: entrada + press + shimmer en icono ────────────
 class _AnimatedMovementCard extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -6963,9 +7111,8 @@ class _AnimatedMovementCardState extends State<_AnimatedMovementCard>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(desc,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            _MarqueeText(
+                                text: desc,
                                 style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 13,

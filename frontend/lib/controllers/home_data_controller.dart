@@ -724,20 +724,24 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     String asesorCodigo = '',
     String estado = '',
   }) async {
-    final condiciones = <String>[];
+    // La consulta guardada (tbl_conf_consultas.json_total_creditos_valores)
+    // es "WHERE (<<filtro>> = 0 OR d.codigo_asesor = <<filtro>>) AND
+    // (<<filtro2>> = 0 OR c.codigo_estado = <<filtro2>>)": ambos deben ser
+    // SOLO el valor numérico (0 = sin filtrar) — ningún codigo_asesor ni
+    // codigo_estado real es 0. "atrasado" no es un codigo_estado real, así
+    // que no se envía como filtro2 (el caller ya lo maneja aparte).
     final asesorNum = int.tryParse(asesorCodigo);
+    final filtro =
+        (asesorNum != null && asesorNum > 0) ? asesorNum.toString() : '0';
     final estadoNum = int.tryParse(estado);
-    if (asesorNum != null && asesorNum > 0) {
-      condiciones.add('d.codigo_asesor=$asesorNum');
-    }
-    if (estadoNum != null && estadoNum > 0) {
-      condiciones.add('c.codigo_estado=$estadoNum');
-    }
+    final filtro2 =
+        (estadoNum != null && estadoNum > 0) ? estadoNum.toString() : '0';
 
     try {
       final r = await repository.post('/ajax/listado_json_campos.php', {
         'codigo_consulta': 'json_total_creditos_valores',
-        'filtro': condiciones.join(' AND '),
+        'filtro': filtro,
+        'filtro2': filtro2,
         'agrupacion': '',
       }).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
@@ -891,58 +895,38 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   }
 
   Future<void> fetchCredits(String filtro, {bool soloListado = false}) async {
-    final estadoSeleccionado = creditStatusFilter;
-    // "Atrasados" no es un codigo_estado del servidor: es un crédito Activo
-    // (estado=1) cuya proxima_fecha ya venció. Se pide la lista completa de
-    // activos y se filtra/pagina acá mismo — si se paginara primero en el
-    // servidor, cada página traería una mezcla de al día/atrasados y el
-    // conteo total mostrado no correspondería a los atrasados reales.
-    final isAtrasadosFilter = estadoSeleccionado == 'atrasado';
-    // No-admin: siempre filtra por su propio codigo_origen (ID de asesor)
+    // "Atrasado" es codigo_estado=4, mantenido en el servidor (ver
+    // get_creditos_lista.php) contra las cuotas reales en cada carga — ya no
+    // es un cálculo del cliente, así que se pide y pagina igual que
+    // cualquier otro estado (Activo=1, Pagado=2, Atrasado=4).
+    final estadoSeleccionado =
+        creditStatusFilter == 'atrasado' ? '4' : creditStatusFilter;
+    // tbl_deudores.codigo_asesor guarda el codigo_asesor numérico real
+    // (confirmado en Network: asesor_cod "1", "9", ... nunca una sigla) —
+    // el dropdown de filtro guarda la sigla (creditAdvisorFilter), así que
+    // hay que traducirla al código antes de llamar a get_creditos_lista.php.
+    // No-admin: siempre filtra por su propio codigo_origen (ID de asesor).
     final asesorCodigo =
         isAdmin ? creditAdvisorCode(creditAdvisorFilter) : codigoOrigen;
 
     // Lista de créditos — endpoint dedicado con JSON + paginación
-    double? atrasadosPagado;
-    double? atrasadosPendiente;
     try {
       final r = await repository.post('/ajax/get_creditos_lista.php', {
-        'estado': isAtrasadosFilter ? '1' : estadoSeleccionado,
-        // La web conserva la sigla (JP, VB, etc.), mientras este endpoint
-        // dedicado filtra por codigo_asesor numérico.
+        'estado': estadoSeleccionado,
         'asesor': asesorCodigo,
-        'pagina': isAtrasadosFilter ? '1' : creditsPage.toString(),
-        'por_pagina': isAtrasadosFilter ? '1000' : creditsPageSize.toString(),
+        'pagina': creditsPage.toString(),
+        'por_pagina': creditsPageSize.toString(),
         if (creditsBuscar.isNotEmpty) 'buscar': creditsBuscar,
       }).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final decoded = jsonDecode(r.body);
         if (decoded is Map && decoded['datos'] is List) {
-          var lista = (decoded['datos'] as List)
+          final lista = (decoded['datos'] as List)
               .whereType<Map>()
               .map((e) => Map<String, dynamic>.from(e))
               .toList();
-          if (isAtrasadosFilter) {
-            lista = lista.where(isCreditoVencido).toList();
-            creditsTotal = lista.length;
-            // "Total Pagado/Pendiente" se calculan aquí sobre el listado ya
-            // filtrado (no solo la página visible) — el endpoint oficial de
-            // totales no entiende "atrasado" (ver más abajo) y devolvería
-            // las cifras de todos los créditos, no solo los vencidos.
-            atrasadosPagado = lista.fold<double>(
-                0, (sum, c) => sum + numberValue(c['total_pagado'] ?? 0));
-            atrasadosPendiente = lista.fold<double>(
-                0, (sum, c) => sum + numberValue(c['saldo_pendiente'] ?? 0));
-            final start = (creditsPage - 1) * creditsPageSize;
-            credits = start < lista.length
-                ? lista.sublist(
-                    start, (start + creditsPageSize).clamp(0, lista.length))
-                : <Map<String, dynamic>>[];
-          } else {
-            creditsTotal =
-                int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
-            credits = lista;
-          }
+          creditsTotal = int.tryParse(decoded['total']?.toString() ?? '0') ?? 0;
+          credits = lista;
           unawaited(repository.saveLocalData('creditos_lista', credits));
         }
       }
@@ -950,18 +934,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       debugPrint('[SAF] creditos lista: $e');
     }
 
-    if (isAtrasadosFilter) {
-      // El endpoint oficial de totales (abajo) filtra por codigo_estado
-      // numérico — "atrasado" no es un estado del servidor, así que ese
-      // filtro se ignoraría y traería el total de TODOS los créditos.
-      if (isMounted) {
-        refresh(() {
-          creditsPaidTotal = atrasadosPagado ?? 0;
-          creditsPendingTotal = atrasadosPendiente ?? 0;
-          creditsDataLoaded = true;
-        });
-      }
-    } else if (!soloListado) {
+    if (!soloListado) {
       // La cabecera de la web usa json_total_creditos_valores. El cálculo
       // incluido en get_creditos_lista.php puede diferir por ajustes de
       // cuotas, por lo que nunca debe sobrescribir estos totales oficiales.
