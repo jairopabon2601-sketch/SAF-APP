@@ -623,12 +623,103 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         size: 14, color: Colors.white),
                   ),
                   const SizedBox(width: 10),
-                  const Text('Filtrar resultados',
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: 0.2)),
+                  const Expanded(
+                    child: Text('Filtrar resultados',
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.2)),
+                  ),
+                  if (creditVenceHoyFilter)
+                    // Filtro "Vencen hoy" activo: chip con X para limpiarlo,
+                    // sin necesidad de tocar el dropdown Estado ni Consultar.
+                    GestureDetector(
+                      onTap: queryingCredits
+                          ? null
+                          : () async {
+                              refresh(() {
+                                creditVenceHoyFilter = false;
+                                creditsPage = 1;
+                                queryingCredits = true;
+                              });
+                              try {
+                                await fetchCredits('');
+                              } finally {
+                                if (isMounted) {
+                                  refresh(() => queryingCredits = false);
+                                }
+                              }
+                            },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7C3AED),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.30)),
+                        ),
+                        child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.bolt_rounded,
+                                  color: Colors.white, size: 11),
+                              SizedBox(width: 3),
+                              Text('Hoy',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700)),
+                              SizedBox(width: 3),
+                              Icon(Icons.close_rounded,
+                                  color: Colors.white, size: 12),
+                            ]),
+                      ),
+                    )
+                  else if (creditsVenceHoyCount > 0)
+                    GestureDetector(
+                      onTap: queryingCredits
+                          ? null
+                          : () async {
+                              refresh(() {
+                                creditSubTab = 0;
+                                creditStatusFilter = '';
+                                creditVenceHoyFilter = true;
+                                creditsPage = 1;
+                                queryingCredits = true;
+                              });
+                              try {
+                                await fetchCredits('');
+                              } finally {
+                                if (isMounted) {
+                                  refresh(() => queryingCredits = false);
+                                }
+                              }
+                            },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.30)),
+                        ),
+                        child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.bolt_rounded,
+                                  color: Color(0xFFC4B5FD), size: 11),
+                              const SizedBox(width: 3),
+                              Text('$creditsVenceHoyCount hoy',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700)),
+                            ]),
+                      ),
+                    ),
                 ]),
               ),
               Padding(
@@ -2225,12 +2316,97 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   const Icon(Icons.tune_rounded, size: 14, color: Colors.white),
             ),
             const SizedBox(width: 10),
-            const Text('Filtrar resultados',
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    letterSpacing: 0.2)),
+            const Expanded(
+              child: Text('Filtrar resultados',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                      letterSpacing: 0.2)),
+            ),
+            if (creditVenceHoyFilter)
+              // Filtro "Vencen hoy" activo: chip con X para limpiarlo, sin
+              // necesidad de tocar el dropdown Estado ni Consultar de nuevo.
+              GestureDetector(
+                onTap: queryingCredits
+                    ? null
+                    : () async {
+                        refresh(() {
+                          creditVenceHoyFilter = false;
+                          creditsPage = 1;
+                          queryingCredits = true;
+                        });
+                        try {
+                          await fetchCredits('');
+                        } finally {
+                          if (isMounted) {
+                            refresh(() => queryingCredits = false);
+                          }
+                        }
+                      },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C3AED),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.30)),
+                  ),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.bolt_rounded, color: Colors.white, size: 11),
+                    SizedBox(width: 3),
+                    Text('Hoy',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700)),
+                    SizedBox(width: 3),
+                    Icon(Icons.close_rounded, color: Colors.white, size: 12),
+                  ]),
+                ),
+              )
+            else if (creditsVenceHoyCount > 0)
+              GestureDetector(
+                onTap: queryingCredits
+                    ? null
+                    : () async {
+                        refresh(() {
+                          creditSubTab = 0;
+                          creditStatusFilter = '';
+                          creditVenceHoyFilter = true;
+                          creditsPage = 1;
+                          queryingCredits = true;
+                        });
+                        try {
+                          await fetchCredits('');
+                        } finally {
+                          if (isMounted) {
+                            refresh(() => queryingCredits = false);
+                          }
+                        }
+                      },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.30)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.bolt_rounded,
+                        color: Color(0xFFC4B5FD), size: 11),
+                    const SizedBox(width: 3),
+                    Text('$creditsVenceHoyCount hoy',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              ),
           ]),
         ),
         Padding(
@@ -2370,8 +2546,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                                   fontWeight: FontWeight.w600)),
                                         ]))),
                           ].toList(),
-                          onChanged: (v) =>
-                              refresh(() => creditStatusFilter = v ?? ''),
+                          onChanged: (v) => refresh(() {
+                            creditStatusFilter = v ?? '';
+                            creditVenceHoyFilter = false;
+                          }),
                         ),
                       ),
                     ),
@@ -2403,6 +2581,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
         refresh(() {
           creditSubTab = index;
           creditStatusFilter = '';
+          creditVenceHoyFilter = false;
         });
         if (index == 1 || index == 4) unawaited(fetchPending());
       },
@@ -4184,9 +4363,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Builder(builder: (_) {
-                        final boxColor =
-                            vencido ? const Color(0xFFDC2626) : accent;
-                        return Container(
+                        // "Vence hoy" es su propio estado visual (morado),
+                        // distinto de vencido (rojo, ya en mora) y del verde
+                        // normal — para que salte a la vista sin confundirse
+                        // con los colores que ya significan otra cosa.
+                        final hoyStr = () {
+                          final n = DateTime.now();
+                          return '${n.year.toString().padLeft(4, '0')}-${n.month.toString().padLeft(2, '0')}-${n.day.toString().padLeft(2, '0')}';
+                        }();
+                        final venceHoy =
+                            !vencido && proxima.startsWith(hoyStr);
+                        final boxColor = vencido
+                            ? const Color(0xFFDC2626)
+                            : venceHoy
+                                ? const Color(0xFF7C3AED)
+                                : accent;
+                        final content = Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 8),
                           decoration: BoxDecoration(
@@ -4213,10 +4405,15 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                           Color(0xFF7F1D1D),
                                           Color(0xFFDC2626)
                                         ]
-                                      : const [
-                                          Color(0xFF064E3B),
-                                          Color(0xFF10B981)
-                                        ],
+                                      : venceHoy
+                                          ? const [
+                                              Color(0xFF4C1D95),
+                                              Color(0xFF7C3AED)
+                                            ]
+                                          : const [
+                                              Color(0xFF064E3B),
+                                              Color(0xFF10B981)
+                                            ],
                                 ),
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: [
@@ -4230,7 +4427,9 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               child: Icon(
                                   vencido
                                       ? Icons.warning_amber_rounded
-                                      : Icons.event_rounded,
+                                      : venceHoy
+                                          ? Icons.bolt_rounded
+                                          : Icons.event_rounded,
                                   color: Colors.white,
                                   size: 16),
                             ),
@@ -4246,7 +4445,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                             letterSpacing: 0.5,
                                             fontWeight: FontWeight.w700)),
                                     const SizedBox(height: 2),
-                                    Text(proxima,
+                                    Text(venceHoy ? 'Hoy' : proxima,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
@@ -4257,6 +4456,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             ),
                           ]),
                         );
+                        return venceHoy
+                            ? _PulsingBox(
+                                glowColor: boxColor, child: content)
+                            : content;
                       }),
                     ),
                   ],
@@ -9151,6 +9354,65 @@ class _EliminarCreditoDialogState extends State<_EliminarCreditoDialog>
           ),
         ),
       ),
+    );
+  }
+}
+
+// ── Container con efecto palpitante (pulse) — usado en "PRÓX. CUOTA" cuando
+// la cuota vence hoy, para que salte a la vista que hay que cobrar ya mismo.
+class _PulsingBox extends StatefulWidget {
+  final Widget child;
+  final Color glowColor;
+
+  const _PulsingBox({required this.child, required this.glowColor});
+
+  @override
+  State<_PulsingBox> createState() => _PulsingBoxState();
+}
+
+class _PulsingBoxState extends State<_PulsingBox>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(_controller.value);
+        return Transform.scale(
+          scale: 1.0 + 0.015 * t,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.glowColor.withValues(alpha: 0.10 + 0.14 * t),
+                  blurRadius: 6 + 6 * t,
+                  spreadRadius: 0.5 + 1 * t,
+                ),
+              ],
+            ),
+            child: child,
+          ),
+        );
+      },
     );
   }
 }

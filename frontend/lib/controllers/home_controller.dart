@@ -56,6 +56,11 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
   bool filteredTotalsLoaded = false;
 
   String creditStatusFilter = '';
+  // Chip de acceso directo "Vencen hoy" — filtra créditos activos/atrasados
+  // cuya cuota pendiente más próxima cae hoy. Independiente de
+  // creditStatusFilter para no perder la selección de Estado si se activa
+  // desde otra pestaña.
+  bool creditVenceHoyFilter = false;
   String creditAdvisorFilter = '';
   String creditsBuscar = '';
   final TextEditingController creditsBuscarCtrl = TextEditingController();
@@ -65,6 +70,7 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
   int creditsTotal = 0;
   double creditsPaidTotal = 0;
   double creditsPendingTotal = 0;
+  int creditsVenceHoyCount = 0;
 
   List<Map<String, dynamic>> pendingRequests = [];
   int pendingPage = 1;

@@ -777,6 +777,23 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     if (isMounted) refresh(() => creditsDataLoaded = true);
   }
 
+  /// Cuenta créditos activos/atrasados cuya cuota pendiente más próxima
+  /// vence hoy — alimenta el chip de acceso directo "Vencen hoy" en Créditos.
+  Future<void> fetchCreditsVenceHoy({String asesorCodigo = ''}) async {
+    try {
+      final r = await repository.post('/ajax/get_creditos_vencen_hoy.php', {
+        'asesor': asesorCodigo,
+      }).timeout(const Duration(seconds: 10));
+      if (r.statusCode == 200) {
+        final d = decodeJsonMap(r.body);
+        final total = int.tryParse(d['total']?.toString() ?? '0') ?? 0;
+        if (isMounted) refresh(() => creditsVenceHoyCount = total);
+      }
+    } catch (e) {
+      debugPrint('[SAF] fetchCreditsVenceHoy: $e');
+    }
+  }
+
   Future<void> fetchSavers([String? anio, String? asesor]) async {
     try {
       final previousSavers = List<Map<String, dynamic>>.from(savers);
@@ -899,8 +916,11 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // get_creditos_lista.php) contra las cuotas reales en cada carga — ya no
     // es un cálculo del cliente, así que se pide y pagina igual que
     // cualquier otro estado (Activo=1, Pagado=2, Atrasado=4).
-    final estadoSeleccionado =
-        creditStatusFilter == 'atrasado' ? '4' : creditStatusFilter;
+    // El chip "Vencen hoy" fuerza estado=1 (Activo, incluye Atrasado) +
+    // vence_hoy=1, sin importar qué había seleccionado el dropdown Estado.
+    final estadoSeleccionado = creditVenceHoyFilter
+        ? '1'
+        : (creditStatusFilter == 'atrasado' ? '4' : creditStatusFilter);
     // tbl_deudores.codigo_asesor guarda el codigo_asesor numérico real
     // (confirmado en Network: asesor_cod "1", "9", ... nunca una sigla) —
     // el dropdown de filtro guarda la sigla (creditAdvisorFilter), así que
@@ -916,6 +936,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         'asesor': asesorCodigo,
         'pagina': creditsPage.toString(),
         'por_pagina': creditsPageSize.toString(),
+        if (creditVenceHoyFilter) 'vence_hoy': '1',
         if (creditsBuscar.isNotEmpty) 'buscar': creditsBuscar,
       }).timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
@@ -942,6 +963,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
         asesorCodigo: asesorCodigo,
         estado: estadoSeleccionado,
       );
+      unawaited(fetchCreditsVenceHoy(asesorCodigo: asesorCodigo));
     }
 
     // Al cambiar de página los totales y la estadística por fuente no
