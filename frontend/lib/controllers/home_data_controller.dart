@@ -779,6 +779,10 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
   /// Cuenta créditos activos/atrasados cuya cuota pendiente más próxima
   /// vence hoy — alimenta el chip de acceso directo "Vencen hoy" en Créditos.
+  /// Cuando el filtro está activo, además sobrescribe Total Pagado/Pendiente
+  /// con los valores de SOLO la cuota de hoy (no el crédito completo): si
+  /// nadie ha pagado todavía, Pagado debe verse en $0, no el acumulado
+  /// histórico del crédito.
   Future<void> fetchCreditsVenceHoy({String asesorCodigo = ''}) async {
     try {
       final r = await repository.post('/ajax/get_creditos_vencen_hoy.php', {
@@ -787,7 +791,15 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         final total = int.tryParse(d['total']?.toString() ?? '0') ?? 0;
-        if (isMounted) refresh(() => creditsVenceHoyCount = total);
+        if (isMounted) {
+          refresh(() {
+            creditsVenceHoyCount = total;
+            if (creditVenceHoyFilter) {
+              creditsPaidTotal = numberValue(d['total_pagado'] ?? 0);
+              creditsPendingTotal = numberValue(d['total_pendiente'] ?? 0);
+            }
+          });
+        }
       }
     } catch (e) {
       debugPrint('[SAF] fetchCreditsVenceHoy: $e');
@@ -956,14 +968,22 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     }
 
     if (!soloListado) {
-      // La cabecera de la web usa json_total_creditos_valores. El cálculo
-      // incluido en get_creditos_lista.php puede diferir por ajustes de
-      // cuotas, por lo que nunca debe sobrescribir estos totales oficiales.
-      await _fetchTotalesCreditos(
-        asesorCodigo: asesorCodigo,
-        estado: estadoSeleccionado,
-      );
-      unawaited(fetchCreditsVenceHoy(asesorCodigo: asesorCodigo));
+      if (creditVenceHoyFilter) {
+        // Con el filtro "Vencen hoy" activo, Total Pagado/Pendiente deben
+        // ser los de SOLO la cuota de hoy (ver fetchCreditsVenceHoy) — se
+        // evita llamar _fetchTotalesCreditos aquí para que no sobrescriba
+        // esos valores con los totales generales de todos los activos.
+        await fetchCreditsVenceHoy(asesorCodigo: asesorCodigo);
+      } else {
+        // La cabecera de la web usa json_total_creditos_valores. El cálculo
+        // incluido en get_creditos_lista.php puede diferir por ajustes de
+        // cuotas, por lo que nunca debe sobrescribir estos totales oficiales.
+        await _fetchTotalesCreditos(
+          asesorCodigo: asesorCodigo,
+          estado: estadoSeleccionado,
+        );
+        unawaited(fetchCreditsVenceHoy(asesorCodigo: asesorCodigo));
+      }
     }
 
     // Al cambiar de página los totales y la estadística por fuente no
