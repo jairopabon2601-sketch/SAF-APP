@@ -409,6 +409,11 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   Future<void> refreshAfterMovementChange() async {
     final codigoUsuario = (repository.user?['codigo_usuario'] ?? '').toString();
     if (codigoUsuario.isEmpty) return;
+    // fetchAccounts usa cachedPost — sin invalidar, un pago/movimiento
+    // recién registrado en la BD seguía sirviendo el saldo cacheado de
+    // listar_cuentas_gasto.php hasta que el TTL expirara solo (el usuario
+    // veía el saldo desactualizado "un rato" tras pagar una cuota).
+    repository.invalidateCache('/ajax/listar_cuentas_gasto.php');
     await Future.wait([
       fetchAccounts(codigoUsuario),
       _fetchMovimientosTodasCuentas(codigoUsuario),
@@ -471,6 +476,45 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // instante la caché vieja (sin este movimiento) antes de que la red
     // reconciliara.
     unawaited(repository.saveLocalData('movimientos', movements));
+  }
+
+  /// Pinta de una vez el par de movimientos que genera cualquier operación
+  /// de créditos (crear crédito, pago de cuota, abono, liquidación): entrada
+  /// a la cuenta fuente elegida por el usuario y salida de la cuenta de
+  /// Préstamos, mismo par que insertan registrar_credito.php,
+  /// registrar_cuota_credito.php y liquidar_credito.php en el servidor. Sin
+  /// esto, el saldo de Cuentas quedaba con el valor viejo hasta que
+  /// refreshAfterMovementChange() terminara su round-trip de red.
+  void applyLocalCreditMovements({
+    required String codigoFuente,
+    required double valor,
+    required String descripcion,
+  }) {
+    final prestamos = accounts.firstWhere(
+      (a) => a['es_cuenta_prestamos']?.toString() == '1',
+      orElse: () => <String, dynamic>{},
+    );
+    final codigoPrestamos =
+        (prestamos['codigo'] ?? prestamos['codigo_cuenta'] ?? '').toString();
+    if (codigoPrestamos.isEmpty || codigoFuente.isEmpty || valor <= 0) return;
+    final ahoraBogota = DateTime.now().toUtc().subtract(const Duration(hours: 5));
+    final fecha =
+        '${ahoraBogota.year}-${ahoraBogota.month.toString().padLeft(2, '0')}-'
+        '${ahoraBogota.day.toString().padLeft(2, '0')}';
+    applyLocalMovement(
+      codigoCuenta: codigoFuente,
+      tipoMovimiento: '3',
+      valor: valor,
+      fecha: fecha,
+      descripcion: descripcion,
+    );
+    applyLocalMovement(
+      codigoCuenta: codigoPrestamos,
+      tipoMovimiento: '2',
+      valor: valor,
+      fecha: fecha,
+      descripcion: descripcion,
+    );
   }
 
   // Si loadData() tuvo que estimar serverIncome/serverExpenses con la suma

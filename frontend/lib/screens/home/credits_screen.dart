@@ -677,9 +677,13 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             ]),
                       ),
                     )
-                  else if (creditsVenceHoyCount > 0)
+                  else
+                    // Siempre visible (incluso en 0) — un día sin
+                    // vencimientos es información útil, no algo que deba
+                    // desaparecer del header. Solo clicable si hay algo que
+                    // filtrar.
                     GestureDetector(
-                      onTap: queryingCredits
+                      onTap: (queryingCredits || creditsVenceHoyCount == 0)
                           ? null
                           : () async {
                               refresh(() {
@@ -701,20 +705,23 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.16),
+                          color: const Color(0xFF7C3AED).withValues(
+                              alpha: creditsVenceHoyCount > 0 ? 0.55 : 0.28),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.30)),
+                              color: const Color(0xFFC4B5FD).withValues(
+                                  alpha:
+                                      creditsVenceHoyCount > 0 ? 0.55 : 0.30)),
                         ),
                         child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(Icons.bolt_rounded,
-                                  color: Color(0xFFC4B5FD), size: 11),
+                                  color: Color(0xFFEDE9FE), size: 11),
                               const SizedBox(width: 3),
                               Text('$creditsVenceHoyCount hoy',
                                   style: const TextStyle(
-                                      color: Colors.white,
+                                      color: Color(0xFFEDE9FE),
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w700)),
                             ]),
@@ -2366,9 +2373,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   ]),
                 ),
               )
-            else if (creditsVenceHoyCount > 0)
+            else
+              // Siempre visible (incluso en 0) — un día sin vencimientos es
+              // información útil, no algo que deba desaparecer del header.
+              // Solo es clicable cuando hay algo que filtrar.
               GestureDetector(
-                onTap: queryingCredits
+                onTap: (queryingCredits || creditsVenceHoyCount == 0)
                     ? null
                     : () async {
                         refresh(() {
@@ -2390,18 +2400,24 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.16),
+                    color: Colors.white.withValues(
+                        alpha: creditsVenceHoyCount > 0 ? 0.16 : 0.06),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                        color: Colors.white.withValues(alpha: 0.30)),
+                        color: Colors.white.withValues(
+                            alpha: creditsVenceHoyCount > 0 ? 0.30 : 0.14)),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.bolt_rounded,
-                        color: Color(0xFFC4B5FD), size: 11),
+                    Icon(Icons.bolt_rounded,
+                        color: creditsVenceHoyCount > 0
+                            ? const Color(0xFFC4B5FD)
+                            : Colors.white.withValues(alpha: 0.35),
+                        size: 11),
                     const SizedBox(width: 3),
                     Text('$creditsVenceHoyCount hoy',
-                        style: const TextStyle(
-                            color: Colors.white,
+                        style: TextStyle(
+                            color: Colors.white.withValues(
+                                alpha: creditsVenceHoyCount > 0 ? 1 : 0.45),
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700)),
                   ]),
@@ -3540,11 +3556,48 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 repository.invalidateCache('/ajax/listado_json_campos.php');
                 final u = repository.user;
                 await fetchCredits(u?['codigo_usuario']?.toString() ?? '');
+                // Pintar el saldo de cuentas de una vez — a diferencia de
+                // pago/abono/liquidación, aquí el crédito SALE de la cuenta
+                // fuente (solo el capital) y ENTRA a la cuenta de Préstamos
+                // (capital+interés total), no el mismo valor en ambos lados;
+                // mismo par que registrar_credito.php inserta en el servidor.
+                final prestamos = accounts.firstWhere(
+                  (a) => a['es_cuenta_prestamos']?.toString() == '1',
+                  orElse: () => <String, dynamic>{},
+                );
+                final codigoPrestamos =
+                    (prestamos['codigo'] ?? prestamos['codigo_cuenta'] ?? '')
+                        .toString();
+                final valorPrestamo = double.tryParse(
+                        valorCtrl.text.replaceAll(RegExp(r'[^0-9.]'), '')) ??
+                    0;
+                if (codigoPrestamos.isNotEmpty &&
+                    (selectedFuente ?? '').isNotEmpty) {
+                  final ahoraBogota = DateTime.now()
+                      .toUtc()
+                      .subtract(const Duration(hours: 5));
+                  final hoyStr =
+                      '${ahoraBogota.year}-${ahoraBogota.month.toString().padLeft(2, '0')}-${ahoraBogota.day.toString().padLeft(2, '0')}';
+                  applyLocalMovement(
+                    codigoCuenta: selectedFuente!,
+                    tipoMovimiento: '2',
+                    valor: valorPrestamo,
+                    fecha: hoyStr,
+                    descripcion: 'Préstamo a deudor',
+                  );
+                  applyLocalMovement(
+                    codigoCuenta: codigoPrestamos,
+                    tipoMovimiento: '3',
+                    valor: totalAPagar,
+                    fecha: hoyStr,
+                    descripcion: 'Pago total de deudor',
+                  );
+                }
                 // El crédito genera movimientos/cambios de saldo automáticos
                 // (ver registrar_credito.php): sin esto, Movimientos y el
                 // saldo de Cuentas quedaban desactualizados hasta un
                 // pull-to-refresh manual en Inicio.
-                await refreshAfterMovementChange();
+                unawaited(refreshAfterMovementChange());
               }
             }
           } catch (e) {
@@ -7616,11 +7669,22 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               if (ok) {
                                 Navigator.pop(ctx);
                                 onSaved();
+                                // Pintar el saldo de cuentas de una vez (el
+                                // servidor genera este mismo par de
+                                // movimientos en registrar_abono_cuota.php)
+                                // — sin esto, el saldo mostrado quedaba
+                                // desactualizado hasta que terminara el
+                                // round-trip de red de abajo.
+                                applyLocalCreditMovements(
+                                  codigoFuente: fuente,
+                                  valor: val,
+                                  descripcion: 'Abono de cuota #$codigoCuota',
+                                );
                                 // El abono genera movimientos/cambios de
                                 // saldo automáticos (ver
                                 // registrar_abono_cuota.php), igual que al
                                 // crear un crédito.
-                                await refreshAfterMovementChange();
+                                unawaited(refreshAfterMovementChange());
                               }
                               showResult(
                                   ok,
@@ -7666,10 +7730,21 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             if (ok) {
                               Navigator.pop(ctx);
                               onSaved();
+                              // Pintar el saldo de cuentas de una vez (el
+                              // servidor genera este mismo par de
+                              // movimientos en registrar_cuota_credito.php)
+                              // — sin esto, el saldo mostrado quedaba
+                              // desactualizado hasta que terminara el
+                              // round-trip de red de abajo.
+                              applyLocalCreditMovements(
+                                codigoFuente: fuente,
+                                valor: val,
+                                descripcion: 'Pago de cuota #$codigoCuota',
+                              );
                               // El pago genera movimientos/cambios de saldo
                               // automáticos (ver registrar_cuota_credito.php),
                               // igual que al crear un crédito.
-                              await refreshAfterMovementChange();
+                              unawaited(refreshAfterMovementChange());
                             }
                             showResult(
                                 ok,
@@ -8155,6 +8230,14 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                 unawaited(fetchCredits('').then((_) {
                                   if (isMounted) refresh(() {});
                                 }));
+                                // Pintar el saldo de cuentas de una vez (el
+                                // servidor genera este mismo par de
+                                // movimientos en liquidar_credito.php).
+                                applyLocalCreditMovements(
+                                  codigoFuente: fuente,
+                                  valor: valorLiquidacion,
+                                  descripcion: 'Liquidación anticipada #$cod',
+                                );
                                 // La liquidación genera movimientos/cambios
                                 // de saldo automáticos (ver
                                 // liquidar_credito.php), igual que al crear
