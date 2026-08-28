@@ -7717,16 +7717,10 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             });
                             setS(() => saving = false);
                             if (!ctx.mounted) return;
-                            final bodyLowerCuota = r.body.toLowerCase();
                             final decodedCuota = decodeJsonMap(r.body);
                             final ok = r.statusCode == 200 &&
                                 (decodedCuota['success'] == true ||
-                                    decodedCuota['resultado'] == 1 ||
-                                    bodyLowerCuota
-                                        .contains('pago registrado') ||
-                                    bodyLowerCuota.contains('registrado') ||
-                                    bodyLowerCuota.contains('exitoso') ||
-                                    bodyLowerCuota.contains('success'));
+                                    decodedCuota['resultado'] == 1);
                             if (ok) {
                               Navigator.pop(ctx);
                               onSaved();
