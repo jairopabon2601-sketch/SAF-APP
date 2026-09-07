@@ -2866,6 +2866,10 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
   }) async {
     final ahorrador =
         (ahorro['ahorrador'] ?? ahorro['nombre'] ?? 'Ahorrador').toString();
+    final totalAhorrado = numberValue(
+        ahorro['total_ahorrado'] ?? ahorro['valor_pactado'] ?? 0);
+    final netoRecibir = numberValue(
+        ahorro['neto_pagar'] ?? ahorro['neto'] ?? 0);
     final codigoCuota = (cuota['codigo_cuota'] ?? '').toString();
     final mesComprobante = _mesComprobante(cuota, mes);
     final fechaCorta =
@@ -2887,6 +2891,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
               valorPagado: valorPagado,
               codigoCuota: codigoCuota,
               generado: generado,
+              totalAhorrado: totalAhorrado,
+              netoRecibir: netoRecibir,
             );
             final nombreSeguro = ahorrador
                 .toLowerCase()
@@ -3290,14 +3296,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                 margin:
                                     const EdgeInsets.fromLTRB(16, 12, 16, 4),
                                 decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFFF8FAFF),
-                                      Color(0xFFEEF2FF)
-                                    ],
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                  ),
+                                  color: cardBgAlt,
                                   borderRadius: BorderRadius.circular(18),
                                   border: Border.all(
                                       color: const Color(0xFF4F46E5)
@@ -3367,6 +3366,10 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                               formatCop(valorPagado)),
                                           _cuotaInfoRow(
                                               'Código Cuota', codigoCuota),
+                                          _cuotaInfoRow('Total Ahorrado',
+                                              formatCop(totalAhorrado)),
+                                          _cuotaInfoRow('Valor a Recibir (a hoy)',
+                                              formatCop(netoRecibir)),
                                         ]),
                                       ),
                                       // Footer
@@ -3376,14 +3379,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 12, vertical: 8),
                                         decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            colors: [
-                                              Color(0xFFEEF2FF),
-                                              Color(0xFFE0E7FF)
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
+                                          color: chipIndigo,
                                           borderRadius:
                                               BorderRadius.circular(10),
                                           border: Border.all(
@@ -3391,15 +3387,21 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                                                   .withValues(alpha: 0.18)),
                                         ),
                                         child: Row(children: [
-                                          const Icon(Icons.schedule_rounded,
+                                          Icon(Icons.schedule_rounded,
                                               size: 12,
-                                              color: Color(0xFF4F46E5)),
+                                              color: isDarkTheme
+                                                  ? const Color(0xFFA5B4FC)
+                                                  : const Color(0xFF4F46E5)),
                                           const SizedBox(width: 6),
                                           Expanded(
                                             child: Text('Generado: $generado',
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                     fontSize: 9,
-                                                    color: Color(0xFF4338CA),
+                                                    color: isDarkTheme
+                                                        ? const Color(
+                                                            0xFFC7D2FE)
+                                                        : const Color(
+                                                            0xFF4338CA),
                                                     fontWeight:
                                                         FontWeight.w600)),
                                           ),
@@ -3474,6 +3476,8 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
     required double valorPagado,
     required String codigoCuota,
     required String generado,
+    required double totalAhorrado,
+    required double netoRecibir,
   }) async {
     final documento = pw.Document(
       title: 'Comprobante de Pago SAF',
@@ -3759,6 +3763,38 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
                           pw.Divider(height: 0, color: border),
                           filaDato('Código Cuota', '#$codigoCuota',
                               shade: true),
+                          pw.Divider(height: 0, color: border),
+                          filaDato('Total Ahorrado', formatCop(totalAhorrado),
+                              shade: false),
+                          pw.Divider(height: 0, color: border),
+                          // Fila valor a recibir destacada
+                          pw.Container(
+                            color: const PdfColor(0.925, 0.976, 0.953),
+                            padding: const pw.EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 13),
+                            child: pw.Row(
+                              children: [
+                                pw.SizedBox(
+                                  width: 130,
+                                  child: pw.Text('Valor a Recibir (a hoy)',
+                                      style: pw.TextStyle(
+                                        fontSize: 10,
+                                        color: PdfColors.grey700,
+                                        fontWeight: pw.FontWeight.bold,
+                                      )),
+                                ),
+                                pw.Container(
+                                    width: 1, height: 16, color: border),
+                                pw.SizedBox(width: 16),
+                                pw.Text(formatCop(netoRecibir),
+                                    style: pw.TextStyle(
+                                      fontSize: 16,
+                                      color: green,
+                                      fontWeight: pw.FontWeight.bold,
+                                    )),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -3891,7 +3927,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         decoration: BoxDecoration(
           color: cardBg,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE0E7FF)),
+          border: Border.all(color: lineCol),
         ),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(
