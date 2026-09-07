@@ -6081,7 +6081,8 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
       if (isMounted) {
         if (ok) {
           final esIngreso = movementIsIncome(m);
-          final valorMov = numberValue(m['valor'] ?? 0);
+          final valorMov = numberValue(m['valor'] ?? 0).abs();
+          final codigoCuenta = (m['codigo_cuenta'] ?? '').toString().trim();
           refresh(() {
             bool matchCod(Map<String, dynamic> x) =>
                 (x['codigo'] ?? x['codigo_movimiento'] ?? x['id'] ?? '')
@@ -6090,6 +6091,22 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 cod;
             movements.removeWhere(matchCod);
             selectedAccountMovements.removeWhere(matchCod);
+            // El endpoint ya revierte saldo_actual en la BD. Reflejar la
+            // misma operación de inmediato evita dejar visible el saldo
+            // anterior mientras termina el refetch de cuentas.
+            if (codigoCuenta.isNotEmpty && valorMov > 0) {
+              final cuenta = accounts.firstWhere(
+                (c) =>
+                    (c['codigo'] ?? c['codigo_cuenta'] ?? '').toString() ==
+                    codigoCuenta,
+                orElse: () => <String, dynamic>{},
+              );
+              if (cuenta.isNotEmpty) {
+                final saldo = numberValue(cuenta['saldo_actual'] ?? 0);
+                cuenta['saldo_actual'] =
+                    esIngreso ? saldo - valorMov : saldo + valorMov;
+              }
+            }
             if (esIngreso) {
               serverIncome =
                   (serverIncome - valorMov).clamp(0, double.infinity);
@@ -6104,11 +6121,14 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           // se quedaba con el movimiento ya eliminado — por eso a veces
           // reaparecía justo después de un hot restart.
           unawaited(repository.saveLocalData('movimientos', movements));
+          unawaited(repository.saveLocalData('cuentas', accounts));
           showResult(true, 'Movimiento eliminado correctamente');
           final usuario = (repository.user?['codigo_usuario'] ?? '').toString();
           if (usuario.isNotEmpty) {
-            repository.invalidateCache('/ajax/listar_cuentas_gasto.php');
-            unawaited(fetchAccounts(usuario));
+            // Además de cuentas, reconcilia lista y totales. Este helper
+            // fuerza un refresh al finalizar; fetchAccounts() por sí solo
+            // actualiza memoria pero no repinta esta pantalla.
+            unawaited(refreshAfterMovementChange());
           }
         } else {
           final msg =
