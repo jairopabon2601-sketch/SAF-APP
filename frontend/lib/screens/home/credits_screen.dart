@@ -100,7 +100,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       // ── Header ──────────────────────────────────────────────
-      AnimatedBuilder(
+      RepaintBoundary(child: AnimatedBuilder(
         animation: shimmer,
         builder: (_, __) => Container(
           margin: const EdgeInsets.fromLTRB(20, 16, 20, 14),
@@ -291,7 +291,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             ]),
           ),
         ),
-      ),
+      )),
 
       // ── Sub-tabs scrollables ────────────────────────────────
       Padding(
@@ -353,7 +353,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 child: RepaintBoundary(child: entryChild),
               ),
             ),
-            child: AnimatedBuilder(
+            child: RepaintBoundary(child: AnimatedBuilder(
               animation: shimmer,
               builder: (_, __) {
                 final total = totalPagado + totalPendiente;
@@ -577,7 +577,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   ),
                 );
               },
-            ),
+            )),
           ),
 
         // ── Filtros: completo en Aprobados, solo Estado en Pendientes
@@ -1430,7 +1430,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             const SizedBox(height: 12),
 
             // ── Resultado principal: Cuota mensual ───────────
-            AnimatedBuilder(
+            RepaintBoundary(child: AnimatedBuilder(
               animation: shimmer,
               builder: (_, __) => Container(
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 0),
@@ -1523,7 +1523,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   ]),
                 ),
               ),
-            ),
+            )),
 
             const SizedBox(height: 14),
 
@@ -1741,7 +1741,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // ── Header ────────────────────────────────────────────
-        AnimatedBuilder(
+        RepaintBoundary(child: AnimatedBuilder(
           animation: shimmer,
           builder: (_, __) => Container(
             decoration: BoxDecoration(
@@ -1833,7 +1833,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               ]),
             ),
           ),
-        ),
+        )),
         const SizedBox(height: 14),
 
         // ── Card de filtros ───────────────────────────────────
@@ -4297,7 +4297,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   // Barrido de luz animado (shimmer)
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: AnimatedBuilder(
+                      child: RepaintBoundary(child: AnimatedBuilder(
                         animation: shimmer,
                         builder: (_, __) => Transform.translate(
                           offset: Offset((shimmer.value * 2 - 1) * 220, 0),
@@ -4315,7 +4315,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             ),
                           ),
                         ),
-                      ),
+                      )),
                     ),
                   ),
                 ]),
@@ -4746,7 +4746,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
 
   Widget _creditHeaderBadge(
           IconData icon, String count, String label, Color color) =>
-      AnimatedBuilder(
+      RepaintBoundary(child: AnimatedBuilder(
         animation: shimmer,
         builder: (_, __) => ClipRRect(
           borderRadius: BorderRadius.circular(14),
@@ -4821,7 +4821,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
             ]),
           ),
         ),
-      );
+      ));
 
   Widget _creditsTotalStat({
     required IconData icon,
@@ -4869,7 +4869,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
           // un total que ya cargó y de verdad es cero, así que se muestra un
           // placeholder shimmer hasta que el dato definitivo esté listo.
           if (loading)
-            AnimatedBuilder(
+            RepaintBoundary(child: AnimatedBuilder(
               animation: shimmer,
               builder: (_, __) => Container(
                 width: 74,
@@ -4880,7 +4880,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   borderRadius: BorderRadius.circular(6),
                 ),
               ),
-            )
+            ))
           else if (!balanceVisible)
             const Text('• • • •',
                 style: TextStyle(
@@ -5412,7 +5412,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                   ),
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: AnimatedBuilder(
+                      child: RepaintBoundary(child: AnimatedBuilder(
                         animation: shimmer,
                         builder: (_, __) => Transform.translate(
                           offset: Offset((shimmer.value * 2 - 1) * 220, 0),
@@ -5430,7 +5430,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                             ),
                           ),
                         ),
-                      ),
+                      )),
                     ),
                   ),
                 ]),
@@ -6666,7 +6666,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               fontWeight: FontWeight.w700))),
                   Expanded(
                       flex: 3,
-                      child: Text('Fecha pago',
+                      child: Text('F. límite',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -6680,7 +6680,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                               fontWeight: FontWeight.w700))),
                   Expanded(
                       flex: 3,
-                      child: Text('V. Pagado',
+                      child: Text('Pagado / Fecha',
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -6736,6 +6736,12 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                       final pagadoSi = pagadoFlag.toLowerCase() == 'si' ||
                           (valorPagado >= valorPago && valorPagado > 0);
                       final fechaPago = (q['fecha_pago'] ?? '').toString();
+                      // Fecha real en que el cliente pagó (o abonó) la cuota.
+                      final fechaReal =
+                          _fechaPagoRealCuota(q['fecha_registro_pago']);
+                      final diasPago = pagadoSi && fechaReal.isNotEmpty
+                          ? _diasEntreFechas(fechaPago, fechaReal)
+                          : null;
                       final accentPill = pagadoSi
                           ? (isDarkTheme
                               ? const Color(0xFF6EE7A0)
@@ -6787,12 +6793,46 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                                         color: txt))),
                             Expanded(
                                 flex: 3,
-                                child: Text(
-                                    valorPagado > 0
-                                        ? formatCop(valorPagado)
-                                        : '',
-                                    style:
-                                        TextStyle(fontSize: 10, color: txt))),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (valorPagado > 0)
+                                      Text(formatCop(valorPagado),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: txt)),
+                                    if (fechaReal.isNotEmpty &&
+                                        (pagadoSi || valorPagado > 0))
+                                      _FechaPagoChip(
+                                        fecha: _fechaCortaEs(fechaReal),
+                                        color: !pagadoSi
+                                            ? (isDarkTheme
+                                                ? const Color(0xFFA5B4FC)
+                                                : const Color(0xFF4F46E5))
+                                            : (diasPago != null && diasPago > 0)
+                                                ? (isDarkTheme
+                                                    ? const Color(0xFFFBBF24)
+                                                    : const Color(0xFFB45309))
+                                                : (isDarkTheme
+                                                    ? const Color(0xFF6EE7A0)
+                                                    : const Color(0xFF15803D)),
+                                        icon: !pagadoSi
+                                            ? Icons.timelapse_rounded
+                                            : (diasPago != null && diasPago > 0)
+                                                ? Icons.schedule_rounded
+                                                : Icons.event_available_rounded,
+                                        tooltip: _tooltipFechaPago(
+                                            fechaReal, pagadoSi, diasPago),
+                                        delay: Duration(
+                                            milliseconds:
+                                                220 + (i < 12 ? i : 12) * 45),
+                                      ),
+                                  ],
+                                )),
                             SizedBox(
                                 width: 28,
                                 child: Center(
@@ -9082,7 +9122,7 @@ class _PulsingDotState extends State<_PulsingDot>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
+    return RepaintBoundary(child: AnimatedBuilder(
       animation: _pulse,
       builder: (_, __) => Transform.scale(
         scale: 0.9 + (_pulse.value * 0.25),
@@ -9102,7 +9142,7 @@ class _PulsingDotState extends State<_PulsingDot>
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -9468,7 +9508,7 @@ class _PulsingBoxState extends State<_PulsingBox>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
+    return RepaintBoundary(child: AnimatedBuilder(
       animation: _controller,
       child: widget.child,
       builder: (context, child) {
@@ -9490,6 +9530,203 @@ class _PulsingBoxState extends State<_PulsingBox>
           ),
         );
       },
+    ));
+  }
+}
+
+// ─── Fecha real de pago de una cuota ──────────────────────────────────────────
+
+const _mesesCortosEs = [
+  'ene', 'feb', 'mar', 'abr', 'may', 'jun',
+  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+];
+const _mesesLargosEs = [
+  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+];
+
+/// `fecha_registro_pago` normalizada a yyyy-MM-dd. MySQL puede devolver
+/// null, vacío o '0000-00-00' cuando la cuota nunca se pagó: eso no es fecha.
+String _fechaPagoRealCuota(dynamic raw) {
+  final f = (raw ?? '').toString().trim();
+  if (f.length < 10 || f.startsWith('0000')) return '';
+  final ymd = f.substring(0, 10);
+  return RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(ymd) ? ymd : '';
+}
+
+/// Días entre la fecha límite y la fecha real de pago
+/// (positivo = pagó tarde, negativo = antes, 0 = el mismo día).
+int? _diasEntreFechas(String fechaLimite, String fechaPago) {
+  try {
+    final a = DateTime.parse(fechaLimite.substring(0, 10));
+    final b = DateTime.parse(fechaPago.substring(0, 10));
+    return DateTime.utc(b.year, b.month, b.day)
+        .difference(DateTime.utc(a.year, a.month, a.day))
+        .inDays;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// '2026-10-23' → '23 oct 2026'
+String _fechaCortaEs(String ymd) {
+  try {
+    final d = DateTime.parse(ymd);
+    return '${d.day.toString().padLeft(2, '0')} ${_mesesCortosEs[d.month - 1]} ${d.year}';
+  } catch (_) {
+    return ymd;
+  }
+}
+
+String _tooltipFechaPago(String ymd, bool pagada, int? dias) {
+  String larga;
+  try {
+    final d = DateTime.parse(ymd);
+    larga = '${d.day} de ${_mesesLargosEs[d.month - 1]} de ${d.year}';
+  } catch (_) {
+    larga = ymd;
+  }
+  if (!pagada) return 'Último abono: $larga';
+  if (dias == null) return 'Pagó el $larga';
+  if (dias > 0) return 'Pagó el $larga · $dias día${dias == 1 ? '' : 's'} tarde';
+  if (dias < 0) {
+    return 'Pagó el $larga · ${-dias} día${dias == -1 ? '' : 's'} antes';
+  }
+  return 'Pagó el $larga · a tiempo';
+}
+
+/// Chip con la fecha en que se realizó el pago: entra con un "pop" escalonado
+/// y luego un brillo suave lo recorre cada pocos segundos. Va dentro de su
+/// propio RepaintBoundary para que el brillo no obligue a repintar la fila.
+class _FechaPagoChip extends StatefulWidget {
+  const _FechaPagoChip({
+    required this.fecha,
+    required this.color,
+    required this.icon,
+    required this.tooltip,
+    this.delay = Duration.zero,
+  });
+
+  final String fecha;
+  final Color color;
+  final IconData icon;
+  final String tooltip;
+  final Duration delay;
+
+  @override
+  State<_FechaPagoChip> createState() => _FechaPagoChipState();
+}
+
+class _FechaPagoChipState extends State<_FechaPagoChip>
+    with TickerProviderStateMixin {
+  late final AnimationController _entry = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 520));
+  late final AnimationController _shine = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 3200));
+  late final Animation<double> _pop =
+      CurvedAnimation(parent: _entry, curve: Curves.easeOutBack);
+  late final Animation<double> _fade = CurvedAnimation(
+      parent: _entry, curve: const Interval(0.0, 0.6, curve: Curves.easeOut));
+  Timer? _startTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer = Timer(widget.delay, () {
+      if (!mounted) return;
+      _entry.forward().whenComplete(() {
+        if (!mounted) return;
+        final reduceMotion = MediaQuery.of(context).disableAnimations;
+        if (!reduceMotion) _shine.repeat();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _startTimer?.cancel();
+    _entry.dispose();
+    _shine.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.color;
+    final chip = ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: Stack(children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+          decoration: BoxDecoration(
+            color: c.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: c.withValues(alpha: 0.45), width: 0.8),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(widget.icon, size: 10, color: c),
+            const SizedBox(width: 3),
+            Text(widget.fecha,
+                maxLines: 1,
+                style: TextStyle(
+                    fontSize: 9,
+                    height: 1.2,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.1,
+                    color: c)),
+          ]),
+        ),
+        // Brillo diagonal que cruza el chip en el primer 40% de cada ciclo.
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _shine,
+              builder: (_, __) {
+                final t = (_shine.value / 0.4).clamp(0.0, 1.0);
+                if (t <= 0 || t >= 1) return const SizedBox.shrink();
+                return Align(
+                  alignment: Alignment(-1.8 + 3.6 * t, 0),
+                  child: Transform.rotate(
+                    angle: 0.35,
+                    child: Container(
+                      width: 12,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [
+                          Colors.white.withValues(alpha: 0),
+                          Colors.white.withValues(alpha: 0.45),
+                          Colors.white.withValues(alpha: 0),
+                        ]),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ]),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Tooltip(
+        message: widget.tooltip,
+        triggerMode: TooltipTriggerMode.tap,
+        preferBelow: false,
+        child: FadeTransition(
+          opacity: _fade,
+          child: ScaleTransition(
+            scale: _pop,
+            alignment: Alignment.centerLeft,
+            child: RepaintBoundary(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: chip,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

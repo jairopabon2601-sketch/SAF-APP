@@ -432,7 +432,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
   // ── Hero card del asesor ────────────────────────────────────────────────────
   Widget _buildAsesorBalanceCard(String greeting, String name,
       double totalAhorrado, int total, int enMora, int alDia) {
-    return AnimatedBuilder(
+    return RepaintBoundary(child: AnimatedBuilder(
       animation: shimmer,
       builder: (_, child) => Container(
         margin: const EdgeInsets.fromLTRB(20, 6, 20, 0),
@@ -638,7 +638,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           ]),
         ],
       ),
-    );
+    ));
   }
 
   // ── Barra de salud mora/al-día ──────────────────────────────────────────────
@@ -1319,7 +1319,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
     double ratio,
   ) {
     final pct = (ratio * 100).toStringAsFixed(0);
-    return AnimatedBuilder(
+    return RepaintBoundary(child: AnimatedBuilder(
       animation: shimmer,
       builder: (_, child) => Container(
         margin: const EdgeInsets.fromLTRB(20, 6, 20, 0),
@@ -1556,7 +1556,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           ]),
         ],
       ),
-    );
+    ));
   }
 
   // ── Barra de recuperación ───────────────────────────────────────────────────
@@ -2179,7 +2179,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
       tween: Tween(begin: 0.0, end: ratio),
       duration: const Duration(milliseconds: 900),
       curve: Curves.easeOutCubic,
-      builder: (_, animRatio, __) => AnimatedBuilder(
+      builder: (_, animRatio, __) => RepaintBoundary(child: AnimatedBuilder(
         animation: shimmer,
         builder: (_, __) => Container(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
@@ -2356,7 +2356,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -2438,7 +2438,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           child: RepaintBoundary(child: cardChild),
         ),
       ),
-      child: AnimatedBuilder(
+      child: RepaintBoundary(child: AnimatedBuilder(
         animation: shimmer,
         builder: (_, child) {
           return Container(
@@ -2816,7 +2816,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             ),
           ],
         ),
-      ),
+      )),
     );
   }
 
@@ -3065,7 +3065,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
         ),
       ),
-      child: AnimatedBuilder(
+      child: RepaintBoundary(child: AnimatedBuilder(
         animation: shimmer,
         builder: (_, innerChild) => Container(
           width: double.infinity,
@@ -3286,7 +3286,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             ],
           ],
         ),
-      ),
+      )),
     );
   }
 
@@ -3336,7 +3336,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
           child: RepaintBoundary(child: child),
         ),
       ),
-      child: AnimatedBuilder(
+      child: RepaintBoundary(child: AnimatedBuilder(
         animation: shimmer,
         builder: (_, __) => Container(
           width: 154,
@@ -3525,7 +3525,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
             ]),
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -3659,7 +3659,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
   Widget _dashboardSkeleton() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AnimatedBuilder(
+          RepaintBoundary(child: AnimatedBuilder(
             animation: shimmer,
             builder: (_, __) {
               final c = isDarkTheme
@@ -3692,7 +3692,7 @@ extension HomeDashboardScreen<T extends StatefulWidget> on HomeController<T> {
                     ]),
               );
             },
-          ),
+          )),
           const SizedBox(height: 24),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),

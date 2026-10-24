@@ -1872,7 +1872,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
         const SizedBox(height: 14),
 
         // ── Banner hero ───────────────────────────────────────
-        AnimatedBuilder(
+        RepaintBoundary(child: AnimatedBuilder(
           animation: shimmer,
           builder: (_, __) => Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -2010,7 +2010,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
               ]),
             ),
           ),
-        ),
+        )),
 
         const SizedBox(height: 14),
 
@@ -2243,7 +2243,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
   Widget _ahorMiniStat(
           IconData icon, String label, String value, Color color) =>
       Expanded(
-        child: AnimatedBuilder(
+        child: RepaintBoundary(child: AnimatedBuilder(
           animation: shimmer,
           builder: (_, __) => ClipRRect(
             borderRadius: BorderRadius.circular(14),
@@ -2319,7 +2319,7 @@ extension HomeSavingsScreen<T extends StatefulWidget> on HomeController<T> {
               ]),
             ),
           ),
-        ),
+        )),
       );
 
   // ══════════════════════════════════════════════════════════════

@@ -21,7 +21,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Premium header ─────────────────────────────────
-          AnimatedBuilder(
+          RepaintBoundary(child: AnimatedBuilder(
             animation: shimmer,
             builder: (_, __) {
               final g = shimmer.value;
@@ -166,7 +166,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
                 ]),
               );
             },
-          ),
+          )),
 
           const SizedBox(height: 16),
 
@@ -422,7 +422,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
       );
 
   Widget _estLoadingSkeleton() {
-    return AnimatedBuilder(
+    return RepaintBoundary(child: AnimatedBuilder(
       animation: shimmer,
       builder: (_, __) {
         final skC = Color.lerp(
@@ -475,7 +475,7 @@ extension HomeStatisticsScreen<T extends StatefulWidget> on HomeController<T> {
           ))),
         );
       },
-    );
+    ));
   }
 
   Widget _estFiltroInput((String, String, bool) col) {

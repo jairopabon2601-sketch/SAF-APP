@@ -233,7 +233,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             ),
           ),
           // Total saldo card
-          AnimatedBuilder(
+          RepaintBoundary(child: AnimatedBuilder(
             animation: shimmer,
             builder: (_, __) {
               final glow = shimmer.value;
@@ -382,7 +382,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 ]),
               );
             },
-          ),
+          )),
           // Lista de cuentas
           if (activeAccounts.isEmpty)
             Padding(
@@ -414,7 +414,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               offset: Offset(0, 28 * (1 - t)),
               child: Opacity(opacity: t.clamp(0.0, 1.0), child: child),
             ),
-            child: AnimatedBuilder(
+            child: RepaintBoundary(child: AnimatedBuilder(
               animation: shimmer,
               builder: (_, heroChild) => Container(
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -516,7 +516,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                 // Barrido de luz diagonal animado
                 Positioned.fill(
                   child: IgnorePointer(
-                    child: AnimatedBuilder(
+                    child: RepaintBoundary(child: AnimatedBuilder(
                       animation: shimmer,
                       builder: (_, __) => Transform.translate(
                         offset: Offset((shimmer.value * 2 - 1) * 340, 0),
@@ -534,7 +534,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                           ),
                         ),
                       ),
-                    ),
+                    )),
                   ),
                 ),
                 Padding(
@@ -890,7 +890,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                   ),
                 ),
               ]),
-            ),
+            )),
           ),
           // ── Botones de acción (Movimientos tab) ──────────
           Padding(
@@ -1416,7 +1416,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
         : const [Color(0xFFB91C1C), Color(0xFFEF4444)];
     final content = Padding(
       padding: const EdgeInsets.fromLTRB(2, 12, 2, 8),
-      child: AnimatedBuilder(
+      child: RepaintBoundary(child: AnimatedBuilder(
         animation: shimmer,
         builder: (_, __) => Container(
           decoration: BoxDecoration(
@@ -1534,7 +1534,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
             ]),
           ),
         ),
-      ),
+      )),
     );
 
     // Misma base de demora que _AnimatedMovementCard ((index*65).clamp(0,380)
@@ -5554,7 +5554,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
               // Barrido de luz animado
               Positioned.fill(
                 child: IgnorePointer(
-                  child: AnimatedBuilder(
+                  child: RepaintBoundary(child: AnimatedBuilder(
                     animation: shimmer,
                     builder: (_, __) => Transform.translate(
                       offset: Offset((shimmer.value * 2 - 1) * 240, 0),
@@ -5573,7 +5573,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
                         ),
                       ),
                     ),
-                  ),
+                  )),
                 ),
               ),
               Padding(

@@ -142,7 +142,7 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
     }
   }
 
-  Widget skelBox(double w, double h, {double r = 10}) => AnimatedBuilder(
+  Widget skelBox(double w, double h, {double r = 10}) => RepaintBoundary(child: AnimatedBuilder(
         animation: shimmer,
         builder: (_, __) {
           final c = isDarkTheme
@@ -159,5 +159,5 @@ abstract class HomeController<T extends StatefulWidget> extends State<T>
             ),
           );
         },
-      );
+      ));
 }
