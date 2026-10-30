@@ -35,3 +35,5 @@ firebase-debug.log
 
 # Respaldos locales de lo que había en el servidor antes de cada subida
 /_respaldo_servidor_*/
+# Archivos de /conexion del servidor (claves): nunca al repo
+/_servidor_conexion/

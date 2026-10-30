@@ -79,9 +79,20 @@ class SafApp extends StatefulWidget {
 }
 
 class _SafAppState extends State<SafApp> with WidgetsBindingObserver {
+  bool _cerrandoSesion = false;
+
   @override
   void initState() {
     super.initState();
+    // Token vencido o inválido (el servidor responde 401): cerrar sesión una
+    // sola vez y volver al login, en vez de dejar las pantallas sin datos.
+    ApiService.onSessionExpired = () async {
+      if (_cerrandoSesion) return;
+      _cerrandoSesion = true;
+      await ApiService().logout();
+      navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (_) => false);
+      _cerrandoSesion = false;
+    };
     WidgetsBinding.instance.addObserver(this);
   }
 

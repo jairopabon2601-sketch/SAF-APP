@@ -268,6 +268,14 @@ class ApiService {
   // límite, toda petición falla rápido y el fallback/caché entra a jugar.
   static const Duration _requestTimeout = Duration(seconds: 15);
 
+  /// Se llama cuando el servidor responde 401 (token vencido o inválido):
+  /// main.dart cierra la sesión y lleva al login.
+  static void Function()? onSessionExpired;
+
+  void _check401(http.Response r) {
+    if (r.statusCode == 401 && _token != null) onSessionExpired?.call();
+  }
+
   Future<http.Response> post(String endpoint, Map<String, dynamic> body) async {
     final uri = Uri.parse('$_baseUrl$endpoint');
     final headers = <String, String>{
@@ -276,13 +284,15 @@ class ApiService {
     };
     if (_token != null) headers['Authorization'] = 'Bearer $_token';
     if (_sessionCookie != null) headers['Cookie'] = _sessionCookie!;
-    return http
+    final r = await http
         .post(
           uri,
           headers: headers,
           body: body.map((k, v) => MapEntry(k, v.toString())),
         )
         .timeout(_requestTimeout);
+    _check401(r);
+    return r;
   }
 
   Future<http.Response> get(String endpoint) async {
@@ -290,7 +300,9 @@ class ApiService {
     final headers = <String, String>{'Accept': 'application/json'};
     if (_token != null) headers['Authorization'] = 'Bearer $_token';
     if (_sessionCookie != null) headers['Cookie'] = _sessionCookie!;
-    return http.get(uri, headers: headers).timeout(_requestTimeout);
+    final r = await http.get(uri, headers: headers).timeout(_requestTimeout);
+    _check401(r);
+    return r;
   }
 
   Map<String, dynamic> _parseResponse(http.Response response) {
