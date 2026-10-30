@@ -86,6 +86,30 @@ class ApiService {
         'usuario': email,
         'pass': password,
       });
+      return await _procesarLogin(response, email);
+    } catch (e, st) {
+      debugPrint('ApiService.login error: $e\n$st');
+      rethrow;
+    }
+  }
+
+  /// Login del equipo con "Continuar con Google": entra el usuario cuyo
+  /// correo en Gestión de usuarios sea exactamente su Gmail (login_google.php
+  /// valida el token de Google y devuelve lo mismo que login.php).
+  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
+    try {
+      final response =
+          await post('/ajax/login_google.php', {'id_token': idToken});
+      return await _procesarLogin(response, null);
+    } catch (e, st) {
+      debugPrint('ApiService.loginWithGoogle error: $e\n$st');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> _procesarLogin(
+      http.Response response, String? email) async {
+    {
       // Captura el PHPSESSID para endpoints que usan session_start()
       final setCookie = response.headers['set-cookie'] ?? '';
       final m = RegExp(r'PHPSESSID=[^;,\s]+').firstMatch(setCookie);
@@ -120,8 +144,11 @@ class ApiService {
           _user = topLevel.isNotEmpty ? topLevel : null;
         }
         await _saveSession();
-        final prefs = await _getPrefs();
-        await prefs.setString(_lastEmailKey, email);
+        final correo = email ?? (_user?['usuario'] ?? '').toString();
+        if (correo.isNotEmpty) {
+          final prefs = await _getPrefs();
+          await prefs.setString(_lastEmailKey, correo);
+        }
       }
 
       final msg = data['mensaje']?.toString() ??
@@ -137,9 +164,6 @@ class ApiService {
         'user': _user,
         'message': msg
       };
-    } catch (e, st) {
-      debugPrint('ApiService.login error: $e\n$st');
-      rethrow;
     }
   }
 

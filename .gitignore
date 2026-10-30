@@ -32,3 +32,6 @@ firebase-debug.log
 # del repo Flutter; se descargan/suben por FTP directamente al hosting)
 /*.php
 /.htaccess
+
+# Respaldos locales de lo que había en el servidor antes de cada subida
+/_respaldo_servidor_*/

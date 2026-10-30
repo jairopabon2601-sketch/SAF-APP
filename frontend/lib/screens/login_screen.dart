@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/biometric_service.dart';
+import '../services/portal_service.dart';
 import '../services/push_notifications_service.dart';
 import '../utils/responsive.dart';
 import 'forgot_password_screen.dart';
@@ -414,19 +415,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (r['success'] == true) {
         if (!skipBiometricPrompt) await _maybeOfferEnableBiometrics();
         if (!mounted) return;
-        // Aplica el tema del usuario que acaba de iniciar sesión ANTES de
-        // navegar a Home — si no, se ve por un instante el tema del usuario
-        // anterior (guardado localmente) hasta que loadData() termine de
-        // sincronizar en segundo plano. Con timeout corto (4s) para no
-        // demorar el login si el servidor está lento.
-        final codigoUsuario = (_api.user?['codigo_usuario'] ?? '').toString();
-        final dark = await _api.fetchThemePreference(codigoUsuario);
-        if (dark != null && dark != appThemeDark.value) {
-          await setThemeDark(dark);
-        }
-        if (!mounted) return;
-        unawaited(PushNotificationsService().init());
-        Navigator.of(context).pushReplacementNamed('/home');
+        await _finalizarLogin();
       } else {
         setState(() =>
             _error = r['message'] as String? ?? 'Credenciales incorrectas');
@@ -437,6 +426,58 @@ class _LoginScreenState extends State<LoginScreen>
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// "Continuar con Google" del equipo: entra el usuario cuyo correo en
+  /// Gestión de usuarios sea exactamente su Gmail. Si nadie tiene ese
+  /// correo, el servidor lo rechaza y se sigue entrando con contraseña.
+  Future<void> _loginGoogle() async {
+    if (_loading) return;
+    setState(() => _error = null);
+    String? idToken;
+    try {
+      idToken = await PortalService().obtenerIdTokenGoogle();
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'No se pudo abrir Google. Intenta de nuevo.');
+      }
+      return;
+    }
+    if (idToken == null || !mounted) return;
+    setState(() => _loading = true);
+    try {
+      final r = await _api.loginWithGoogle(idToken);
+      if (!mounted) return;
+      if (r['success'] == true) {
+        final correo = (_api.user?['usuario'] ?? '').toString();
+        if (correo.isNotEmpty) _emailCtrl.text = correo;
+        await _finalizarLogin();
+      } else {
+        setState(() => _error = r['message'] as String? ??
+            'Esta cuenta de Google no tiene acceso a SAF.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = 'Error de conexión. Verifica tu red.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _finalizarLogin() async {
+    // Aplica el tema del usuario que acaba de iniciar sesión ANTES de
+    // navegar a Home — si no, se ve por un instante el tema del usuario
+    // anterior (guardado localmente) hasta que loadData() termine de
+    // sincronizar en segundo plano. Con timeout corto (4s) para no
+    // demorar el login si el servidor está lento.
+    final codigoUsuario = (_api.user?['codigo_usuario'] ?? '').toString();
+    final dark = await _api.fetchThemePreference(codigoUsuario);
+    if (dark != null && dark != appThemeDark.value) {
+      await setThemeDark(dark);
+    }
+    if (!mounted) return;
+    unawaited(PushNotificationsService().init());
+    Navigator.of(context).pushReplacementNamed('/home');
   }
 
   @override
@@ -1128,8 +1169,62 @@ class _LoginScreenState extends State<LoginScreen>
                                           ],
                                         ),
 
+                                      // Continuar con Google (equipo SAF)
+                                      if (_step == 0 &&
+                                          PortalService.googleHabilitado) ...[
+                                        const SizedBox(height: 16),
+                                        Material(
+                                          color: Colors.white,
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                            onTap:
+                                                _loading ? null : _loginGoogle,
+                                            child: SizedBox(
+                                              height: 50,
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  if (_loading)
+                                                    const SizedBox(
+                                                      width: 18,
+                                                      height: 18,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                              strokeWidth: 2.2,
+                                                              color: Color(
+                                                                  0xFF5B54F5)),
+                                                    )
+                                                  else
+                                                    const Text('G',
+                                                        style: TextStyle(
+                                                            color: Color(
+                                                                0xFF4285F4),
+                                                            fontSize: 20,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .w900)),
+                                                  const SizedBox(width: 10),
+                                                  const Text(
+                                                      'Continuar con Google',
+                                                      style: TextStyle(
+                                                          color:
+                                                              Color(0xFF1F2937),
+                                                          fontSize: 15,
+                                                          fontWeight:
+                                                              FontWeight.w700)),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+
                                       // Portal de clientes (deudores)
-                                      if (_step == 1) ...[
+                                      if (_step == 0) ...[
                                         const SizedBox(height: 16),
                                         Material(
                                           color: Colors.transparent,
