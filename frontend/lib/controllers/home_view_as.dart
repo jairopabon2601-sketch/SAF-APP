@@ -16,6 +16,8 @@ extension HomeViewAs<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> switchViewAs(Map<String, dynamic>? usuario) async {
     if (usuario != null && !repository.ownIsAdmin) return;
+    // Se toma antes de cualquier await (no usar el context después).
+    final messenger = ScaffoldMessenger.of(screenContext);
     Map<String, dynamic>? target;
     List<int>? targetMenu;
     if (usuario != null) {
@@ -44,7 +46,7 @@ extension HomeViewAs<T extends StatefulWidget> on HomeController<T> {
         ];
       } catch (e) {
         if (isMounted) {
-          ScaffoldMessenger.of(screenContext).showSnackBar(SnackBar(
+          messenger.showSnackBar(SnackBar(
               content: Text(
                   'No se pudo ver como este usuario: ${e.toString().replaceFirst('Exception: ', '')}')));
         }
