@@ -63,11 +63,12 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
         photoCacheKey: photoCacheKey,
         email: email,
         avatarFallback: buildAvatarFallback(fullName.split(' ').first),
-        showGestionUsuarios: isAdmin,
+        // Menú de la sesión real: no cambia con "Ver como…".
+        showGestionUsuarios: repository.ownIsAdmin,
         onUploadPhoto: onUploadPhoto,
         // Solo personal interno (admin/asesores) tiene ficha en
         // tbl_asesores — mismo universo que gestiona gestion_usuarios.php.
-        canEditName: isAdmin || isAsesor || isCreditsProfile,
+        canEditName: const ['6', '1', '5'].contains(repository.ownProfileCode),
         onEditName: (nombres, apellidos) async {
           final r =
               await repository.post('/ajax/actualizar_perfil_nombre.php', {
@@ -110,7 +111,7 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
           Navigator.of(screenContext).pop();
           showGestionPermisos();
         },
-        onVerComo: isAdmin
+        onVerComo: repository.ownIsAdmin
             ? () {
                 Navigator.of(screenContext).pop();
                 showViewAsPicker();

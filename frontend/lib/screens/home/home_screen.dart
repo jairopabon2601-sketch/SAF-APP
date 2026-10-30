@@ -74,7 +74,10 @@ class _HomeScreenState extends HomeController<HomeScreen>
         : hourColombia < 18
             ? 'Buenas tardes'
             : 'Buenas noches';
-    final firstName = fullName.split(' ').first;
+    final firstName =
+        (isViewingAs && viewAsName.isNotEmpty ? viewAsName : fullName)
+            .split(' ')
+            .first;
 
     return Scaffold(
       backgroundColor: appBg,

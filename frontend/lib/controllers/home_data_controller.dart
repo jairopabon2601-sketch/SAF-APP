@@ -7,9 +7,14 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     // pantalla de Gestión de permisos (solo editable por perfil 6). Inicio
     // (índice 0) siempre está visible; los demás dependen de
     // tbl_procesos_perfiles vía listar_modulos_habilitados.php.
+    // Con "Ver como…" se piden los módulos del usuario consultado. Si el
+    // usuario cambia mientras la petición está en vuelo, se descarta.
+    final pedidoPara = repository.dataUserCode;
     try {
       final r = await repository.post('/ajax/listar_modulos_habilitados.php',
-          {}).timeout(const Duration(seconds: 10));
+          repository.isViewingAs ? {'ver_como': pedidoPara} : {})
+          .timeout(const Duration(seconds: 10));
+      if (pedidoPara != repository.dataUserCode) return;
       if (r.statusCode == 200) {
         final d = decodeJsonMap(r.body);
         if (d['success'] == true && d['modulos'] is Map) {
@@ -40,13 +45,12 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> loadData() async {
     await repository.init();
-    final u = repository.user;
     final codigoUsuario = repository.dataUserCode;
     final anio = DateTime.now().year.toString();
 
-    // Determinar rol y origen del usuario
-    final codigoPerfil = u?['codigo_perfil']?.toString() ?? '';
-    final origenValue = u?['codigo_origen']?.toString() ?? '';
+    // Determinar rol y origen del usuario (el consultado, con "Ver como…")
+    final codigoPerfil = repository.effectiveProfileCode;
+    final origenValue = repository.effectiveOrigin;
     if (isMounted) {
       refresh(() {
         isAdmin = (codigoPerfil == '6');

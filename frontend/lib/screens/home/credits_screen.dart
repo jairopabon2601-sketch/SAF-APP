@@ -2902,8 +2902,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
                 ),
               );
               repository.invalidateCache('/ajax/listado_json_campos.php');
-              final u = repository.user;
-              await fetchCredits(u?['codigo_usuario']?.toString() ?? '');
+              await fetchCredits(repository.dataUserCode);
               if (isMounted) refresh(() {});
             }
           } catch (e) {
@@ -3485,8 +3484,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               fetchDebtors(),
               fetchRates(),
               if (accounts.isEmpty)
-                fetchAccounts(
-                    repository.user?['codigo_usuario']?.toString() ?? ''),
+                fetchAccounts(repository.dataUserCode),
             ]);
             if (ctx.mounted) setS(() => loadingDeudores = false);
           });
@@ -3554,8 +3552,7 @@ extension HomeCreditsScreen<T extends StatefulWidget> on HomeController<T> {
               );
               if (ok) {
                 repository.invalidateCache('/ajax/listado_json_campos.php');
-                final u = repository.user;
-                await fetchCredits(u?['codigo_usuario']?.toString() ?? '');
+                await fetchCredits(repository.dataUserCode);
                 // Pintar el saldo de cuentas de una vez — a diferencia de
                 // pago/abono/liquidación, aquí el crédito SALE de la cuenta
                 // fuente (solo el capital) y ENTRA a la cuenta de Préstamos

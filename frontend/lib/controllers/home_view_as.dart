@@ -2,11 +2,12 @@ import '../screens/home/home_dependencies.dart';
 import 'home_actions.dart';
 import 'home_data_controller.dart';
 
-/// "Ver como…": el administrador consulta las cuentas y movimientos de otro
-/// usuario activo sin cerrar sesión. Solo cambia el `usuario` que la app
-/// envía a los endpoints de cuentas/movimientos (ver
-/// HomeRepository.dataUserCode); sesión, permisos y menú siguen siendo los
-/// del administrador.
+/// "Ver como…": el superadmin (perfil 6, y solo él) ve la app exactamente
+/// como la ve otro usuario activo, sin cerrar sesión: su menú (módulos de su
+/// perfil), su nombre en el saludo y sus datos (cuentas, movimientos, y
+/// ahorros/créditos filtrados por su asesor). La sesión sigue siendo la del
+/// superadmin, así que su menú de perfil (Gestión de usuarios, permisos,
+/// "Ver como", cerrar sesión) no cambia.
 extension HomeViewAs<T extends StatefulWidget> on HomeController<T> {
   bool get isViewingAs => repository.isViewingAs;
 
@@ -14,11 +15,74 @@ extension HomeViewAs<T extends StatefulWidget> on HomeController<T> {
       (repository.viewAsUser?['nombre'] ?? '').toString();
 
   Future<void> switchViewAs(Map<String, dynamic>? usuario) async {
-    repository.viewAsUser = usuario;
-    // Nada de lo cacheado del usuario anterior sirve: saldos, movimientos y
-    // totales se piden de nuevo para el usuario elegido.
+    if (usuario != null && !repository.ownIsAdmin) return;
+    Map<String, dynamic>? target;
+    List<int>? targetMenu;
+    if (usuario != null) {
+      // Perfil, asesor y módulos reales del usuario elegido, desde el
+      // servidor (que solo responde esto al superadmin).
+      try {
+        final r = await repository.post('/ajax/listar_modulos_habilitados.php',
+            {'ver_como': (usuario['codigo_usuario'] ?? '').toString()}).timeout(
+            const Duration(seconds: 12));
+        final d = decodeJsonMap(r.body);
+        if (r.statusCode != 200 ||
+            d['success'] != true ||
+            d['usuario'] is! Map ||
+            d['modulos'] is! Map) {
+          throw Exception((d['mensaje'] ?? 'No se pudo cargar el usuario.')
+              .toString());
+        }
+        final info = Map<String, dynamic>.from(d['usuario'] as Map);
+        target = {...usuario, ...info};
+        final modulos = d['modulos'] as Map;
+        targetMenu = [
+          0,
+          if (modulos['creditos'] == true) 1,
+          if (modulos['ahorros'] == true) 2,
+          if (modulos['movimientos'] == true) 3,
+        ];
+      } catch (e) {
+        if (isMounted) {
+          ScaffoldMessenger.of(screenContext).showSnackBar(SnackBar(
+              content: Text(
+                  'No se pudo ver como este usuario: ${e.toString().replaceFirst('Exception: ', '')}')));
+        }
+        return;
+      }
+    }
+    repository.viewAsUser = target;
+    // Nada de lo cacheado del usuario anterior sirve: saldos, movimientos,
+    // ahorros, créditos y totales se piden de nuevo para el usuario elegido.
     repository.invalidateCache();
     refresh(() {
+      selectedIndex = 0;
+      allowedScreenIndices = targetMenu ?? [0];
+      menuOptionsLoaded = targetMenu != null;
+      savers = [];
+      credits = [];
+      creditStatistics = [];
+      pendingRequests = [];
+      pendingLoaded = false;
+      pendingPage = 1;
+      pendingTotal = 0;
+      creditsPage = 1;
+      creditsTotal = 0;
+      creditsPaidTotal = 0;
+      creditsPendingTotal = 0;
+      creditsVenceHoyCount = 0;
+      creditsDataLoaded = false;
+      creditStatusFilter = '';
+      creditVenceHoyFilter = false;
+      creditAdvisorFilter = '';
+      creditsBuscar = '';
+      creditsBuscarCtrl.clear();
+      savingsAdvisorFilter = '0';
+      savingsCurrentPage = 1;
+      cachedFilteredSavers = null;
+      cachedSavingsAdvisorFilter = null;
+      expandedCredits.clear();
+      expandedPending.clear();
       accounts = [];
       movements = [];
       selectedAccountMovements = [];

@@ -21,16 +21,33 @@ class HomeRepository {
 
   String get ownUserCode => (user?['codigo_usuario'] ?? '').toString();
 
-  /// true cuando un administrador está consultando a otro usuario.
+  /// Perfil de la sesión real (nunca el del usuario consultado).
+  String get ownProfileCode => (user?['codigo_perfil'] ?? '').toString();
+
+  /// Solo el superadmin (perfil 6) puede usar "Ver como…".
+  bool get ownIsAdmin => ownProfileCode == '6';
+
+  /// true cuando el superadmin está consultando a otro usuario.
   bool get isViewingAs {
     final v = api.viewAsUser;
     if (v == null) return false;
-    if ((user?['codigo_perfil'] ?? '').toString() != '6') return false;
+    if (!ownIsAdmin) return false;
     final code = (v['codigo_usuario'] ?? '').toString();
     return code.isNotEmpty && code != ownUserCode;
   }
 
   /// Usuario cuyas cuentas/movimientos se piden al servidor.
+  /// Perfil con el que se arma la pantalla: el del usuario consultado
+  /// mientras se usa "Ver como…", si no el propio.
+  String get effectiveProfileCode => isViewingAs
+      ? (api.viewAsUser!['codigo_perfil'] ?? '').toString()
+      : ownProfileCode;
+
+  /// codigo_origen (asesor) con el que se filtran ahorros y créditos.
+  String get effectiveOrigin => isViewingAs
+      ? (api.viewAsUser!['codigo_origen'] ?? '').toString()
+      : (user?['codigo_origen'] ?? '').toString();
+
   String get dataUserCode => isViewingAs
       ? (api.viewAsUser!['codigo_usuario'] ?? '').toString()
       : ownUserCode;
