@@ -1945,7 +1945,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   ];
 
   Future<void> _showAjustarSaldoDialog(Map<String, dynamic> cuenta) async {
-    final codigoUsuario = (repository.user?['codigo_usuario'] ?? '').toString();
+    final codigoUsuario = repository.dataUserCode;
     final formKey = GlobalKey<FormState>();
     final nuevoSaldoCtrl = TextEditingController();
     final nombreCuenta = (cuenta['nombre'] ?? '').toString();
@@ -2521,7 +2521,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   }
 
   Future<void> _showTransferirDialog() async {
-    final codigoUsuario = (repository.user?['codigo_usuario'] ?? '').toString();
+    final codigoUsuario = repository.dataUserCode;
     final formKey = GlobalKey<FormState>();
     final valorCtrl = TextEditingController();
     final descCtrl = TextEditingController();
@@ -3046,7 +3046,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
 
   Future<void> _showRegistrarMovimientoDialog(
       {Map<String, dynamic>? cuentaInicial}) async {
-    final codigoUsuario = (repository.user?['codigo_usuario'] ?? '').toString();
+    final codigoUsuario = repository.dataUserCode;
     final formKey = GlobalKey<FormState>();
     final valorCtrl = TextEditingController();
     final descCtrl = TextEditingController();
@@ -3642,7 +3642,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   }
 
   Future<void> _showNuevaCuentaDialog() async {
-    final codigoUsuario = (repository.user?['codigo_usuario'] ?? '').toString();
+    final codigoUsuario = repository.dataUserCode;
     final formKey = GlobalKey<FormState>();
     final nombreCtrl = TextEditingController();
     String selectedHex = '#3B3B8A';
@@ -4126,7 +4126,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
   }
 
   Future<void> _showEditarCuentaDialog(Map<String, dynamic> c) async {
-    final codigoUsuario = (repository.user?['codigo_usuario'] ?? '').toString();
+    final codigoUsuario = repository.dataUserCode;
     final codigo = (c['codigo_cuenta'] ?? c['codigo'] ?? '').toString();
     final nombreCtrl =
         TextEditingController(text: (c['nombre'] ?? '').toString());
@@ -6123,7 +6123,7 @@ extension HomeMovementsScreen<T extends StatefulWidget> on HomeController<T> {
           unawaited(repository.saveLocalData('movimientos', movements));
           unawaited(repository.saveLocalData('cuentas', accounts));
           showResult(true, 'Movimiento eliminado correctamente');
-          final usuario = (repository.user?['codigo_usuario'] ?? '').toString();
+          final usuario = repository.dataUserCode;
           if (usuario.isNotEmpty) {
             // Además de cuentas, reconcilia lista y totales. Este helper
             // fuerza un refresh al finalizar; fetchAccounts() por sí solo

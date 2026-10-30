@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/home_actions.dart';
 import '../../controllers/home_controller.dart';
 import '../../controllers/home_data_controller.dart';
+import '../../controllers/home_view_as.dart';
 import '../../widgets/home/home_app_bar.dart';
 import '../../widgets/home/home_bottom_navigation.dart';
 import 'credits_screen.dart';
@@ -94,6 +95,8 @@ class _HomeScreenState extends HomeController<HomeScreen>
         child: CustomScrollView(
           slivers: [
             buildHomeAppBar(),
+            // Barra "Viendo como…" (solo cuando el admin consulta a otro).
+            SliverToBoxAdapter(child: buildViewAsBanner()),
             SliverToBoxAdapter(
               child: _buildTabContent(greeting, firstName),
             ),

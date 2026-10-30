@@ -11,7 +11,10 @@ import 'screens/login_screen.dart';
 import 'screens/home/home_constants.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/portal/portal_home_screen.dart';
+import 'screens/portal/portal_login_screen.dart';
 import 'services/api_service.dart';
+import 'services/portal_service.dart';
 import 'services/push_notifications_service.dart';
 import 'widgets/home/app_dialogs.dart';
 
@@ -31,6 +34,7 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundMessageHandler);
   await ApiService().init();
+  await PortalService().init();
   await loadThemePreference();
   // Precarga la foto de perfil en memoria antes de runApp(): leer el disco
   // (SharedPreferences) sigue siendo async, así que sin esto el primer
@@ -56,6 +60,9 @@ void main() async {
     // Sesión ya activa (no pasó por el login screen en este arranque):
     // registra/refresca el token push igual.
     unawaited(PushNotificationsService().init());
+  } else if (PortalService().isLoggedIn) {
+    // Cliente (deudor) con sesión del portal: directo a su crédito.
+    initialRoute = '/portal/home';
   } else {
     initialRoute = '/login';
   }
@@ -214,6 +221,8 @@ class _SafAppState extends State<SafApp> with WidgetsBindingObserver {
           '/onboarding': (_) => const OnboardingScreen(),
           '/login': (_) => const LoginScreen(),
           '/home': (_) => const HomeScreen(),
+          '/portal': (_) => const PortalLoginScreen(),
+          '/portal/home': (_) => const PortalHomeScreen(),
         },
       ),
     );

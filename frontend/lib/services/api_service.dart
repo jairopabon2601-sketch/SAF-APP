@@ -39,6 +39,11 @@ class ApiService {
 
   String? get token => _token;
   Map<String, dynamic>? get user => _user;
+
+  /// "Ver como…" (solo administrador): usuario cuyas cuentas y movimientos
+  /// se están consultando. Solo en memoria — al reiniciar la app o cerrar
+  /// sesión vuelve a ser el propio usuario.
+  Map<String, dynamic>? viewAsUser;
   String get baseUrl => _baseUrl;
 
   Future<SharedPreferences> _getPrefs() async =>
@@ -165,6 +170,7 @@ class ApiService {
   Future<void> logout() async {
     _token = null;
     _user = null;
+    viewAsUser = null;
     _sessionCookie = null;
     _memCache.clear();
     final prefs = await _getPrefs();

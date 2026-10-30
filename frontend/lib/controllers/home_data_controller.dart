@@ -41,7 +41,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   Future<void> loadData() async {
     await repository.init();
     final u = repository.user;
-    final codigoUsuario = u?['codigo_usuario']?.toString() ?? '';
+    final codigoUsuario = repository.dataUserCode;
     final anio = DateTime.now().year.toString();
 
     // Determinar rol y origen del usuario
@@ -407,7 +407,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   /// verdad cambió: el saldo de las cuentas, la lista de movimientos y los
   /// totales de ingresos/gastos.
   Future<void> refreshAfterMovementChange() async {
-    final codigoUsuario = (repository.user?['codigo_usuario'] ?? '').toString();
+    final codigoUsuario = repository.dataUserCode;
     if (codigoUsuario.isEmpty) return;
     // fetchAccounts usa cachedPost — sin invalidar, un pago/movimiento
     // recién registrado en la BD seguía sirviendo el saldo cacheado de
@@ -587,7 +587,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
     );
     final accountCode =
         (account['codigo'] ?? account['codigo_cuenta'] ?? '').toString();
-    final userCode = (repository.user?['codigo_usuario'] ?? '').toString();
+    final userCode = repository.dataUserCode;
     if (accountCode.isEmpty || userCode.isEmpty) return;
 
     refresh(() {
@@ -631,7 +631,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   }
 
   Future<void> onDateFilterChanged() async {
-    final usuario = (repository.user?['codigo_usuario'] ?? '').toString();
+    final usuario = repository.dataUserCode;
     if (usuario.isEmpty) return;
     if (isMounted) refresh(() => movementsPage = 1);
     final desde = filterFrom;
@@ -646,7 +646,7 @@ extension HomeDataController<T extends StatefulWidget> on HomeController<T> {
   }
 
   Future<void> fetchFilteredTotals() async {
-    final usuario = (repository.user?['codigo_usuario'] ?? '').toString();
+    final usuario = repository.dataUserCode;
     if (usuario.isEmpty) return;
     String pad2(int n) => n.toString().padLeft(2, '0');
     String fmt(DateTime d) => '${d.year}-${pad2(d.month)}-${pad2(d.day)}';

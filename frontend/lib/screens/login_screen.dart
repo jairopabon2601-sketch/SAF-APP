@@ -1128,6 +1128,83 @@ class _LoginScreenState extends State<LoginScreen>
                                           ],
                                         ),
 
+                                      // Portal de clientes (deudores)
+                                      if (_step == 1) ...[
+                                        const SizedBox(height: 16),
+                                        Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                            onTap: () => Navigator.of(context)
+                                                .pushNamed('/portal'),
+                                            child: Ink(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 14,
+                                                      vertical: 12),
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(14),
+                                                gradient: LinearGradient(
+                                                  colors: [
+                                                    const Color(0xFF0E3A8A)
+                                                        .withValues(
+                                                            alpha: 0.45),
+                                                    const Color(0xFF0891B2)
+                                                        .withValues(
+                                                            alpha: 0.30),
+                                                  ],
+                                                ),
+                                                border: Border.all(
+                                                    color: const Color(
+                                                            0xFF22D3EE)
+                                                        .withValues(
+                                                            alpha: 0.35)),
+                                              ),
+                                              child: const Row(children: [
+                                                Icon(
+                                                    Icons
+                                                        .account_balance_wallet_outlined,
+                                                    color: Color(0xFF67E8F9),
+                                                    size: 22),
+                                                SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
+                                                    children: [
+                                                      Text(
+                                                          '¿Tienes un crédito con SAF?',
+                                                          style: TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 13.5,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w700)),
+                                                      SizedBox(height: 2),
+                                                      Text(
+                                                          'Consulta tu estado, cuotas y próximo pago',
+                                                          style: TextStyle(
+                                                              color: Color(
+                                                                  0xFFA5F3FC),
+                                                              fontSize: 11.5)),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Icon(
+                                                    Icons
+                                                        .arrow_forward_ios_rounded,
+                                                    color: Color(0xFF67E8F9),
+                                                    size: 14),
+                                              ]),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+
                                       const SizedBox(height: 22),
 
                                       Container(

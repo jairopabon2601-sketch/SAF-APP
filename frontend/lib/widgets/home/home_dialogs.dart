@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../controllers/home_actions.dart';
 import '../../controllers/home_permissions_dialog.dart';
+import '../../controllers/home_view_as.dart';
 import '../../screens/home/home_dependencies.dart';
 import 'cached_avatar.dart';
 import 'shimmer_header_overlay.dart';
@@ -109,6 +110,13 @@ extension HomeDialogs<T extends StatefulWidget> on HomeController<T> {
           Navigator.of(screenContext).pop();
           showGestionPermisos();
         },
+        onVerComo: isAdmin
+            ? () {
+                Navigator.of(screenContext).pop();
+                showViewAsPicker();
+              }
+            : null,
+        viewAsName: isViewingAs ? viewAsName : '',
         onLogoutConfirmed: () {
           Navigator.of(screenContext).pop();
           logout();
@@ -131,6 +139,8 @@ class _ProfileSheetContent extends StatefulWidget {
       String nombres, String apellidos)? onEditName;
   final VoidCallback onGestionUsuarios;
   final VoidCallback onGestionPermisos;
+  final VoidCallback? onVerComo;
+  final String viewAsName;
   final VoidCallback onLogoutConfirmed;
 
   const _ProfileSheetContent({
@@ -145,6 +155,8 @@ class _ProfileSheetContent extends StatefulWidget {
     this.onEditName,
     required this.onGestionUsuarios,
     required this.onGestionPermisos,
+    this.onVerComo,
+    this.viewAsName = '',
     required this.onLogoutConfirmed,
   });
 
@@ -941,6 +953,111 @@ class _ProfileSheetContentState extends State<_ProfileSheetContent>
                     ),
 
                   if (widget.showGestionUsuarios) const SizedBox(height: 14),
+
+                  // Ver como… (solo admin)
+                  if (widget.showGestionUsuarios && widget.onVerComo != null)
+                    SlideTransition(
+                      position: _card1Slide,
+                      child: FadeTransition(
+                        opacity: _card1Fade,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [
+                                Color(0xFF06173F),
+                                Color(0xFF0E3A8A),
+                                Color(0xFF0891B2),
+                                Color(0xFF22D3EE),
+                              ],
+                              stops: [0.0, 0.35, 0.75, 1.0],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF0891B2)
+                                    .withValues(alpha: 0.45),
+                                blurRadius: 18,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Stack(children: [
+                              const Positioned.fill(
+                                  child: ShimmerHeaderOverlay()),
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: widget.onVerComo,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 16),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 46,
+                                          height: 46,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white
+                                                .withValues(alpha: 0.16),
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.28)),
+                                          ),
+                                          child: const Icon(
+                                              Icons.manage_search_rounded,
+                                              color: Colors.white,
+                                              size: 24),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text('Ver como…',
+                                                  style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14,
+                                                      fontWeight:
+                                                          FontWeight.w700)),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                  widget.viewAsName.isNotEmpty
+                                                      ? 'Viendo: ${widget.viewAsName}'
+                                                      : 'Cuentas y movimientos de otro usuario',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                      color: Colors.white70,
+                                                      fontSize: 11)),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(
+                                            Icons.arrow_forward_ios_rounded,
+                                            color: Colors.white54,
+                                            size: 15),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  if (widget.showGestionUsuarios && widget.onVerComo != null)
+                    const SizedBox(height: 14),
 
                   // Gestión de permisos por perfil (solo super admin)
                   if (widget.showGestionUsuarios)
