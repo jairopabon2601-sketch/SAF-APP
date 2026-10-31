@@ -6,6 +6,7 @@ import '../../controllers/home_data_controller.dart';
 import '../../controllers/home_view_as.dart';
 import '../../widgets/home/home_app_bar.dart';
 import '../../widgets/home/home_bottom_navigation.dart';
+import '../../widgets/home/tab_entrance.dart';
 import 'credits_screen.dart';
 import 'dashboard_screen.dart';
 import 'home_constants.dart';
@@ -101,7 +102,13 @@ class _HomeScreenState extends HomeController<HomeScreen>
             // Barra "Viendo como…" (solo cuando el admin consulta a otro).
             SliverToBoxAdapter(child: buildViewAsBanner()),
             SliverToBoxAdapter(
-              child: _buildTabContent(greeting, firstName),
+              // Fundido corto al cambiar de pestaña (o de usuario en
+              // "Ver como…"); dentro de la misma pestaña no se re-anima.
+              child: TabEntrance(
+                key: ValueKey(
+                    'tab_${screenIndexAt(selectedIndex)}_${repository.dataUserCode}'),
+                child: _buildTabContent(greeting, firstName),
+              ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 90)),
           ],

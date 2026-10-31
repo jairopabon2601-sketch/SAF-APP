@@ -27,6 +27,7 @@ extension HomeBottomNavigation<T extends StatefulWidget> on HomeController<T> {
       colors: visibleColors,
       onTap: (i) {
         final screenIdx = screenIndexAt(i);
+        if (i != selectedIndex) HapticFeedback.selectionClick();
         refresh(() => selectedIndex = i);
         if (screenIdx == 4 && statisticsData.isEmpty && !statisticsLoading) {
           fetchStatistics();

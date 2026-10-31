@@ -9,6 +9,7 @@ import '../services/push_notifications_service.dart';
 import '../utils/responsive.dart';
 import 'forgot_password_screen.dart';
 import 'home/home_constants.dart';
+import '../widgets/google_sign_in_button.dart';
 
 // ── Particle ──────────────────────────────────────────────────────────────────
 class _Particle {
@@ -431,7 +432,20 @@ class _LoginScreenState extends State<LoginScreen>
   /// "Continuar con Google" del equipo: entra el usuario cuyo correo en
   /// Gestión de usuarios sea exactamente su Gmail. Si nadie tiene ese
   /// correo, el servidor lo rechaza y se sigue entrando con contraseña.
+  // Solo el botón de Google muestra su propio indicador de carga.
+  bool _googleBusy = false;
+
   Future<void> _loginGoogle() async {
+    if (_googleBusy) return;
+    setState(() => _googleBusy = true);
+    try {
+      await _loginGooglePaso();
+    } finally {
+      if (mounted) setState(() => _googleBusy = false);
+    }
+  }
+
+  Future<void> _loginGooglePaso() async {
     if (_loading) return;
     setState(() => _error = null);
     String? idToken;
@@ -1173,53 +1187,11 @@ class _LoginScreenState extends State<LoginScreen>
                                       if (_step == 0 &&
                                           PortalService.googleHabilitado) ...[
                                         const SizedBox(height: 16),
-                                        Material(
-                                          color: Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          child: InkWell(
-                                            borderRadius:
-                                                BorderRadius.circular(16),
-                                            onTap:
-                                                _loading ? null : _loginGoogle,
-                                            child: SizedBox(
-                                              height: 50,
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: [
-                                                  if (_loading)
-                                                    const SizedBox(
-                                                      width: 18,
-                                                      height: 18,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                              strokeWidth: 2.2,
-                                                              color: Color(
-                                                                  0xFF5B54F5)),
-                                                    )
-                                                  else
-                                                    const Text('G',
-                                                        style: TextStyle(
-                                                            color: Color(
-                                                                0xFF4285F4),
-                                                            fontSize: 20,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w900)),
-                                                  const SizedBox(width: 10),
-                                                  const Text(
-                                                      'Continuar con Google',
-                                                      style: TextStyle(
-                                                          color:
-                                                              Color(0xFF1F2937),
-                                                          fontSize: 15,
-                                                          fontWeight:
-                                                              FontWeight.w700)),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
+                                        GoogleSignInButton(
+                                          loading: _googleBusy,
+                                          onTap: _loading || _googleBusy
+                                              ? null
+                                              : _loginGoogle,
                                         ),
                                       ],
 

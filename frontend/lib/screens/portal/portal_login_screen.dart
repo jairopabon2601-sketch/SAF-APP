@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../services/portal_service.dart';
 import 'portal_home_screen.dart';
 import 'portal_widgets.dart';
+import '../../widgets/google_sign_in_button.dart';
 
 enum _Modo { login, registro, vincular }
 
@@ -131,7 +132,20 @@ class _PortalLoginScreenState extends State<PortalLoginScreen> {
     }
   }
 
+  // Solo el botón de Google muestra su propio indicador de carga.
+  bool _googleBusy = false;
+
   Future<void> _google() async {
+    if (_googleBusy) return;
+    setState(() => _googleBusy = true);
+    try {
+      await _googlePaso();
+    } finally {
+      if (mounted) setState(() => _googleBusy = false);
+    }
+  }
+
+  Future<void> _googlePaso() async {
     String? idToken;
     try {
       idToken = await _portal.obtenerIdTokenGoogle();
@@ -598,8 +612,12 @@ class _PortalLoginScreenState extends State<PortalLoginScreen> {
                                             .withValues(alpha: 0.10))),
                               ]),
                               const SizedBox(height: 18),
-                              _GoogleButton(
-                                  onTap: _loading || _ok ? null : _google),
+                              GoogleSignInButton(
+                                  height: 52,
+                                  loading: _googleBusy,
+                                  onTap: _loading || _ok || _googleBusy
+                                      ? null
+                                      : _google),
                             ],
                             const SizedBox(height: 18),
                             const Row(
@@ -632,38 +650,3 @@ class _PortalLoginScreenState extends State<PortalLoginScreen> {
   }
 }
 
-class _GoogleButton extends StatelessWidget {
-  const _GoogleButton({required this.onTap});
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: const SizedBox(
-          height: 52,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('G',
-                  style: TextStyle(
-                      color: Color(0xFF4285F4),
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900)),
-              SizedBox(width: 10),
-              Text('Continuar con Google',
-                  style: TextStyle(
-                      color: Color(0xFF1F2937),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
